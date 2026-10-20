@@ -26,7 +26,7 @@ async function main(): Promise<number> {
       try { await fetch(resource, { signal: AbortSignal.timeout(2000) }); break; } catch { await new Promise((ok) => setTimeout(ok, 1000)); }
     }
     const results = await probe(resource, double);
-    const doc = { tool: "x402-conformance-svm 0.1.0", run_at: new Date().toISOString(), resource, facilitator_double: double.url, results };
+    const doc = { tool: "x402-conformance-svm 1.0.0", run_at: new Date().toISOString(), resource, facilitator_double: double.url, results };
     const text = JSON.stringify(doc, null, 1);
     const out = arg("out");
     if (out) writeFileSync(out, text + "\n");

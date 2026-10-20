@@ -1,6 +1,17 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 (2026-10-20)
+- GitHub Action `x402 Conformance` (`action.yml`): live S1-S4, resource-server checks R0-R9 and the offline F1-F9
+  suite, with a job summary and a `result` output.
+- TypeScript runner (`ts/`) for resource servers on `@x402/core` and `@x402/svm`: a facilitator double with fault
+  modes and a probe of the paid route.
+- Devnet runner (`x402conf devnet`): F1-F6 over real `/verify` and `/settle` against a self-hosted reference
+  facilitator on Solana devnet, with fault-injected builds. Devnet evidence follows once the fee payer is funded.
+- Lean: `Pending.lean` models timeouts, `settlement_pending` reconciliation and concurrent settles.
+- The Proofline contract is signed by the owner key.
+- docs/MATRIX.md and docs/MANAGED.md.
+
+## Earlier, unreleased
 - Fixed the reference facilitator double: it marked a payment as seen before the payment was final, so retrying a
   settle that was still `settlement_pending` came back as `duplicate_settlement` instead of the final result. That
   contradicts V2 §9, where `settlement_pending` is non-terminal. A payment is now recorded only once its outcome is

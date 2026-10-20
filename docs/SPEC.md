@@ -31,6 +31,12 @@ certification of conformance to x402.
 | `step_idem` | Settling the same outcome again changes nothing (F3) | same |
 | `step_nodup`, `run_nodup` | No transaction is ever credited twice, over any sequence of outcomes (F3, F4) | same |
 | `consume_once`, `only_open_consumes` | A nonce is consumed at most once (F4) | `lean/X402Conformance/Nonce.lean` |
+| `pending_never_credits` | A `settlement_pending` answer never credits (F5, F7) | `lean/X402Conformance/Pending.lean` |
+| `timeout_never_credits`, `failure_never_credits` | A timeout, broken transport or terminal failure never credits (F6, F8, F9) | same |
+| `reconcile_credits_once` | Any run of pending answers and timeouts, then confirmation and retries, ends credited exactly once (F7, F9) | same |
+| `resolved_final`, `failed_never_pending`, `failed_never_credits` | A failure confirmed on chain is terminal and never credited (F8) | same |
+| `concurrent_nodup` | Any interleaving of concurrent settles over one shared credited set credits each transaction at most once (F3) | same |
+| `racy_not_nodup` | A check-then-insert on a stale read double-credits, so the rule must be atomic (F3) | same |
 
-All of these depend only on `propext` (`lean/Axioms.lean`, checked in CI). They are models of the rule the suite
+All of these use only standard axioms: `propext`, plus `Quot.sound` for `racy_not_nodup` (`lean/Axioms.lean`, checked in CI). They are models of the rule the suite
 checks. They are not proofs about any particular facilitator's code.

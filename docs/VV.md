@@ -5,7 +5,7 @@ such as a test id, a CI job, a Lean theorem with its axioms check, or a file has
 a receipt, which the `vv` CI job uploads. A task counts as done only when it is listed in `vv/claims.json` and all its mandatory
 criteria pass. A claimed task that fails, or any tracked file that no task owns, fails CI.
 
-Contract state: **unsigned, awaiting owner signature**. The owner signs on his own machine (`proofline contract sign`), and CI
+Contract state: **signed by the owner key** (`guard/owner.pub`). The owner signs on his own machine (`proofline contract sign`), and CI
 verifies `proofline.json.sig` against `guard/owner.pub`.
 
 | task | requirement | criterion | artefact | evidence |

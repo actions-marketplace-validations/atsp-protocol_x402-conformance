@@ -20,7 +20,7 @@ from .mock import Chain, Vectors
 from .types import CheckResult, Facilitator, Json, Severity
 
 MAX_BYTES = 1 << 20
-UA = "x402-conformance/0.1.0 (+https://github.com/atsp-protocol/x402-conformance)"
+UA = "x402-conformance/1.0.0 (+https://github.com/atsp-protocol/x402-conformance)"
 Opener = Callable[..., Any]
 
 
