@@ -2,4 +2,4 @@
 
 Experimental. Live mode is GET-only: it never signs, never pays and never POSTs to a third-party facilitator."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

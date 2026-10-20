@@ -111,8 +111,23 @@ class RpcChain:
         if self._rpc("getGenesisHash", []) != DEVNET_GENESIS:
             raise Refused(f"{url} is not Solana devnet")
 
-    def _rpc(self, method: str, params: list[Any]) -> Any:
-        out = _post(self.url, {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, 30)
+    def _rpc(self, method: str, params: list[Any], retries: int = 8) -> Any:
+        # Public devnet RPCs rate-limit; retry 429, 5xx and timeouts with exponential backoff.
+        for attempt in range(retries + 1):
+            try:
+                out = _post(self.url, {"jsonrpc": "2.0", "id": 1, "method": method, "params": params}, 30)
+            except urllib.error.HTTPError as e:
+                if e.code not in (429, 500, 502, 503, 504) or attempt == retries:
+                    raise
+            except (urllib.error.URLError, TimeoutError):
+                if attempt == retries:
+                    raise
+            else:
+                err = out.get("error") if isinstance(out, dict) else None
+                limited = isinstance(err, dict) and err.get("code") in (429, -32429)
+                if not limited or attempt == retries:
+                    break
+            time.sleep(min(0.5 * 2 ** attempt, 15.0))
         if "error" in out:
             raise RuntimeError(f"{method}: {out['error']}")
         return out["result"]
