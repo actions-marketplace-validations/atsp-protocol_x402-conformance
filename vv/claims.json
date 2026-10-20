@@ -1,1 +1,13 @@
-{"note": "Tasks I claim as done. vv.py fails CI if any listed task misses a mandatory criterion.", "done": []}
+{
+ "note": "Tasks I claim as done. vv.py fails CI if any listed task misses a mandatory criterion.",
+ "done": [
+  "XC-00",
+  "XC-01",
+  "XC-02",
+  "XC-03",
+  "XC-04",
+  "XC-05",
+  "XC-06",
+  "XC-07"
+ ]
+}
