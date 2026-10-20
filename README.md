@@ -4,6 +4,7 @@
 
 [![ci](https://github.com/atsp-protocol/x402-conformance/actions/workflows/ci.yml/badge.svg)](https://github.com/atsp-protocol/x402-conformance/actions/workflows/ci.yml)
 [![Tested with x402-conformance](https://img.shields.io/badge/tested%20with-x402--conformance-2ea44f)](https://github.com/atsp-protocol/x402-conformance)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-x402%20Conformance-blue?logo=github)](https://github.com/marketplace/actions/x402-conformance)
 
 **Experimental.** I built this as an open set of conformance and safety checks for [x402](https://github.com/coinbase/x402)
 V2 facilitators and resource servers, starting with Solana. It complements x402 and its facilitators and doesn't
@@ -12,7 +13,7 @@ replace them. It checks the properties a seller's money depends on, and it never
 
 ## 30-second quickstart
 
-**GitHub Action.** Add one step to any workflow:
+**GitHub Action** ([on the Marketplace](https://github.com/marketplace/actions/x402-conformance)). Add one step to any workflow:
 
 ```yaml
 - uses: atsp-protocol/x402-conformance@v1
@@ -60,7 +61,7 @@ x402conf offline                               # F1-F9 against the reference and
 - **F9** a 503, an HTML page or a truncated `/settle` answer is credited, or the payment can't be retried afterwards
 
 The resource-server checks (R0-R9, in `ts/`) put a facilitator double in front of your server and request your paid
-route under each of these faults. docs/SPEC.md quotes the spec text behind every check. Passing a check is evidence
+route under each of these faults. [docs/SPEC.md](docs/SPEC.md) quotes the spec text behind every check. Passing a check is evidence
 about one property. It doesn't certify conformance to x402.
 
 ## Add the badge
@@ -73,8 +74,11 @@ If your project runs the suite in CI, add this to your README:
 
 ## Who uses it
 
-Nobody yet. This is a new project, and I won't list a user until they've told me so publicly. If you run it, open
-an issue and I'll add you here and to docs/ADOPTION.md.
+No public users yet: this is a new project, and I only list a user once they've said so publicly. If you run it,
+open an issue and I'll add you here and to [docs/ADOPTION.md](docs/ADOPTION.md).
+
+**Free run for your project.** Open an issue with your repo or facilitator URL and I'll run the suite against it,
+post the results, and send a tests-only pull request with the Action and badge. It's free, with no conditions.
 
 ## Results (2026-10-20, live, `GET /supported` only)
 | facilitator | HTTP | S1 | S2 | S3 | S4 | Solana kinds advertised |
@@ -84,7 +88,7 @@ an issue and I'll add you here and to docs/ADOPTION.md.
 | x402.org/facilitator | 200 | pass | pass | pass | pass | exact (devnet) |
 
 Raw bodies, `run.json` and `SHA256SUMS` are in [evidence/2026-10-20](evidence/2026-10-20). Devnet results for F1 to
-F6 go in the facilitator matrix (docs/MATRIX.md), and I run them against a third party only with the operator's
+F6 go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the operator's
 permission.
 
 ## What's inside
@@ -95,11 +99,11 @@ permission.
 - `lean/`: Lean 4 models of the credit rule, nonces, timeouts, `settlement_pending` reconciliation and concurrent
   settles. They use only standard axioms and contain no `sorry`. They model the rule the suite checks, not any
   facilitator's code.
-- `proofline.json`: the signed scope contract. `tools/vv.py` checks every acceptance criterion in CI (docs/VV.md).
+- `proofline.json`: the signed scope contract. `tools/vv.py` checks every acceptance criterion in CI ([docs/VV.md](docs/VV.md)).
 
 ## Free and open core
 Apache-2.0. Every check, the Action, the devnet runner and the Lean models are free, forever. Contributions and new
-check proposals are welcome (CONTRIBUTING.md).
+check proposals are welcome ([CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Managed services
 If you'd rather not run it yourself, or you need more than the open suite, I offer:
@@ -108,7 +112,7 @@ If you'd rather not run it yourself, or you need more than the open suite, I off
 - **Custom checks** for your scheme, chain or extensions
 - **Priority support** with an agreed response time
 
-The first three customers get design-partner pricing. Details are in docs/MANAGED.md. To get in touch, open a
+The first three customers get design-partner pricing. Details are in [docs/MANAGED.md](docs/MANAGED.md). To get in touch, open a
 [Managed services enquiry](https://github.com/atsp-protocol/x402-conformance/issues/new?template=managed-services.yml)
 or email data@optitransfer.ch.
 
@@ -118,7 +122,7 @@ checks are fixed-scope work quoted up front. I take payment in USDC on Solana or
 ## Safety
 The suite holds no keys of yours and never signs or pays. Live mode is GET-only, and that's tested. The devnet
 runner refuses mainnet and any third-party facilitator without written permission. To report a vulnerability, see
-SECURITY.md.
+[SECURITY.md](SECURITY.md).
 
 ## Licence
-Apache-2.0. See LICENSE and NOTICE (Ryan Gillespie / Optitransfer).
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE) (Ryan Gillespie / Optitransfer).
