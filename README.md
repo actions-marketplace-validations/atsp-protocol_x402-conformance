@@ -49,8 +49,8 @@ your own resource server, point the Action at your paid route and give it the co
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when any error-severity check fails |
 
-Outputs: `result` (`pass` or `fail`) and `results-dir`. `@v1` follows the latest 1.x release; pin `@v1.1.0` if you
-want a fixed version.
+Outputs: `result` (`pass` or `fail`) and `results-dir`. `@v1` is the major-version tag; pin an exact release such as
+`@v1.1.0` if you want a fixed version.
 
 **Example job summary** (abridged):
 
