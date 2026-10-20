@@ -1,0 +1,180 @@
+{
+ "asset": {
+  "decimals": 6,
+  "mint": "9Z6K3ri99RRsUzTzkPGT7yz2STTcSaC1rbSEufX4xTYD",
+  "note": "throwaway devnet test token"
+ },
+ "facilitator_impl": "@x402/core 2.28.0 x402Facilitator + @x402/svm 2.28.0 exact (src/x402conf/devnet/node)",
+ "mode": "devnet",
+ "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+ "pay_to": "r8jwQNU21ZdeMWBJdfN9R5er9RbHhB4hTR1p39Tq2U8",
+ "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+ "results": {
+  "fault:accept_dust": {
+   "caught": true,
+   "checks": [
+    {
+     "check": "F2 amount below PaymentRequirements.amount is rejected (SVM exact 1.1)",
+     "detail": {
+      "got": {
+       "isValid": true,
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim"
+      }
+     },
+     "pass": false,
+     "severity": "error"
+    }
+   ],
+   "fault": "accept_dust",
+   "self_hosted": true,
+   "target_check": "F2",
+   "url": "http://127.0.0.1:4032"
+  },
+  "fault:open_on_malformed": {
+   "caught": true,
+   "checks": [
+    {
+     "check": "F1 malformed payload: /verify returns isValid=false (fails closed)",
+     "detail": {
+      "got": {
+       "isValid": true
+      }
+     },
+     "pass": false,
+     "severity": "error"
+    }
+   ],
+   "fault": "open_on_malformed",
+   "self_hosted": true,
+   "target_check": "F1",
+   "url": "http://127.0.0.1:4031"
+  },
+  "fault:success_unsent": {
+   "caught": true,
+   "checks": [
+    {
+     "check": "F5 unconfirmed settlement is not success; settlement_pending carries a transaction (V2 9)",
+     "detail": {
+      "chain_status_at_answer": null,
+      "got": {
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "success": true,
+       "transaction": "daJgNUjL2JwBiUMSWnUeQyscQVhyQ5qnVgiWpE6ChboGagoH7nxa53Km3QhxW6C2hNsCeUvW53jRiJmPaaUCD5Z"
+      }
+     },
+     "pass": false,
+     "severity": "error"
+    }
+   ],
+   "fault": "success_unsent",
+   "self_hosted": true,
+   "target_check": "F5",
+   "url": "http://127.0.0.1:4033"
+  },
+  "reference": {
+   "checks": [
+    {
+     "check": "F1 malformed payload: /verify returns isValid=false (fails closed)",
+     "detail": {
+      "got": {
+       "invalidReason": "invalid_exact_svm_payload_transaction_could_not_be_decoded",
+       "isValid": false,
+       "payer": ""
+      }
+     },
+     "pass": true,
+     "severity": "error"
+    },
+    {
+     "check": "F2 amount below PaymentRequirements.amount is rejected (SVM exact 1.1)",
+     "detail": {
+      "got": {
+       "invalidReason": "invalid_exact_svm_payload_amount_mismatch",
+       "isValid": false,
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim"
+      }
+     },
+     "pass": true,
+     "severity": "error"
+    },
+    {
+     "check": "F3 the same payload settled twice succeeds at most once (duplicate_settlement)",
+     "detail": {
+      "first": {
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+       "success": true,
+       "transaction": "3Z6SFsFqg7ktDouaECTXrkXUww4oaqUJS4WnAU5d8LHf6jTfNK38CM35J2yAYGM55N99sXvFWgXrBnSiJhiAUyUi"
+      },
+      "recipient_delta": 10000,
+      "second": {
+       "errorReason": "duplicate_settlement",
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+       "success": false,
+       "transaction": ""
+      }
+     },
+     "pass": true,
+     "severity": "error"
+    },
+    {
+     "check": "F4 replay of a used memo/nonce in a new transaction is rejected",
+     "detail": {
+      "first": {
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+       "success": true,
+       "transaction": "2L3JxEsxerWsTgefipXGkgABhLA43WNhZY1cgwjnYhq6r5KW1cYqLt7dndo6y9zuw8qLvEVvZbs6ywRVUUAPMh9q"
+      },
+      "memo": "x402c-f4-1d6647485fb3fff0",
+      "recipient_delta": 20000,
+      "second": {
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+       "success": true,
+       "transaction": "2U31kByAS9V1kZg7dfwkVmdDJkS4wDreFVH1KjuxUHzBoNqzX51CiamhuUgEzmDDSoxA6LQa2eQwSGin3Hcg7y4v"
+      }
+     },
+     "pass": false,
+     "severity": "error"
+    },
+    {
+     "check": "F5 unconfirmed settlement is not success; settlement_pending carries a transaction (V2 9)",
+     "detail": {
+      "chain_status_at_answer": "finalized",
+      "got": {
+       "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+       "payer": "CqtTqEYPbRES7KvCjVK8wFcXaJwjeCxr7tsp9b9yZaim",
+       "success": true,
+       "transaction": "3GyFs63mQ7hBfT4Hurnpsut3ZVehNKgyUEX83WgLJoG3shnGaNcNGzyeH6DtvkFjgZZgcdbreD9o1vVVZz6PA7mG"
+      }
+     },
+     "pass": true,
+     "severity": "error"
+    },
+    {
+     "check": "F6 facilitator timeout or malformed response: resource server does not credit (fail closed)",
+     "detail": {
+      "garbage_credit": false,
+      "paid_on_chain_after_timeout": 10000,
+      "retry_credits": [
+       false,
+       false
+      ],
+      "timeout_credit": false
+     },
+     "pass": true,
+     "severity": "error"
+    }
+   ],
+   "fee_payer": "Ar2djisNSu6xAAJhE7VU3ZaxQfvuBB74SZZdKSsMFX9G",
+   "self_hosted": true,
+   "url": "http://127.0.0.1:4021"
+  }
+ },
+ "rpc_host": "solana-devnet.api.onfinality.io",
+ "run_at": "2026-10-20T17:20:41Z",
+ "setup_tx": "NoU2pENnoNSev2C5JoXNXjtLJSxZLYxiX76R9DJcj8FJxsKfGhgD4mzkd86UMJtC3J4yVJRFMCr8CLtQ1PiVWHX",
+ "tool": "x402-conformance 1.1.0"
+}

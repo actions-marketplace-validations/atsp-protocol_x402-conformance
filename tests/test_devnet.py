@@ -2,6 +2,7 @@
 and the owner-rule refusals. No network beyond loopback, no keys."""
 
 import base64
+import hashlib
 import json
 import os
 import threading
@@ -132,6 +133,20 @@ class Devnet(unittest.TestCase):
         fac = R.HttpFacilitator("http://127.0.0.1:9")
         with self.assertRaises(R.Refused):
             fac.verify({}, dict(REQ, network=S.SOLANA_MAINNET))
+
+
+    def test_committed_devnet_evidence(self):
+        with open(os.path.join(EVIDENCE, "SHA256SUMS")) as f:
+            sums = [line.split("  ") for line in f.read().splitlines() if line]
+        for digest, name in sums:
+            with open(os.path.join(EVIDENCE, name), "rb") as fb:
+                self.assertEqual(hashlib.sha256(fb.read()).hexdigest(), digest)
+        with open(os.path.join(EVIDENCE, "run.json")) as f:
+            run_doc = json.load(f)
+        self.assertEqual(run_doc["network"], S.SOLANA_DEVNET)
+        self.assertNotIn(S.SOLANA_MAINNET, json.dumps(run_doc))
+        self.assertTrue(run_doc["results"]["reference"]["self_hosted"])
+        self.assertEqual(len(run_doc["results"]["reference"]["checks"]), 6)
 
 
 if __name__ == "__main__":
