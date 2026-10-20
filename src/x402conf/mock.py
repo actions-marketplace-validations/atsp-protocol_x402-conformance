@@ -32,12 +32,35 @@ def _fail(reason: str, req: Json, tx: str = "") -> Json:
     return {"success": False, "errorReason": reason, "transaction": tx, "network": req["network"]}
 
 
-class Reference:
-    """Behaves as the spec asks: exact outcome checks, a duplicate-settlement cache, memo uniqueness, finality."""
+class Chain:
+    """A simulated ledger the offline checks can advance. By default a payload's own `finalized` flag decides its
+    status; set() overrides it per transaction, so the same /settle body can be retried as the chain moves on."""
+
+    PENDING, CONFIRMED, FAILED = "pending", "confirmed", "failed"
 
     def __init__(self) -> None:
-        self.seen_tx: set[str] = set()
-        self.seen_memo: set[str] = set()
+        self.overrides: dict[str, str] = {}
+
+    def set(self, tx: str, status: str) -> None:
+        self.overrides[tx] = status
+
+    def status(self, p: Json) -> str:
+        return self.overrides.get(p["tx"], self.CONFIRMED if p.get("finalized") else self.PENDING)
+
+
+class Reference:
+    """Behaves as the spec asks: exact outcome checks, a duplicate-settlement cache, memo uniqueness, finality.
+
+    A payment is recorded as settled only once its outcome is final. settlement_pending is non-terminal (V2 section 9),
+    so a retry of the same body while it is pending is settled again and returns the eventual outcome: the same
+    transaction on success, invalid_transaction_state once the chain reports a failure. A failure is terminal and stays
+    terminal. A retry after a final success is a true duplicate and gets duplicate_settlement."""
+
+    def __init__(self) -> None:
+        self.chain = Chain()
+        self.settled: set[str] = set()       # transactions whose success was final and reported
+        self.failed: set[str] = set()        # transactions the chain reported as failed
+        self.memo_tx: dict[str, str] = {}    # memo -> the transaction that holds it, in flight or settled
 
     def verify(self, p: Any, req: Json) -> Json:
         if not isinstance(p, dict) or not p.get("tx") or not p.get("memo"):
@@ -49,10 +72,13 @@ class Reference:
         return {"isValid": True}
 
     def _dup(self, p: Json) -> bool:
-        return p["tx"] in self.seen_tx or p["memo"] in self.seen_memo
+        return p["tx"] in self.settled or self.memo_tx.get(p["memo"], p["tx"]) != p["tx"]
 
-    def _settle_ok(self, p: Json) -> bool:
-        return bool(p.get("finalized"))
+    def _status(self, p: Json) -> str:
+        return self.chain.status(p)
+
+    def _on_pending(self, p: Json) -> None:
+        """Hook for the faulty doubles. The reference records nothing final while a payment is pending."""
 
     def settle(self, p: Any, req: Json) -> Json:
         v = self.verify(p, req)
@@ -60,23 +86,37 @@ class Reference:
             return _fail(v["invalidReason"], req)
         if self._dup(p):
             return _fail(S.DUPLICATE_SETTLEMENT, req)
-        self.seen_tx.add(p["tx"])
-        self.seen_memo.add(p["memo"])
-        if not self._settle_ok(p):
+        if p["tx"] in self.failed:
+            return _fail(S.INVALID_TRANSACTION_STATE, req, p["tx"])
+        self.memo_tx[p["memo"]] = p["tx"]
+        status = self._status(p)
+        if status == Chain.PENDING:
+            self._on_pending(p)
             return _fail(S.SETTLEMENT_PENDING, req, p["tx"])
+        if status == Chain.FAILED:
+            self.failed.add(p["tx"])
+            self.memo_tx.pop(p["memo"], None)   # a failed transaction consumed nothing on chain
+            return _fail(S.INVALID_TRANSACTION_STATE, req, p["tx"])
+        self.settled.add(p["tx"])
         return {"success": True, "transaction": p["tx"], "network": req["network"]}
 
 
 class Faulty(Reference):
     """Each flag reproduces one failure the suite must catch. no_dup_cache is a stateless facilitator with no
-    in-flight cache at all (the race described in the SVM spec's Duplicate Settlement Mitigation section)."""
+    in-flight cache at all (the race described in the SVM spec's Duplicate Settlement Mitigation section).
+    burn_on_pending marks a payment as seen before it is final, so a retry of a pending settlement is answered with
+    duplicate_settlement and never reaches its outcome. stuck_pending keeps answering settlement_pending after the
+    chain has reported the transaction as failed."""
 
     def __init__(self, *, open_on_malformed: bool = False, accept_dust: bool = False, no_dup_cache: bool = False,
-                 no_memo_check: bool = False, success_before_final: bool = False) -> None:
+                 no_memo_check: bool = False, success_before_final: bool = False, burn_on_pending: bool = False,
+                 stuck_pending: bool = False) -> None:
         super().__init__()
         self.open_on_malformed, self.accept_dust = open_on_malformed, accept_dust
         self.no_dup_cache, self.no_memo_check = no_dup_cache, no_memo_check
         self.success_before_final = success_before_final
+        self.burn_on_pending, self.stuck_pending = burn_on_pending, stuck_pending
+        self.burned: set[str] = set()
 
     def verify(self, p: Any, req: Json) -> Json:
         if self.open_on_malformed and (not isinstance(p, dict) or not p.get("tx")):
@@ -93,12 +133,23 @@ class Faulty(Reference):
     def _dup(self, p: Json) -> bool:
         if self.no_dup_cache:
             return False
+        if self.burn_on_pending and p["tx"] in self.burned:
+            return True
         if self.no_memo_check:
-            return p["tx"] in self.seen_tx
+            return p["tx"] in self.settled
         return super()._dup(p)
 
-    def _settle_ok(self, p: Json) -> bool:
-        return self.success_before_final or super()._settle_ok(p)
+    def _status(self, p: Json) -> str:
+        s = super()._status(p)
+        if self.success_before_final and s == Chain.PENDING:
+            return Chain.CONFIRMED
+        if self.stuck_pending and s == Chain.FAILED:
+            return Chain.PENDING
+        return s
+
+    def _on_pending(self, p: Json) -> None:
+        if self.burn_on_pending:
+            self.burned.add(p["tx"])
 
 
 FAULTS: dict[str, Callable[[], Reference]] = {
@@ -108,4 +159,6 @@ FAULTS: dict[str, Callable[[], Reference]] = {
     "no_dup_cache": lambda: Faulty(no_dup_cache=True),
     "no_memo_check": lambda: Faulty(no_memo_check=True),
     "success_before_final": lambda: Faulty(success_before_final=True),
+    "burn_on_pending": lambda: Faulty(burn_on_pending=True),
+    "stuck_pending": lambda: Faulty(stuck_pending=True),
 }

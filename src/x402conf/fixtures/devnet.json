@@ -10,6 +10,9 @@
   "same_memo_new_tx": {"tx": "tx-replay", "memo": "m-1", "amount": 10000, "finalized": true},
   "unfinalized":      {"tx": "tx-slow",   "memo": "m-3", "amount": 10000, "finalized": false},
   "fresh":            {"tx": "tx-f1",     "memo": "m-4", "amount": 10000, "finalized": true},
-  "fresh2":           {"tx": "tx-f2",     "memo": "m-5", "amount": 10000, "finalized": true}
+  "fresh2":           {"tx": "tx-f2",     "memo": "m-5", "amount": 10000, "finalized": true},
+  "pending_ok":       {"tx": "tx-p-ok",   "memo": "m-6", "amount": 10000, "finalized": false},
+  "pending_fail":     {"tx": "tx-p-fail", "memo": "m-7", "amount": 10000, "finalized": false},
+  "transport_retry":  {"tx": "tx-t-1",    "memo": "m-8", "amount": 10000, "finalized": false}
  }
 }

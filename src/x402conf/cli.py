@@ -1,7 +1,7 @@
 """Command line.
 
     x402conf live <facilitator-base-url> ... [--evidence DIR]   GET /supported only
-    x402conf offline                                           F1-F6 against the reference and faulty doubles"""
+    x402conf offline                                           F1-F9 against the reference and faulty doubles"""
 
 from __future__ import annotations
 
@@ -50,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         print(text)
         return 0
     res = {k: H.check_safety(f(), M.vectors()) for k, f in M.FAULTS.items()}
+    res.update({k: H.check_safety(M.Reference(), M.vectors(), guard=g) for k, g in H.GUARD_FAULTS.items()})
     print(json.dumps({"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "offline", "results": res},
                      indent=1))
     ref_ok = all(r["pass"] for r in res["reference"])

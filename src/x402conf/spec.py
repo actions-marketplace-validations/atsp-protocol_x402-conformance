@@ -16,6 +16,7 @@ SOLANA_V1_NAMES: Final = frozenset({"solana", "solana-devnet", "solana-mainnet",
 CAIP2: Final = re.compile(r"^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$")
 SETTLEMENT_PENDING: Final = "settlement_pending"      # V2 section 9, non-terminal
 DUPLICATE_SETTLEMENT: Final = "duplicate_settlement"  # SVM exact, Duplicate Settlement Mitigation
+INVALID_TRANSACTION_STATE: Final = "invalid_transaction_state"  # V2 section 9, the transaction failed on chain
 _B58: Final = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
 
