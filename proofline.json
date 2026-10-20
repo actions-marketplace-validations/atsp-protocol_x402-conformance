@@ -994,7 +994,8 @@
    "description": "evidence/2026-10-20 holds the raw /supported bodies, run.json and SHA256SUMS; the committed bodies re-check to the committed verdicts.",
    "scope": {
     "allow": [
-     "evidence/**"
+     "evidence/**",
+     "tests/test_live.py"
     ]
    },
    "criteria": [
