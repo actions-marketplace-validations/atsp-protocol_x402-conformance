@@ -5,6 +5,8 @@ Each check below quotes the spec text it tests. Sources were read on 2026-10-20 
 `specs/schemes/exact/scheme_exact_svm.md` (SVM exact). The Solana guide is
 https://solana.com/docs/payments/agentic-payments/x402.
 
+[FIXES.md](FIXES.md) explains, for each check, what a failure means and how to fix it.
+
 These checks map behaviour to spec text. Passing them is evidence about specific properties. It is not
 certification of conformance to x402.
 
