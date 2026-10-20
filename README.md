@@ -49,7 +49,8 @@ your own resource server, point the Action at your paid route and give it the co
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when any error-severity check fails |
 
-Outputs: `result` (`pass` or `fail`) and `results-dir`. `@v1` is the major-version tag; pin an exact release such as
+Outputs: `result` (`pass` or `fail`), `results-dir`, `sarif` (a SARIF 2.1.0 file of failed checks) and `junit` (a
+JUnit XML file). `@v1` is the major-version tag; pin an exact release such as
 `@v1.1.0` if you want a fixed version.
 
 **Example job summary** (abridged):
@@ -64,6 +65,29 @@ Outputs: `result` (`pass` or `fail`) and `results-dir`. `@v1` is the major-versi
 | fault-injected doubles       | every fault caught by at least one check                      | pass   |
 ```
 
+**Failures in code scanning.** Every failed check can show up in your repo's Security tab, with a link to what
+failed and how to fix it. Add `permissions: { security-events: write, contents: read }` to the job, `id: x402` and
+`fail-on-error: false` to the step above, then:
+
+```yaml
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: ${{ steps.x402.outputs.sarif }}
+          category: x402-conformance
+      - run: test "${{ steps.x402.outputs.result }}" = pass
+```
+
+The `junit` output works with any JUnit test-report viewer. [docs/FIXES.md](docs/FIXES.md) explains every check: what
+failed, why it matters and how to fix it.
+
+**One command, nothing to install** (with [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/)):
+
+```
+pipx run --spec "git+https://github.com/atsp-protocol/x402-conformance@v1" x402conf offline
+uvx --from "git+https://github.com/atsp-protocol/x402-conformance@v1" x402conf live https://x402.org/facilitator
+```
+
 **CLI.** Python 3.10 or later, no dependencies:
 
 ```
@@ -72,7 +96,9 @@ x402conf live https://x402.org/facilitator     # S1-S4, GET /supported only
 x402conf offline                               # F1-F9 against the reference and fault-injected doubles
 ```
 
-Each command prints JSON with one entry per check (`check`, `pass`, `severity`, `detail`). `offline` exits non-zero
+Each command prints JSON with one entry per check (`check`, `pass`, `severity`, `detail`). Save the output as
+`live.json` or `offline.json` in a directory and `x402conf report --dir DIR --sarif out.sarif --junit junit.xml`
+converts it. `offline` exits non-zero
 when the reference double fails a check or a fault-injected double goes uncaught. `live` always exits 0, so read the
 `pass` fields (the Action does that for you).
 

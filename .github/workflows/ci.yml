@@ -67,6 +67,10 @@ jobs:
           resource-url: http://127.0.0.1:4020/paid
           start: PORT=4020 node ts/dist/example/server.js
       - run: test "${{ steps.probe.outputs.result }}" = pass
+      - name: SARIF and JUnit reports are written and well formed
+        run: |
+          python3 -c "import json,sys;d=json.load(open('${{ steps.probe.outputs.sarif }}'));sys.exit(0 if d['version']=='2.1.0' and d['runs'][0]['results']==[] else 1)"
+          python3 -c "import sys,xml.etree.ElementTree as E;r=E.parse('${{ steps.probe.outputs.junit }}').getroot();sys.exit(0 if int(r.get('tests'))>=20 and r.get('failures')=='0' else 1)"
       - run: python3 -c "import json,sys;d=json.load(open('x402-conformance/resource-server.json'));sys.exit(0 if len(d['results'])==10 and all(r['pass'] for r in d['results']) else 1)"
       - name: The action must fail a resource server that serves before settlement
         id: faulty
@@ -79,6 +83,8 @@ jobs:
           offline: "false"
           results-dir: faulty
       - run: test "${{ steps.faulty.outputs.result }}" = fail
+      - name: The faulty server's failures reach the SARIF file
+        run: python3 -c "import json,sys;d=json.load(open('faulty/x402-conformance.sarif'));sys.exit(0 if d['runs'][0]['results'] else 1)"
   vv:
     needs: [lint, test, lean, ts, action]
     runs-on: ubuntu-latest

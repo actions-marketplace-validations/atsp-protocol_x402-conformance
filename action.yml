@@ -45,6 +45,12 @@ outputs:
   results-dir:
     description: Directory holding live.json, resource-server.json and offline.json.
     value: ${{ inputs.results-dir }}
+  sarif:
+    description: SARIF 2.1.0 file of failed checks, for github/codeql-action/upload-sarif (GitHub code scanning).
+    value: ${{ inputs.results-dir }}/x402-conformance.sarif
+  junit:
+    description: JUnit XML file with one test case per check, for test-report viewers.
+    value: ${{ inputs.results-dir }}/junit.xml
 runs:
   using: composite
   steps:
@@ -89,6 +95,14 @@ runs:
       run: |
         mkdir -p "$X402C_DIR"
         python -m x402conf offline > "$X402C_DIR/offline.json" || true
+    - name: SARIF and JUnit reports
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        python -m x402conf report --dir "$X402C_DIR" --sarif "$X402C_DIR/x402-conformance.sarif" \
+          --junit "$X402C_DIR/junit.xml" || true
     - name: Summary
       id: summary
       shell: bash
@@ -129,6 +143,8 @@ runs:
         result = "fail" if bad else "pass"
         out = [f"## x402 Conformance: {result}", "", "| target | check | result |", "|---|---|---|"]
         out += [f"| {t} | {c} | {'pass' if ok else 'FAIL'} {n} |" for t, c, ok, n in rows]
+        out += ["", "How to fix a failed check: "
+                "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/FIXES.md"]
         out += ["", "Checks map to spec text; they are not a certification of x402 conformance. "
                 "Docs: https://github.com/atsp-protocol/x402-conformance"]
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f: f.write("\n".join(out) + "\n")

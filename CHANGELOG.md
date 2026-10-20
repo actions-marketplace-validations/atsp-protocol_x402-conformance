@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (planned 1.2.0)
+- `x402conf report` turns `live.json`, `resource-server.json` and `offline.json` into SARIF 2.1.0 (for GitHub code
+  scanning) and JUnit XML. Each failed check links to its fix. The Action writes both files and exposes them as the
+  `sarif` and `junit` outputs, and its job summary links to the fix guide.
+- docs/FIXES.md: for every check (S0-S4, F1-F9, R0-R9 and FX), what failed, why it matters and how to fix it.
+- README: uploading failures to code scanning, and one-command runs with `pipx run` or `uvx`.
+
 ## 1.1.0 (2026-10-20)
 - M1 devnet evidence: F1 to F6 ran over real `/verify` and `/settle` on Solana devnet against my self-hosted
   reference facilitator (`@x402/core` and `@x402/svm` 2.28.0), then against its fault-injected builds. F1, F2, F3, F5
