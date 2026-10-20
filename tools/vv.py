@@ -137,9 +137,11 @@ def hygiene() -> list[dict[str, Any]]:
     for pat, what in HYGIENE[6:7]:
         if re.search(pat, log):
             hits.append({"file": "(git log)", "line": 0, "kind": what})
-    authors = set(subprocess.run(["git", "log", "--format=%an"], cwd=ROOT, capture_output=True, text=True).stdout.split())
-    if authors - {"mgillr"}:
-        hits.append({"file": "(git log)", "line": 0, "kind": f"authors other than mgillr: {sorted(authors - {'mgillr'})}"})
+    # The owner commits as mgillr; signing commits made on the owner's machine carry the owner's legal name.
+    owner = {"mgillr", "Ryan Gillespie"}
+    authors = {a.strip() for a in subprocess.run(["git", "log", "--format=%an"], cwd=ROOT, capture_output=True, text=True).stdout.splitlines() if a.strip()}
+    if authors - owner:
+        hits.append({"file": "(git log)", "line": 0, "kind": f"authors other than the owner: {sorted(authors - owner)}"})
     return hits
 
 
