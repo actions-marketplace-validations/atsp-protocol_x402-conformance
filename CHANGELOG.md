@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (planned 1.2.0)
+## 1.2.0 (2026-10-20)
 - `x402conf report` turns `live.json`, `resource-server.json` and `offline.json` into SARIF 2.1.0 (for GitHub code
   scanning) and JUnit XML. Each failed check links to its fix. The Action writes both files and exposes them as the
   `sarif` and `junit` outputs, and its job summary links to the fix guide.

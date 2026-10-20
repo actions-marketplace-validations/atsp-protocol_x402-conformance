@@ -51,7 +51,7 @@ your own resource server, point the Action at your paid route and give it the co
 
 Outputs: `result` (`pass` or `fail`), `results-dir`, `sarif` (a SARIF 2.1.0 file of failed checks) and `junit` (a
 JUnit XML file). `@v1` is the major-version tag; pin an exact release such as
-`@v1.1.0` if you want a fixed version.
+`@v1.2.0` if you want a fixed version.
 
 **Example job summary** (abridged):
 
