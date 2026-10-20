@@ -1,7 +1,8 @@
 """Command line.
 
     x402conf live <facilitator-base-url> ... [--evidence DIR]   GET /supported only
-    x402conf offline                                           F1-F9 against the reference and faulty doubles"""
+    x402conf offline                                           F1-F9 against the reference and faulty doubles
+    x402conf devnet [--faults] [--evidence DIR] ...             F1-F6 over real /verify and /settle on Solana devnet"""
 
 from __future__ import annotations
 
@@ -18,6 +19,11 @@ from . import mock as M
 
 
 def main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if args[:1] == ["devnet"]:
+        from .devnet import runner
+
+        return runner.main(args[1:])
     ap = argparse.ArgumentParser(prog="x402conf")
     sub = ap.add_subparsers(dest="mode", required=True)
     lv = sub.add_parser("live", help="GET /supported only; never signs, pays or POSTs")
