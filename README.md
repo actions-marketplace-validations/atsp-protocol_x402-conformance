@@ -67,5 +67,4 @@ The suite holds no keys and never signs or pays. Live mode is GET-only, and this
 vulnerability, see SECURITY.md (GitHub private vulnerability reporting).
 
 ## Licence
-Apache-2.0. See LICENSE and NOTICE (Ryan Gillespie / Optitransfer). I build with AI-assisted tooling under my
-supervision, and I review and stand behind everything that ships here.
+Apache-2.0. See LICENSE and NOTICE (Ryan Gillespie / Optitransfer).
