@@ -11,6 +11,8 @@ V2 facilitators and resource servers, starting with Solana. It complements x402 
 replace them. It checks the properties a seller's money depends on, and it never signs, pays or touches mainnet.
 — Ryan Gillespie, Optitransfer
 
+Project page with the checks and results: https://atsp-protocol.github.io/x402-conformance/
+
 ## 30-second quickstart
 
 **GitHub Action** ([on the Marketplace](https://github.com/marketplace/actions/x402-conformance)). Save this as
