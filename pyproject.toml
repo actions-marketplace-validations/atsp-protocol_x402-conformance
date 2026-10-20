@@ -12,6 +12,12 @@ authors = [{ name = "Ryan Gillespie / Optitransfer" }]
 requires-python = ">=3.10"
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/atsp-protocol/x402-conformance"
+Documentation = "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/SPEC.md"
+Changelog = "https://github.com/atsp-protocol/x402-conformance/blob/main/CHANGELOG.md"
+Issues = "https://github.com/atsp-protocol/x402-conformance/issues"
+
 [project.scripts]
 x402conf = "x402conf.cli:main"
 
@@ -19,7 +25,7 @@ x402conf = "x402conf.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-x402conf = ["py.typed", "fixtures/*.json"]
+x402conf = ["py.typed", "fixtures/*.json", "devnet/node/*.mjs", "devnet/node/package.json", "devnet/node/package-lock.json"]
 
 [tool.ruff]
 line-length = 128

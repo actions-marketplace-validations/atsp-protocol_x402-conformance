@@ -6,6 +6,9 @@
   `sarif` and `junit` outputs, and its job summary links to the fix guide.
 - docs/FIXES.md: for every check (S0-S4, F1-F9, R0-R9 and FX), what failed, why it matters and how to fix it.
 - README: uploading failures to code scanning, and one-command runs with `pipx run` or `uvx`.
+- Packaging, ready to publish: the Python wheel now ships the devnet runner's Node helpers, so `x402conf devnet` works
+  from a PyPI install, and has project URLs. The TypeScript runner (`ts/`) is no longer marked private and lists the
+  files, repository and keywords npm needs, so `npx x402conf-svm` works once it's published.
 
 ## 1.1.0 (2026-10-20)
 - M1 devnet evidence: F1 to F6 ran over real `/verify` and `/settle` on Solana devnet against my self-hosted

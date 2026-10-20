@@ -1,17 +1,40 @@
 {
   "name": "x402-conformance-svm",
   "version": "1.0.0",
-  "private": true,
   "description": "Resource-server checks for x402 V2 servers built on @x402/svm: a facilitator double with fault modes and a probe that proves your paid route never serves content on a timeout, a broken /settle answer, settlement_pending or a duplicate.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atsp-protocol/x402-conformance.git",
+    "directory": "ts"
+  },
+  "homepage": "https://github.com/atsp-protocol/x402-conformance#readme",
+  "bugs": "https://github.com/atsp-protocol/x402-conformance/issues",
+  "keywords": [
+    "x402",
+    "solana",
+    "payments",
+    "conformance",
+    "testing",
+    "facilitator"
+  ],
   "type": "module",
-  "engines": { "node": ">=20" },
-  "bin": { "x402conf-svm": "dist/src/cli.js" },
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "x402conf-svm": "dist/src/cli.js"
+  },
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",
+  "files": [
+    "dist/src",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node --test --test-reporter=spec dist/test/"
+    "test": "tsc -p . && node --test --test-reporter=spec dist/test/",
+    "prepack": "tsc -p ."
   },
   "dependencies": {
     "@x402/core": "2.28.0"
