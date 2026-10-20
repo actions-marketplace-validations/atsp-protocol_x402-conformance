@@ -1,0 +1,12 @@
+name: Check proposal
+description: Propose a new conformance or safety check
+labels: [check-proposal]
+body:
+  - type: textarea
+    id: spec
+    attributes: { label: Exact spec text and section (x402 V2, SVM exact, or the Solana guide) }
+    validations: { required: true }
+  - type: textarea
+    id: property
+    attributes: { label: Property to check, and how a faulty implementation would fail it }
+    validations: { required: true }

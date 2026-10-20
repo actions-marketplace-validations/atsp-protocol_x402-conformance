@@ -1,0 +1,76 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ruff==0.7.4 mypy==1.13.0
+      - run: ruff check .
+      - run: mypy
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: PYTHONPATH=src python -m unittest discover -s tests -v
+      - run: PYTHONPATH=src python -m x402conf offline > /dev/null
+      - run: cd evidence/2026-10-20 && sha256sum -c SHA256SUMS
+  lean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install elan (toolchain pinned by lean/lean-toolchain)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          bash elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.elan/toolchains
+          key: elan-${{ hashFiles('lean/lean-toolchain') }}
+      - run: cd lean && lake build
+      - run: python3 tools/lean_axioms.py | tee axioms.json && python3 -c "import json,sys;d=json.load(open('axioms.json'));sys.exit(0 if d['unexpected_axioms']==0 and d['theorems']>=6 else 1)"
+  vv:
+    needs: [lint, test, lean]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ruff==0.7.4 mypy==1.13.0
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh
+          bash elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.elan/toolchains
+          key: elan-${{ hashFiles('lean/lean-toolchain') }}
+      - name: Owner signature state
+        run: node tools/verify-sig.mjs || [ $? -eq 3 ]
+      - name: Proofline V&V (fails on a claimed-but-unmet task, out-of-scope files or a bad signature)
+        run: python3 tools/vv.py verify --receipts vv/receipts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vv-receipt
+          path: vv/receipts/
+          retention-days: 90

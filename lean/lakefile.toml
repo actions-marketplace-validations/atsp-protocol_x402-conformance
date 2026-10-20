@@ -1,0 +1,6 @@
+name = "X402Conformance"
+version = "0.1.0"
+defaultTargets = ["X402Conformance"]
+
+[[lean_lib]]
+name = "X402Conformance"

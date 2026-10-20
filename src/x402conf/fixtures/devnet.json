@@ -1,0 +1,15 @@
+{
+ "about": "Devnet test vectors for the offline safety checks. Payloads are decoded stand-ins for a Solana exact transaction ({tx, memo, mint, dest, amount, finalized}); no keys, no signatures, no funds. payTo is a placeholder devnet recipient.",
+ "requirements": {"scheme": "exact", "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+                  "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+                  "payTo": "11111111111111111111111111111112", "amount": "10000"},
+ "vectors": {
+  "good":             {"tx": "tx-good",   "memo": "m-1", "amount": 10000, "finalized": true},
+  "dust":             {"tx": "tx-dust",   "memo": "m-2", "amount": 1,     "finalized": true},
+  "malformed":        {"tx": null},
+  "same_memo_new_tx": {"tx": "tx-replay", "memo": "m-1", "amount": 10000, "finalized": true},
+  "unfinalized":      {"tx": "tx-slow",   "memo": "m-3", "amount": 10000, "finalized": false},
+  "fresh":            {"tx": "tx-f1",     "memo": "m-4", "amount": 10000, "finalized": true},
+  "fresh2":           {"tx": "tx-f2",     "memo": "m-5", "amount": 10000, "finalized": true}
+ }
+}

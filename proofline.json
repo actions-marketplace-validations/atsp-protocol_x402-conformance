@@ -1,0 +1,1472 @@
+{
+ "schema": "proofline/1",
+ "project": "x402-conformance",
+ "owner_rules": [
+  "Done means ALL evidence: every mandatory criterion of the task passes in CI on main, and the task is listed in vv/claims.json. A claim without passing criteria fails CI.",
+  "Scope is closed: every tracked file belongs to some task's scope.allow; a file no task owns fails CI.",
+  "Live mode is GET-only against third parties: no POST, no signing, no payment, ever. Devnet only for /verify and /settle, against facilitators run by me or with the operator's permission.",
+  "No outbound spend: no paid audit, no paid infrastructure. Review is open and public.",
+  "No credentials in the repository: no secret, token, private key or wallet material is committed; the hygiene scan runs in CI.",
+  "Honest reporting: no users are claimed that do not exist; checks are mappings to spec text, not certification of x402 conformance.",
+  "Licence: Apache-2.0, licensor Ryan Gillespie / Optitransfer (NOTICE).",
+  "Root cause, then fix. No weakening tests, raising timeouts, skips, relaxed assertions or lowered thresholds.",
+  "Never bypass guards: no --no-verify, no bypass env vars, no skip flags.",
+  "The contract is signed only by the owner key pinned in guard/owner.pub, on the owner's machine. Agents propose and never sign."
+ ],
+ "defaults": {
+  "base": "origin/main",
+  "branch": "main",
+  "flaky_reruns": 1,
+  "max_corrective_cycles": 3,
+  "regression_tolerance_pct": 20,
+  "max_load_per_cpu": 1.5,
+  "owners": [
+   "mgillr"
+  ]
+ },
+ "forbidden": {
+  "test_skip_only": true,
+  "timeout_raise": true,
+  "assertion_removal": true,
+  "test_file_deletion": true,
+  "no_verify": true,
+  "bypass_env": [
+   "SKIP_HOOKS",
+   "HUSKY=0",
+   "PROOFLINE_SKIP",
+   "CI_SKIP"
+  ],
+  "protected_values": []
+ },
+ "baseline": {
+  "metrics": {}
+ },
+ "phases": [
+  {
+   "id": "intake"
+  },
+  {
+   "id": "design"
+  },
+  {
+   "id": "plan"
+  },
+  {
+   "id": "implement"
+  },
+  {
+   "id": "verify"
+  },
+  {
+   "id": "integrate"
+  },
+  {
+   "id": "release"
+  },
+  {
+   "id": "monitor"
+  }
+ ],
+ "tasks": [
+  {
+   "id": "XC-00",
+   "title": "Repository spine: licence, notice, governance and contract",
+   "phase": "design",
+   "owner": "mgillr",
+   "depends_on": [],
+   "requirements": [
+    "R-OPEN",
+    "R-GOV"
+   ],
+   "description": "Apache-2.0 licence with a NOTICE naming the licensor, governance files, CODEOWNERS, the owner key pin and this contract.",
+   "scope": {
+    "allow": [
+     "LICENSE",
+     "NOTICE",
+     "README.md",
+     "CONTRIBUTING.md",
+     "CODE_OF_CONDUCT.md",
+     "SECURITY.md",
+     "CHANGELOG.md",
+     ".gitignore",
+     ".github/CODEOWNERS",
+     ".github/ISSUE_TEMPLATE/**",
+     ".github/pull_request_template.md",
+     "guard/**",
+     "proofline.json",
+     "proofline.json.sig",
+     "pyproject.toml"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-00-AC01",
+     "mandatory": true,
+     "statement": "LICENSE is the Apache License 2.0",
+     "verifier": {
+      "type": "grep",
+      "file": "LICENSE",
+      "pattern": "Apache License\\s+Version 2\\.0",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC02",
+     "mandatory": true,
+     "statement": "NOTICE names Ryan Gillespie / Optitransfer",
+     "verifier": {
+      "type": "grep",
+      "file": "NOTICE",
+      "pattern": "Ryan Gillespie / Optitransfer",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC03",
+     "mandatory": true,
+     "statement": "README carries the experimental label",
+     "verifier": {
+      "type": "grep",
+      "file": "README.md",
+      "pattern": "(?i)experimental",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC04",
+     "mandatory": true,
+     "statement": "SECURITY.md routes reports through GitHub private vulnerability reporting",
+     "verifier": {
+      "type": "grep",
+      "file": "SECURITY.md",
+      "pattern": "security/advisories/new",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC05",
+     "mandatory": true,
+     "statement": "SECURITY.md contains no email address",
+     "verifier": {
+      "type": "grep",
+      "file": "SECURITY.md",
+      "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}",
+      "must": "absent"
+     }
+    },
+    {
+     "id": "XC-00-AC06",
+     "mandatory": true,
+     "statement": "CODEOWNERS names @mgillr for everything",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/CODEOWNERS",
+      "pattern": "^\\* @mgillr$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC07",
+     "mandatory": true,
+     "statement": "CONTRIBUTING, CODE_OF_CONDUCT and CHANGELOG present",
+     "verifier": {
+      "type": "command",
+      "cmd": "test -s CONTRIBUTING.md && test -s CODE_OF_CONDUCT.md && test -s CHANGELOG.md",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-00-AC08",
+     "mandatory": true,
+     "statement": "Issue and PR templates present",
+     "verifier": {
+      "type": "command",
+      "cmd": "test -s .github/ISSUE_TEMPLATE/bug.yml && test -s .github/ISSUE_TEMPLATE/check-proposal.yml && test -s .github/pull_request_template.md",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-00-AC09",
+     "mandatory": true,
+     "statement": "Owner key pin present (guard/owner.pub, Ed25519 public key)",
+     "verifier": {
+      "type": "grep",
+      "file": "guard/owner.pub",
+      "pattern": "BEGIN PUBLIC KEY",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-00-AC10",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-00-AC11",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-01",
+   "title": "Live checks S1-S4 over GET /supported (GET only)",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [],
+   "requirements": [
+    "R-S1",
+    "R-S2",
+    "R-S3",
+    "R-S4",
+    "R-SAFE-GET"
+   ],
+   "description": "S1 to S4 as specified in docs/SPEC.md; the live path makes exactly one GET per target and never POSTs, signs or pays.",
+   "scope": {
+    "allow": [
+     "src/x402conf/__init__.py",
+     "src/x402conf/__main__.py",
+     "src/x402conf/py.typed",
+     "src/x402conf/spec.py",
+     "src/x402conf/types.py",
+     "src/x402conf/harness.py",
+     "src/x402conf/cli.py",
+     "tests/test_live.py"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-01-AC01",
+     "mandatory": true,
+     "statement": "S1 rejects a SupportedResponse without kinds[], extensions[] and signers{}",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s1_shape",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC02",
+     "mandatory": true,
+     "statement": "S2 rejects a V2 kind whose network is not CAIP-2",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s2_non_caip2",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC03",
+     "mandatory": true,
+     "statement": "S3 rejects V1 Solana names inside V2 kinds",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s3_v1_name_in_v2",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC04",
+     "mandatory": true,
+     "statement": "S4 rejects an invalid feePayer",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s4_bad_fee_payer",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC05",
+     "mandatory": true,
+     "statement": "S4 rejects a feePayer that is not a listed signer",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s4_fee_payer_not_signer",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC06",
+     "mandatory": true,
+     "statement": "A conformant body passes S1-S4",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_s_all_pass_on_conformant_body",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC07",
+     "mandatory": true,
+     "statement": "Live mode issues exactly one GET and nothing else",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_live_mode_is_get_only",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-01-AC08",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-01-AC09",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-02",
+   "title": "Safety checks F1-F6 with devnet fixtures and facilitator doubles",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-01"
+   ],
+   "requirements": [
+    "R-F1",
+    "R-F2",
+    "R-F3",
+    "R-F4",
+    "R-F5",
+    "R-F6"
+   ],
+   "description": "F1 to F6 as specified in docs/SPEC.md. The reference double passes; each faulty double is caught by the check that targets it.",
+   "scope": {
+    "allow": [
+     "src/x402conf/mock.py",
+     "src/x402conf/fixtures/**",
+     "tests/test_offline.py"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-02-AC01",
+     "mandatory": true,
+     "statement": "F1 catches a facilitator that verifies malformed input as valid",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f1_open_on_malformed_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC02",
+     "mandatory": true,
+     "statement": "F2 catches a facilitator that accepts dust",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f2_accept_dust_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC03",
+     "mandatory": true,
+     "statement": "F3 catches a facilitator with no duplicate-settlement cache",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f3_no_dup_cache_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC04",
+     "mandatory": true,
+     "statement": "F4 catches memo/nonce replay in a new transaction",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f4_no_memo_check_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC05",
+     "mandatory": true,
+     "statement": "F5 catches success reported before finality",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f5_success_before_final_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC06",
+     "mandatory": true,
+     "statement": "F6 the resource-server guard fails closed and credits once",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f6_guard_fails_closed_and_credits_once",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC07",
+     "mandatory": true,
+     "statement": "The reference double passes every F check",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_reference_passes_all",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC08",
+     "mandatory": true,
+     "statement": "Fixtures target Solana devnet (CAIP-2)",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_devnet_fixture_targets_devnet",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-02-AC09",
+     "mandatory": true,
+     "statement": "Whole suite green: >= 15 tests, none skipped",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest discover -s tests",
+      "min_tests": 15,
+      "max_skipped": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-02-AC10",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-02-AC11",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-03",
+   "title": "Lean models of the credit rule and nonce, standard axioms only",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [],
+   "requirements": [
+    "R-LEAN"
+   ],
+   "description": "lean/ builds with the pinned toolchain; the six named theorems exist and depend only on standard axioms.",
+   "scope": {
+    "allow": [
+     "lean/lean-toolchain",
+     "lean/lakefile.toml",
+     "lean/lake-manifest.json",
+     "lean/X402Conformance.lean",
+     "lean/X402Conformance/**",
+     "lean/Axioms.lean",
+     "tools/lean_axioms.py"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-03-AC01",
+     "mandatory": true,
+     "statement": "Toolchain pinned to leanprover/lean4:v4.35.0",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/lean-toolchain",
+      "pattern": "^leanprover/lean4:v4\\.35\\.0$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC02",
+     "mandatory": true,
+     "statement": "lake build succeeds",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd lean && lake build",
+      "expect_exit": 0,
+      "timeout_s": 1800
+     }
+    },
+    {
+     "id": "XC-03-AC03",
+     "mandatory": true,
+     "statement": "Six theorems are axiom-checked and none depends on a non-standard axiom or sorry",
+     "verifier": {
+      "type": "metric",
+      "cmd": "python3 tools/lean_axioms.py",
+      "key": "unexpected_axioms",
+      "op": "==",
+      "value": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-03-AC04",
+     "mandatory": true,
+     "statement": "At least six theorems are axiom-checked",
+     "verifier": {
+      "type": "metric",
+      "cmd": "python3 tools/lean_axioms.py",
+      "key": "theorems",
+      "op": ">=",
+      "value": 6,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-03-AC05",
+     "mandatory": true,
+     "statement": "Theorem credit_sound is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Settlement.lean",
+      "pattern": "^theorem credit_sound\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC06",
+     "mandatory": true,
+     "statement": "Theorem step_idem is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Settlement.lean",
+      "pattern": "^theorem step_idem\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC07",
+     "mandatory": true,
+     "statement": "Theorem step_nodup is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Settlement.lean",
+      "pattern": "^theorem step_nodup\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC08",
+     "mandatory": true,
+     "statement": "Theorem run_nodup is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Settlement.lean",
+      "pattern": "^theorem run_nodup\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC09",
+     "mandatory": true,
+     "statement": "Theorem consume_once is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Nonce.lean",
+      "pattern": "^theorem consume_once\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC10",
+     "mandatory": true,
+     "statement": "Theorem only_open_consumes is defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Nonce.lean",
+      "pattern": "^theorem only_open_consumes\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-03-AC11",
+     "mandatory": true,
+     "statement": "No sorry in the Lean sources",
+     "verifier": {
+      "type": "command",
+      "cmd": "! grep -rn --include=*.lean -w sorry lean/X402Conformance lean/X402Conformance.lean",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-03-AC12",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-03-AC13",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-04",
+   "title": "Documentation: architecture, spec mapping, threat model, roadmap, V&V",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-01",
+    "XC-02",
+    "XC-03"
+   ],
+   "requirements": [
+    "R-DOCS"
+   ],
+   "description": "Docs as listed; SPEC.md maps every check to quoted x402 V2 / SVM exact text; VV.md traces every task.",
+   "scope": {
+    "allow": [
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-04-AC01",
+     "mandatory": true,
+     "statement": "ARCHITECTURE.md has a diagram",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/ARCHITECTURE.md",
+      "pattern": "```mermaid",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC02",
+     "mandatory": true,
+     "statement": "SPEC.md maps S1 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| S1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC03",
+     "mandatory": true,
+     "statement": "SPEC.md maps S2 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| S2 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC04",
+     "mandatory": true,
+     "statement": "SPEC.md maps S3 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| S3 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC05",
+     "mandatory": true,
+     "statement": "SPEC.md maps S4 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| S4 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC06",
+     "mandatory": true,
+     "statement": "SPEC.md maps F1 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC07",
+     "mandatory": true,
+     "statement": "SPEC.md maps F2 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F2 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC08",
+     "mandatory": true,
+     "statement": "SPEC.md maps F3 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F3 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC09",
+     "mandatory": true,
+     "statement": "SPEC.md maps F4 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F4 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC10",
+     "mandatory": true,
+     "statement": "SPEC.md maps F5 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F5 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC11",
+     "mandatory": true,
+     "statement": "SPEC.md maps F6 to spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| F6 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC12",
+     "mandatory": true,
+     "statement": "THREAT-MODEL.md present with a disclosure rule",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/THREAT-MODEL.md",
+      "pattern": "(?i)disclosure",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC13",
+     "mandatory": true,
+     "statement": "ROADMAP.md lists milestones M1-M6 with budgets marked as my proposal",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/ROADMAP.md",
+      "pattern": "(?s)my proposal.*\\| M1 \\|.*\\| M6 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-04-AC14",
+     "mandatory": true,
+     "statement": "VV.md traces every task in this contract",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 -c \"import json,re,sys;t=[x['id'] for x in json.load(open('proofline.json'))['tasks']];d=open('docs/VV.md').read();m=[i for i in t if i not in d];print(m);sys.exit(1 if m else 0)\"",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-04-AC15",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-04-AC16",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-05",
+   "title": "CI: lint, types, tests, Lean, V&V with receipts",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-02",
+    "XC-03"
+   ],
+   "requirements": [
+    "R-CI"
+   ],
+   "description": "One workflow with jobs lint, test, lean and vv; vv uploads its receipt; free-tier friendly (cached Lean, no matrix).",
+   "scope": {
+    "allow": [
+     ".github/workflows/**",
+     "tools/vv.py",
+     "tools/verify-sig.mjs",
+     "vv/claims.json"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-05-AC01",
+     "mandatory": true,
+     "statement": "Workflow defines jobs lint, test, lean and vv",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 -c \"import re,sys;s=open('.github/workflows/ci.yml').read();sys.exit(0 if all(re.search(r'^  '+j+':',s,re.M) for j in ['lint','test','lean','vv']) else 1)\"",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-05-AC02",
+     "mandatory": true,
+     "statement": "vv job uploads the receipt",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/workflows/ci.yml",
+      "pattern": "upload-artifact",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-05-AC03",
+     "mandatory": true,
+     "statement": "Signature state is checked and an unsigned contract is reported, not hidden",
+     "verifier": {
+      "type": "grep",
+      "file": "tools/verify-sig.mjs",
+      "pattern": "unsigned: awaiting owner signature",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-05-AC04",
+     "mandatory": true,
+     "statement": "ruff and mypy --strict clean",
+     "verifier": {
+      "type": "command",
+      "cmd": "ruff check . && mypy",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-05-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-05-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-06",
+   "title": "Evidence: first live GET /supported run, hashed and reproducible",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-01"
+   ],
+   "requirements": [
+    "R-EVID"
+   ],
+   "description": "evidence/2026-10-20 holds the raw /supported bodies, run.json and SHA256SUMS; the committed bodies re-check to the committed verdicts.",
+   "scope": {
+    "allow": [
+     "evidence/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-06-AC01",
+     "mandatory": true,
+     "statement": "SHA256SUMS verifies",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd evidence/2026-10-20 && sha256sum -c SHA256SUMS",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-06-AC02",
+     "mandatory": true,
+     "statement": "run.json is a live GET-only run",
+     "verifier": {
+      "type": "grep",
+      "file": "evidence/2026-10-20/run.json",
+      "pattern": "\"mode\": \"live-GET-only\"",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-06-AC03",
+     "mandatory": true,
+     "statement": "At least one public facilitator body is committed",
+     "verifier": {
+      "type": "file_exists",
+      "path": "evidence/2026-10-20/supported-x402.dexter.cash.json"
+     }
+    },
+    {
+     "id": "XC-06-AC04",
+     "mandatory": true,
+     "statement": "Committed bodies re-check to the committed verdicts",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_committed_evidence_reproduces",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-06-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-06-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-07",
+   "title": "Hygiene: no secrets, keys, internal paths or AI attribution; commits by mgillr",
+   "phase": "release",
+   "owner": "mgillr",
+   "depends_on": [],
+   "requirements": [
+    "R-HYG"
+   ],
+   "description": "The tracked tree and git log pass the hygiene scan.",
+   "scope": {
+    "allow": []
+   },
+   "criteria": [
+    {
+     "id": "XC-07-AC01",
+     "mandatory": true,
+     "statement": "Hygiene scan finds nothing",
+     "verifier": {
+      "type": "metric",
+      "cmd": "python3 tools/vv.py hygiene",
+      "key": "hits",
+      "op": "==",
+      "value": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-07-AC02",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-07-AC03",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M1",
+   "title": "M1 Devnet runner: F1-F6 over real x402 V2 /verify and /settle on Solana devnet",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 6,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "src/x402conf/devnet/**",
+     "tests/test_devnet.py",
+     "evidence/devnet/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M1-AC01",
+     "mandatory": true,
+     "statement": "Devnet runner module exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "src/x402conf/devnet/runner.py"
+     }
+    },
+    {
+     "id": "XC-M1-AC02",
+     "mandatory": true,
+     "statement": "Devnet evidence with SHA256SUMS committed",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd evidence/devnet && sha256sum -c SHA256SUMS",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-M1-AC03",
+     "mandatory": true,
+     "statement": "Devnet run uses the devnet CAIP-2 ID only",
+     "verifier": {
+      "type": "grep",
+      "file": "evidence/devnet/run.json",
+      "pattern": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-M1-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M1-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M2",
+   "title": "M2 Facilitator matrix: >= 3 devnet facilitator reports, with operator permission",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 5,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "evidence/matrix/**",
+     "docs/MATRIX.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M2-AC01",
+     "mandatory": true,
+     "statement": ">= 3 facilitator reports",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(ls evidence/matrix/*.json 2>/dev/null | wc -l) -ge 3",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-M2-AC02",
+     "mandatory": true,
+     "statement": "MATRIX.md records operator permission and disclosure status",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/MATRIX.md",
+      "pattern": "(?i)permission",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-M2-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M2-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M3",
+   "title": "M3 Lean models: timeouts, settlement_pending reconciliation, concurrent settles",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 4,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "lean/X402Conformance/Pending.lean"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M3-AC01",
+     "mandatory": true,
+     "statement": "Pending model exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "lean/X402Conformance/Pending.lean"
+     }
+    },
+    {
+     "id": "XC-M3-AC02",
+     "mandatory": true,
+     "statement": "pending_never_credits theorem defined",
+     "verifier": {
+      "type": "grep",
+      "file": "lean/X402Conformance/Pending.lean",
+      "pattern": "^theorem pending_never_credits\\b",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-M3-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M3-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M4",
+   "title": "M4 Drop-in CI action and TypeScript runner for @x402/svm resource servers",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 4,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "action.yml",
+     "ts/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M4-AC01",
+     "mandatory": true,
+     "statement": "action.yml exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "action.yml"
+     }
+    },
+    {
+     "id": "XC-M4-AC02",
+     "mandatory": true,
+     "statement": "TypeScript runner exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "ts/package.json"
+     }
+    },
+    {
+     "id": "XC-M4-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M4-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M5",
+   "title": "M5 Maintenance, 6 months (monthly milestones)",
+   "phase": "monitor",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 3,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "docs/MAINTENANCE.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M5-AC01",
+     "mandatory": true,
+     "statement": "MAINTENANCE.md logs six monthly reports",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(grep -c '^## Month ' docs/MAINTENANCE.md 2>/dev/null || echo 0) -ge 6",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-M5-AC02",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M5-AC03",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-M6",
+   "title": "M6 Adoption: >= 3 external repos run the suite in CI; >= 5 facilitators with published results",
+   "phase": "monitor",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05"
+   ],
+   "requirements": [
+    "R-GRANT"
+   ],
+   "description": "Grant milestone (my proposal: USD 5,000). Open until its criteria pass; payment is due only on completion.",
+   "scope": {
+    "allow": [
+     "docs/ADOPTION.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-M6-AC01",
+     "mandatory": true,
+     "statement": "ADOPTION.md lists >= 3 external repos with links to their CI runs",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(grep -c '^- repo: ' docs/ADOPTION.md 2>/dev/null || echo 0) -ge 3",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-M6-AC02",
+     "mandatory": true,
+     "statement": "ADOPTION.md lists >= 5 facilitators with published results",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(grep -c '^- facilitator: ' docs/ADOPTION.md 2>/dev/null || echo 0) -ge 5",
+      "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-M6-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-M6-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  }
+ ]
+}

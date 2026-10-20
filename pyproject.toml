@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "x402-conformance"
+version = "0.1.0"
+description = "Experimental conformance and safety checks for x402 V2 facilitators and resource servers, Solana first"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Ryan Gillespie / Optitransfer" }]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+x402conf = "x402conf.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+x402conf = ["py.typed", "fixtures/*.json"]
+
+[tool.ruff]
+line-length = 128
+target-version = "py310"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src/x402conf"]

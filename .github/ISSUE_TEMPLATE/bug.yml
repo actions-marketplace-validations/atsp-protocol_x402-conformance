@@ -1,0 +1,17 @@
+name: Bug
+description: A check gives a wrong result, or the harness misbehaves
+labels: [bug]
+body:
+  - type: input
+    id: check
+    attributes: { label: Check id (S1 to S4, F1 to F6), placeholder: F3 }
+    validations: { required: true }
+  - type: textarea
+    id: what
+    attributes: { label: What happened and what you expected }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: How to reproduce (command and output) }
+  - type: markdown
+    attributes: { value: "Security issue? Use Security → Report a vulnerability, not this form." }
