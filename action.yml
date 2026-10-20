@@ -1,0 +1,57 @@
+name: x402-conformance
+description: Run the x402 V2 conformance checks. GET /supported only against live facilitators; safety checks F1-F9 offline.
+author: Ryan Gillespie / Optitransfer
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  facilitators:
+    description: Space-separated facilitator base URLs to check with GET /supported (S1-S4). Empty skips live mode.
+    required: false
+    default: ""
+  offline:
+    description: Run F1-F9 against the reference and faulty facilitator doubles ("true" or "false").
+    required: false
+    default: "true"
+  evidence-dir:
+    description: Directory for raw /supported bodies, run.json and SHA256SUMS.
+    required: false
+    default: x402-conformance-evidence
+outputs:
+  result:
+    description: '"pass" when every requested check passed, otherwise "fail".'
+    value: ${{ steps.run.outputs.result }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - id: run
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        X402C_FACILITATORS: ${{ inputs.facilitators }}
+        X402C_OFFLINE: ${{ inputs.offline }}
+        X402C_EVIDENCE: ${{ inputs.evidence-dir }}
+      run: |
+        set -euo pipefail
+        status=pass
+        if [ -n "$X402C_FACILITATORS" ]; then
+          # shellcheck disable=SC2086
+          python -m x402conf live $X402C_FACILITATORS --evidence "$X402C_EVIDENCE" > "$RUNNER_TEMP/x402c-live.json"
+          python - "$RUNNER_TEMP/x402c-live.json" <<'PY' || status=fail
+        import json, sys
+        d = json.load(open(sys.argv[1]))
+        bad = [(r["target"], c["check"]) for r in d["results"] for c in r.get("checks", []) if not c["pass"] and c.get("severity") == "error"]
+        bad += [(r["target"], r["error"]) for r in d["results"] if r.get("error")]
+        for t, c in bad:
+            print(f"::error title=x402-conformance::{t}: {c}")
+        sys.exit(1 if bad else 0)
+        PY
+        fi
+        if [ "$X402C_OFFLINE" = "true" ]; then
+          python -m x402conf offline > "$RUNNER_TEMP/x402c-offline.json" || status=fail
+        fi
+        echo "result=$status" >> "$GITHUB_OUTPUT"
+        [ "$status" = pass ]
