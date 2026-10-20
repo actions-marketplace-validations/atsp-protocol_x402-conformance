@@ -13,25 +13,56 @@ replace them. It checks the properties a seller's money depends on, and it never
 
 ## 30-second quickstart
 
-**GitHub Action** ([on the Marketplace](https://github.com/marketplace/actions/x402-conformance)). Add one step to any workflow:
+**GitHub Action** ([on the Marketplace](https://github.com/marketplace/actions/x402-conformance)). Save this as
+`.github/workflows/x402-conformance.yml`. It runs as is:
 
 ```yaml
-- uses: atsp-protocol/x402-conformance@v1
-  with:
-    facilitators: https://your-facilitator.example   # GET /supported only
+name: x402 conformance
+on: [push, pull_request]
+jobs:
+  x402:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: atsp-protocol/x402-conformance@v1
+        with:
+          facilitators: https://x402.org/facilitator   # swap in your facilitator; GET /supported only
 ```
 
-With no inputs it runs the F1-F9 safety suite. Add `facilitators` to check your live `/supported`, or point it at
-your resource server:
+With no inputs it runs only the F1-F9 safety suite. `facilitators` adds the live `GET /supported` checks. To test
+your own resource server, point the Action at your paid route and give it the command that starts the server:
 
 ```yaml
-- uses: atsp-protocol/x402-conformance@v1
-  with:
-    resource-url: http://127.0.0.1:4020/paid
-    start: node server.js            # your server reads X402_FACILITATOR_URL
+      - uses: atsp-protocol/x402-conformance@v1
+        with:
+          resource-url: http://127.0.0.1:4020/paid
+          start: node server.js            # your server must use X402_FACILITATOR_URL as its facilitator
 ```
 
-Every run writes a job summary and sets the `result` output to `pass` or `fail`.
+| input | default | what it does |
+|---|---|---|
+| `facilitators` | empty | Space-separated facilitator base URLs, checked with `GET /supported` only (S1-S4) |
+| `resource-url` | empty | Your paid route; the Action puts a facilitator double in front of it and runs R0-R9 |
+| `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
+| `port` | `4402` | Loopback port for the facilitator double |
+| `offline` | `true` | Run the F1-F9 suite against the reference and fault-injected doubles |
+| `results-dir` | `x402-conformance` | Where `live.json`, `resource-server.json` and `offline.json` are written |
+| `fail-on-error` | `true` | Fail the job when any error-severity check fails |
+
+Outputs: `result` (`pass` or `fail`) and `results-dir`. `@v1` follows the latest 1.x release; pin `@v1.1.0` if you
+want a fixed version.
+
+**Example job summary** (abridged):
+
+```
+## x402 Conformance: pass
+| target                       | check                                                         | result |
+| https://x402.org/facilitator | S1 SupportedResponse shape: kinds[], extensions[], signers{}  | pass   |
+| https://x402.org/facilitator | S4 Solana exact kinds advertise a valid extra.feePayer ...    | pass   |
+| reference double             | F3 the same payload settled twice succeeds at most once ...   | pass   |
+| reference double             | F9 a 503, non-JSON or truncated /settle answer is never ...   | pass   |
+| fault-injected doubles       | every fault caught by at least one check                      | pass   |
+```
 
 **CLI.** Python 3.10 or later, no dependencies:
 
@@ -40,6 +71,10 @@ pip install "git+https://github.com/atsp-protocol/x402-conformance@v1"
 x402conf live https://x402.org/facilitator     # S1-S4, GET /supported only
 x402conf offline                               # F1-F9 against the reference and fault-injected doubles
 ```
+
+Each command prints JSON with one entry per check (`check`, `pass`, `severity`, `detail`). `offline` exits non-zero
+when the reference double fails a check or a fault-injected double goes uncaught. `live` always exits 0, so read the
+`pass` fields (the Action does that for you).
 
 ## What it catches
 
@@ -87,9 +122,22 @@ post the results, and send a tests-only pull request with the Action and badge. 
 | facilitator.payai.network | 200 | pass | pass | pass | pass | exact and batch-settlement (mainnet, devnet) |
 | x402.org/facilitator | 200 | pass | pass | pass | pass | exact (devnet) |
 
-Raw bodies, `run.json` and `SHA256SUMS` are in [evidence/2026-10-20](evidence/2026-10-20). Devnet results for F1 to
-F6 go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the operator's
-permission.
+Raw bodies, `run.json` and `SHA256SUMS` are in [evidence/2026-10-20](evidence/2026-10-20).
+
+## Devnet results (2026-10-20, F1-F6 over real `/verify` and `/settle`)
+I ran F1 to F6 on Solana devnet against my self-hosted reference facilitator (`@x402/core` and `@x402/svm` 2.28.0),
+then against fault-injected builds of it.
+
+| facilitator | F1 | F2 | F3 | F4 | F5 | F6 |
+|---|---|---|---|---|---|---|
+| self-hosted reference, `@x402/svm` 2.28.0 | pass | pass | pass | **fail** | pass | pass |
+
+F4 fails because the reference facilitator deduplicates by transaction but not by memo, so two different
+transactions with the same memo both settled. The payer paid twice, so the seller lost nothing, but a resource server
+that ties one purchase to one memo has to enforce that itself. Every fault-injected build was caught by the check
+it targets. Transaction links, the full `run.json` and its hash are in [evidence/devnet](evidence/devnet). Results for
+other facilitators go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the
+operator's permission.
 
 ## What's inside
 - `src/x402conf`: the live checks, the offline suite and the devnet runner (`x402conf devnet`), which runs F1-F6 over

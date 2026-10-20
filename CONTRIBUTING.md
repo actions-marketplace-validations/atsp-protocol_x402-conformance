@@ -11,6 +11,6 @@ Thanks for helping. This project is experimental. Review happens in the open, th
       (cd lean && lake build && lake env lean Axioms.lean)
       python3 tools/vv.py verify
 
-- Never commit keys, tokens or wallet material. Devnet keypairs are created fresh for each run and never committed.
+- Never commit keys, tokens or wallet material. Devnet keypairs are throwaway, live outside the repository and are never committed.
 - Contributions are accepted under Apache-2.0, the licence of this repository.
 - By taking part you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).

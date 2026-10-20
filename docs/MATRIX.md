@@ -1,4 +1,4 @@
-# Facilitator matrix (XC-M2)
+# Facilitator matrix
 
 Devnet results for x402 V2 facilitators on Solana: F1 to F6 over real `/verify` and `/settle`, run by
 `x402conf devnet`. I run it against a third-party facilitator only with that operator's written **permission**,
@@ -9,7 +9,7 @@ after a fix or 90 days after the report, whichever is first (SECURITY.md). Until
 
 | facilitator | operator permission | devnet run | F1 | F2 | F3 | F4 | F5 | F6 | disclosure status |
 |---|---|---|---|---|---|---|---|---|---|
-| self-hosted reference (@x402/core + @x402/svm 2.28.0) | mine, not needed | pending (fee payer awaiting devnet faucet SOL) | | | | | | | n/a |
+| self-hosted reference (@x402/core + @x402/svm 2.28.0) | mine, not needed | [2026-10-20](../evidence/devnet) | pass | pass | pass | **fail** | pass | pass | n/a: my own instance of open-source code |
 | facilitator.payai.network | not yet requested | none | | | | | | | n/a |
 | facilitator.x402.rs | not yet requested | none | | | | | | | n/a |
 | x402.dexter.cash | not yet requested | none | | | | | | | n/a |
@@ -17,6 +17,9 @@ after a fix or 90 days after the report, whichever is first (SECURITY.md). Until
 | facilitator.daydreams.systems | not yet requested | none | | | | | | | n/a |
 
 These five advertise Solana devnet in `GET /supported` (live run of 2026-10-20). XC-M2 is done when at least
-three facilitators have a report here, each with its permission recorded. No such report exists yet.
+three facilitators have a report here, each with its permission recorded. No third-party report exists yet.
+
+The F4 failure on the reference is explained in [evidence/devnet](../evidence/devnet): it deduplicates by
+transaction, not by memo, so two different transactions with the same memo both settle.
 
 Want your facilitator in the matrix? Open an issue and say so. The issue is the permission record.

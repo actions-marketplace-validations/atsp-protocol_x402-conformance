@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0 (2026-10-20)
+- M1 devnet evidence: F1 to F6 ran over real `/verify` and `/settle` on Solana devnet against my self-hosted
+  reference facilitator (`@x402/core` and `@x402/svm` 2.28.0), then against its fault-injected builds. F1, F2, F3, F5
+  and F6 pass, and every fault-injected build is caught by the check it targets. F4 fails: the reference deduplicates
+  by transaction but not by memo, so two different transactions with the same memo both settled. Results, transaction
+  links and hashes are in `evidence/devnet`.
+- The devnet runner retries public RPC rate limits (HTTP 429 and 5xx) with backoff, both in the Node helpers (which
+  also covers the `@x402/svm` client and facilitator) and in the runner's own RPC calls.
+- README: a complete workflow file you can copy, a table of the Action's inputs and outputs, an example job summary,
+  and the devnet results. ROADMAP, MATRIX and ARCHITECTURE now reflect the devnet run.
+
 ## 1.0.0 (2026-10-20)
 - GitHub Action `x402 Conformance` (`action.yml`): live S1-S4, resource-server checks R0-R9 and the offline F1-F9
   suite, with a job summary and a `result` output.
