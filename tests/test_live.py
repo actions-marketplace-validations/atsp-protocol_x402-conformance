@@ -43,6 +43,16 @@ class Live(unittest.TestCase):
                "extensions": [], "signers": {"solana:*": ["11111111111111111111111111111111"]}}
         self.assertEqual(fails(H.check_supported(doc)), {"S4"})
 
+    def test_s4_exact_network_signer_key(self):
+        doc = {"kinds": [{"x402Version": 2, "scheme": "exact", "network": S.SOLANA_DEVNET, "extra": {"feePayer": FP}}],
+               "extensions": [], "signers": {S.SOLANA_DEVNET: [FP]}}
+        self.assertEqual(fails(H.check_supported(doc)), set())
+
+    def test_s4_signer_under_other_network_does_not_count(self):
+        doc = {"kinds": [{"x402Version": 2, "scheme": "exact", "network": S.SOLANA_MAINNET, "extra": {"feePayer": FP}}],
+               "extensions": [], "signers": {S.SOLANA_DEVNET: [FP]}}
+        self.assertEqual(fails(H.check_supported(doc)), {"S4"})
+
     def test_live_mode_is_get_only(self):
         seen = []
 

@@ -59,18 +59,23 @@ def check_supported(doc: Json) -> list[CheckResult]:
     out.append(result("S3 Solana V2 kinds use the published CAIP-2 IDs, not V1 names", not v1names and not unknown,
                       {"solana_v2_kinds": [[k.get("scheme"), k.get("network")] for k in sol],
                        "v1_names_in_v2": v1names, "unrecognised_solana_ids": unknown}))
-    sol_signers: list[Any] = []
-    if isinstance(signers, dict) and isinstance(signers.get("solana:*"), list):
-        sol_signers = signers["solana:*"]
+    def signers_for(network: str) -> list[Any]:
+        """Signers whose CAIP-2 pattern (V2 7.3.1) matches network: the exact ID or a namespace wildcard such as solana:*."""
+        found: list[Any] = []
+        for pat, addrs in (signers.items() if isinstance(signers, dict) else []):
+            hit = pat == network or (pat.endswith(":*") and network.startswith(pat[:-1]))
+            if hit and isinstance(addrs, list):
+                found += addrs
+        return found
     exact = [k for k in sol if k.get("scheme") == "exact"]
     probs: list[Json] = []
     for k in exact:
         fp = (k.get("extra") or {}).get("feePayer")
         if not S.is_solana_pubkey(fp):
             probs.append({"network": k.get("network"), "problem": "extra.feePayer missing or not a 32-byte base58 key"})
-        elif fp not in sol_signers:
-            probs.append({"network": k.get("network"), "problem": "feePayer not listed in signers['solana:*']",
-                          "feePayer": fp})
+        elif fp not in signers_for(str(k.get("network", ""))):
+            probs.append({"network": k.get("network"), "feePayer": fp,
+                          "problem": "feePayer not listed under any signers pattern matching the network"})
     out.append(result("S4 Solana exact kinds advertise a valid extra.feePayer that is a listed signer (SVM exact)",
                       not probs, {"solana_exact_kinds": len(exact), "problems": probs},
                       severity="error" if exact else "info"))
