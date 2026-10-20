@@ -61,18 +61,6 @@ certify conformance to x402.
 Raw bodies, `run.json` and `SHA256SUMS` are in [evidence/2026-10-20](evidence/2026-10-20). These static checks are
 necessary but not sufficient. The safety properties come from F1 to F9. F1 to F6 will run on devnet once M1 lands.
 
-## Use in CI
-`action.yml` runs the same checks in a GitHub workflow. Live mode is GET `/supported` only; F1-F9 run offline.
-
-    - uses: atsp-protocol/x402-conformance@main
-      with:
-        facilitators: https://x402.org/facilitator   # your facilitator's base URL; GET /supported only
-        offline: "true"
-
-A repository that runs it can show:
-
-    [![x402-conformance](https://img.shields.io/badge/x402--conformance-checked-green)](https://github.com/atsp-protocol/x402-conformance)
-
 ## Lean
 `lean/X402Conformance/Settlement.lean` proves `credit_sound`, `step_idem`, `step_nodup` and `run_nodup`.
 `lean/X402Conformance/Nonce.lean` proves `consume_once` and `only_open_consumes`. Every one depends only on
