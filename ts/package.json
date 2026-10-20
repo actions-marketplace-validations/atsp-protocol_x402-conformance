@@ -1,0 +1,25 @@
+{
+  "name": "x402-conformance-svm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Resource-server checks for x402 V2 servers built on @x402/svm: a facilitator double with fault modes and a probe that proves your paid route never serves content on a timeout, a broken /settle answer, settlement_pending or a duplicate.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": { "x402conf-svm": "dist/src/cli.js" },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "tsc -p . && node --test --test-reporter=spec dist/test/"
+  },
+  "dependencies": {
+    "@x402/core": "2.28.0"
+  },
+  "devDependencies": {
+    "@solana/kit": "5.5.1",
+    "@types/node": "20.17.6",
+    "@x402/svm": "2.28.0",
+    "typescript": "5.6.3"
+  }
+}

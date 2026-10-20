@@ -9,3 +9,4 @@ vv/receipts/
 .env
 *.pem
 *.key
+node_modules/

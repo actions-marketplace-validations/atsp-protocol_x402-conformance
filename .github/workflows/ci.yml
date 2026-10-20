@@ -45,8 +45,42 @@ jobs:
           key: elan-${{ hashFiles('lean/lean-toolchain') }}
       - run: cd lean && lake build
       - run: python3 tools/lean_axioms.py | tee axioms.json && python3 -c "import json,sys;d=json.load(open('axioms.json'));sys.exit(0 if d['unexpected_axioms']==0 and d['theorems']>=6 else 1)"
+  ts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: cd ts && npm ci --no-audit --no-fund && npm test
+  action:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the example resource server (@x402/core + @x402/svm)
+        run: cd ts && npm ci --no-audit --no-fund && npm run build
+      - name: The action itself, against the example server, with the offline suite
+        id: probe
+        uses: ./
+        with:
+          resource-url: http://127.0.0.1:4020/paid
+          start: PORT=4020 node ts/dist/example/server.js
+      - run: test "${{ steps.probe.outputs.result }}" = pass
+      - run: python3 -c "import json,sys;d=json.load(open('x402-conformance/resource-server.json'));sys.exit(0 if len(d['results'])==10 and all(r['pass'] for r in d['results']) else 1)"
+      - name: The action must fail a resource server that serves before settlement
+        id: faulty
+        uses: ./
+        continue-on-error: true
+        with:
+          resource-url: http://127.0.0.1:4021/paid
+          start: PORT=4021 EXAMPLE_FAULT=serve_on_any_settle node ts/dist/example/server.js
+          port: "4403"
+          offline: "false"
+          results-dir: faulty
+      - run: test "${{ steps.faulty.outputs.result }}" = fail
   vv:
-    needs: [lint, test, lean]
+    needs: [lint, test, lean, ts, action]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

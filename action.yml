@@ -1,0 +1,138 @@
+name: x402 Conformance
+description: Safety checks for x402 V2 on Solana. No double credit, no credit on timeouts or settlement_pending. Never pays.
+author: mgillr
+branding:
+  icon: shield
+  color: green
+inputs:
+  facilitators:
+    description: >-
+      Space-separated facilitator base URLs to check with GET /supported only (S1-S4). Nothing is signed, paid or POSTed.
+    required: false
+    default: ""
+  resource-url:
+    description: >-
+      Your paid route, for example http://127.0.0.1:4020/paid. The action points your server at a facilitator double
+      and checks R0-R9: no content on a /settle timeout, broken answer, settlement_pending, failure or duplicate.
+    required: false
+    default: ""
+  start:
+    description: >-
+      Command that starts your resource server. It receives X402_FACILITATOR_URL (the double) and must use it as its
+      facilitator URL. Leave empty if the server is already running against the double's port.
+    required: false
+    default: ""
+  port:
+    description: Loopback port for the facilitator double.
+    required: false
+    default: "4402"
+  offline:
+    description: Also run the F1-F9 safety suite against the reference and fault-injected facilitator doubles.
+    required: false
+    default: "true"
+  results-dir:
+    description: Directory for the results JSON files.
+    required: false
+    default: x402-conformance
+  fail-on-error:
+    description: Fail the job when any error-severity check fails.
+    required: false
+    default: "true"
+outputs:
+  result:
+    description: '"pass" when every requested check passed, otherwise "fail".'
+    value: ${{ steps.summary.outputs.result }}
+  results-dir:
+    description: Directory holding live.json, resource-server.json and offline.json.
+    value: ${{ inputs.results-dir }}
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - uses: actions/setup-node@v4
+      if: inputs.resource-url != ''
+      with:
+        node-version: "20"
+    - name: Live checks S1-S4 (GET /supported only)
+      if: inputs.facilitators != ''
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        X402C_TARGETS: ${{ inputs.facilitators }}
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        mkdir -p "$X402C_DIR"
+        # shellcheck disable=SC2086
+        python -m x402conf live $X402C_TARGETS --evidence "$X402C_DIR/evidence" > "$X402C_DIR/live.json"
+    - name: Resource-server checks R0-R9 (facilitator double on loopback)
+      if: inputs.resource-url != ''
+      shell: bash
+      env:
+        X402C_RESOURCE: ${{ inputs.resource-url }}
+        X402C_START: ${{ inputs.start }}
+        X402C_PORT: ${{ inputs.port }}
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        mkdir -p "$X402C_DIR"
+        (cd "$GITHUB_ACTION_PATH/ts" && npm ci --no-audit --no-fund --silent && npm run --silent build)
+        args=(probe --resource "$X402C_RESOURCE" --port "$X402C_PORT" --out "$X402C_DIR/resource-server.json")
+        if [ -n "$X402C_START" ]; then args+=(--start "$X402C_START"); fi
+        node "$GITHUB_ACTION_PATH/ts/dist/src/cli.js" "${args[@]}" > /dev/null || true
+    - name: Offline safety suite F1-F9
+      if: inputs.offline == 'true'
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        mkdir -p "$X402C_DIR"
+        python -m x402conf offline > "$X402C_DIR/offline.json" || true
+    - name: Summary
+      id: summary
+      shell: bash
+      env:
+        X402C_DIR: ${{ inputs.results-dir }}
+        X402C_FAIL: ${{ inputs.fail-on-error }}
+      run: |
+        python3 - <<'PY'
+        import json, os
+        d = os.environ["X402C_DIR"]
+        rows, bad = [], []
+        def load(name):
+            p = os.path.join(d, name)
+            return json.load(open(p)) if os.path.exists(p) else None
+        live = load("live.json")
+        for r in (live or {}).get("results", []):
+            if r.get("error"):
+                rows.append((r["target"], "GET /supported", False, r["error"][:80])); bad.append(r["target"])
+            for c in r.get("checks", []):
+                err = not c["pass"] and c.get("severity") == "error"
+                rows.append((r["target"], c["check"], c["pass"] or c.get("severity") != "error", ""))
+                if err: bad.append(f'{r["target"]}: {c["check"]}')
+        rsv = load("resource-server.json")
+        if rsv is not None:
+            for c in rsv.get("results", []):
+                rows.append((rsv["resource"], c["check"], c["pass"], ""))
+                if not c["pass"]: bad.append(f'{rsv["resource"]}: {c["check"]}')
+            if len(rsv.get("results", [])) < 10: bad.append(f'{rsv["resource"]}: probe stopped early')
+        off = load("offline.json")
+        if off is not None:
+            ref = off["results"]["reference"]
+            caught = all(any(not c["pass"] for c in v) for k, v in off["results"].items() if k != "reference")
+            for c in ref:
+                rows.append(("reference double", c["check"], c["pass"], ""))
+                if not c["pass"]: bad.append(f'reference double: {c["check"]}')
+            rows.append(("fault-injected doubles", "every fault caught by at least one check", caught, ""))
+            if not caught: bad.append("a fault-injected double was not caught")
+        result = "fail" if bad else "pass"
+        out = [f"## x402 Conformance: {result}", "", "| target | check | result |", "|---|---|---|"]
+        out += [f"| {t} | {c} | {'pass' if ok else 'FAIL'} {n} |" for t, c, ok, n in rows]
+        out += ["", "Checks map to spec text; they are not a certification of x402 conformance. "
+                "Docs: https://github.com/atsp-protocol/x402-conformance"]
+        with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f: f.write("\n".join(out) + "\n")
+        with open(os.environ["GITHUB_OUTPUT"], "a") as f: f.write(f"result={result}\n")
+        for b in bad: print(f"::error title=x402 Conformance::{b}")
+        if bad and os.environ["X402C_FAIL"] == "true": raise SystemExit(1)
+        PY
