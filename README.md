@@ -104,7 +104,7 @@ every check, what failed, why it matters and how to fix it.
 Packages: [x402-conformance on PyPI](https://pypi.org/project/x402-conformance/) (command `x402conf`) and
 [x402-conformance-svm on npm](https://www.npmjs.com/package/x402-conformance-svm) (command `x402conf-svm`; the name is
 historical, it grades Base Sepolia too). `x402conf --version` and `x402conf-svm --version` print the version. Pin
-`x402-conformance==1.3.0`, `x402-conformance-svm@1.3.0` or the Action at `@v1.3.0` if you want a fixed version; `@v1`
+`x402-conformance==1.3.1`, `x402-conformance-svm@1.3.1` or the Action at `@v1.3.1` if you want a fixed version; `@v1`
 follows the latest 1.x release.
 
 ## CLI
