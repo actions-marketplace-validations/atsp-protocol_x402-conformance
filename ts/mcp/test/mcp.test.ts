@@ -60,7 +60,7 @@ describe("MCP server over stdio", () => {
     const t = text(await client.callTool({ name: "x402_demo", arguments: { fault: "serve_on_any_settle" } }));
     for (const id of ["R2", "R3", "R5", "R9"]) assert.match(t, new RegExp(`"${id}"`));
     assert.match(t, /FIXES\.md#r3/);
-    assert.match(t, /evidence\/corpus/);
+    assert.match(t, /tree\/main\/corpus\b/);
     assert.match(t, /corpus-case\.yml/);
   });
   test("x402_check_payment_required: one unpaid GET, tagged via=mcp", async () => {

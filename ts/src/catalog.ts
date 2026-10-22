@@ -170,6 +170,18 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R14": {
   "profile": "resilience",
   "basis": "payment-identifier: same id, same payload returns the cached response; V2 6.1: in the authorization flow funds move only after the resource completes; V2 9: a transaction is surfaced so the caller can reconcile"
+ },
+ "R20": {
+  "profile": "security-profile",
+  "basis": "control: the route answers 402 with an exact offer the probe can pay"
+ },
+ "R20a": {
+  "profile": "security-profile",
+  "basis": "payment-identifier: a retry with the same id and a fresh payment is not charged again"
+ },
+ "R20b": {
+  "profile": "security-profile",
+  "basis": "a retry resending the same signed payment is settled once and gets the original result"
  }
 };
 

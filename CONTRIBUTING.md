@@ -16,8 +16,11 @@ Thanks for helping. This project is experimental. Review happens in the open, th
       pip install ruff==0.7.4 mypy==1.13.0
       ruff check . && mypy && PYTHONPATH=src python -m unittest discover -s tests
       (cd ts && npm ci && npm test)
-      (cd lean && lake build && lake env lean Axioms.lean)
-      python3 tools/vv.py verify
+      (cd ts/mcp && npm ci && npm test)
+      (cd lean && lake build) && python3 tools/lean_axioms.py
+      python3 tools/vv.py verify --pre-merge     # on a branch; plain `verify` is the strict run on main
+
+  CI runs the Python tests on 3.10, 3.12 and 3.13 and the TypeScript tests on Node 20, 22 and 24.
 
 - Never commit keys, tokens or wallet material. Devnet keypairs are throwaway, live outside the repository and are never committed.
 - Contributions are accepted under Apache-2.0, the licence of this repository.

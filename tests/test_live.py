@@ -162,7 +162,7 @@ class Live(unittest.TestCase):
         self.assertEqual(fails(H.check_402(self._resp(pr=self.V2_EVM))), set())
 
     def test_p6_header_budget(self):
-        # XC-11-AC03: P6 warns above 8 KB and fails as an error above 16 KB; a normal challenge passes
+        # XC-15-AC03: P6 warns above 8 KB and fails as an error above 16 KB; a normal challenge passes
         def with_extension(n):
             return dict(self.V2_EVM, extensions={"bazaar": {"info": {"example": "x" * n}, "schema": {}}})
         ok = [r for r in H.check_402(self._resp(pr=self.V2_EVM)) if r["check"].startswith("P6")]
@@ -174,7 +174,7 @@ class Live(unittest.TestCase):
         self.assertEqual(fails(H.check_402(self._resp(pr=with_extension(13000)))), {"P6"})
 
     def test_p7_payment_flow_declared(self):
-        # XC-11-AC04: an upto entry on Solana (escrow by default) must declare extra.paymentFlow (V2 6.1)
+        # XC-15-AC04: an upto entry on Solana (escrow by default) must declare extra.paymentFlow (V2 6.1)
         upto = {"x402Version": 2, "resource": {"url": "https://api.example/x"},
                 "accepts": [{"scheme": "upto", "network": S.SOLANA_DEVNET, "amount": "10000",
                              "asset": S.SOLANA_DEVNET_USDC, "payTo": FP, "maxTimeoutSeconds": 60,
@@ -314,9 +314,9 @@ class Funnel(unittest.TestCase):
     """The shared report, the via tag and the opt-in corpus case, as in ts/src/report.ts and ts/src/corpus.ts."""
 
     def test_anonymise_matches_the_typescript_fixture(self):
-        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-input.json")) as f:
+        with open(os.path.join(ROOT, "corpus/fixtures/anonymise-input.json")) as f:
             i = json.load(f)
-        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-expected.json")) as f:
+        with open(os.path.join(ROOT, "corpus/fixtures/anonymise-expected.json")) as f:
             expected = json.load(f)
         case = C.anonymise(i["report"], i["stack"])
         self.assertEqual(case, expected)

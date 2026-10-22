@@ -40,7 +40,7 @@ REPO = "https://github.com/atsp-protocol/x402-conformance"
 LINKS = {
     "repo": REPO,
     "fixes": f"{REPO}/blob/main/docs/FIXES.md",
-    "corpus": f"{REPO}/tree/main/evidence/corpus",
+    "corpus": f"{REPO}/tree/main/corpus",
     "contribute": f"{REPO}/issues/new?template=corpus-case.yml",
     "using": f"{REPO}/blob/main/docs/USING.md",
     "badge": "[![Tested with x402-conformance](https://img.shields.io/badge/tested%20with-x402--conformance-2ea44f)]"
@@ -50,7 +50,7 @@ LINKS = {
 
 # ---------------- the shared report and the opt-in corpus case ----------------
 # The same report (x402-conformance.report/1) and case (x402-conformance.case/1) as ts/src/report.ts and
-# ts/src/corpus.ts. evidence/corpus/fixtures holds one report and the case both languages must derive from it.
+# ts/src/corpus.ts. corpus/fixtures holds one report and the case both languages must derive from it.
 def _labels(check: str) -> dict[str, str]:
     """Evidence v2 labels for the shared report, the same as normalise() in ts/src/report.ts."""
     e = S.CATALOG.get(check.split(" ")[0])

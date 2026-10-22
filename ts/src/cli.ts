@@ -13,6 +13,7 @@ import { anonymise, funnelFooter, shareUrl } from "./corpus.js";
 import { makeReport, VIAS, type Kind, type Via } from "./report.js";
 import { checkPaymentRequired } from "./resource.js";
 import { probeBinding, type BindingTargets } from "./binding.js";
+import { probeRetry } from "./retry.js";
 import { EVIDENCE_FORMAT, label } from "./catalog.js";
 import { MOCK_FAULTS, startMockResource } from "./mock-server.js";
 import { commandControl, probeCrash, SpawnedServer, type ServerControl } from "./crash.js";
@@ -20,10 +21,10 @@ type Labelled = Result & { profile: string; basis: string; fix: string };
 
 export const VERSION: string = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
-const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11 and R14 for x402 V2 servers (Solana devnet, Base Sepolia)
+const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11, R14 and R20 for x402 V2 servers (Solana devnet, Base Sepolia)
 
 usage:
-  x402conf-svm probe --resource <url> [binding options] [--port 4402] [--start "<command>"]
+  x402conf-svm probe --resource <url> [binding options] [--retry] [--port 4402] [--start "<command>"]
                      [--network auto|${NETWORKS.join("|")}] [--out file] [--share]
                      [--crash] [--crash-kill "<command>" --crash-restart "<command>"]
   x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file] [--share]
@@ -45,6 +46,9 @@ usage:
               it again and present the same payment. With --start the probe kills and restarts that command itself
   --crash-kill, --crash-restart  for a server --start did not launch: a command that kills it hard and returns once
               it is gone, and one that starts it again in the background and returns (R14)
+  --retry     also run R20 on --resource: the client times out before /settle answers and retries, with a fresh
+              payment under the same idempotency key (R20a) and with the same signed payment (R20b); the request
+              must be paid once and the retry must get the earlier result
   --port      loopback port for the facilitator double (default 4402)
   --start     command that starts your server; it gets X402_FACILITATOR_URL and must use it as its facilitator
   --network   which offered network to pay on (default auto: the first of ${NETWORKS.join(", ")})
@@ -61,7 +65,7 @@ exit codes: 0 all pass, 1 a check failed, 2 usage error or the run could not com
 const BINDING = ["cheap", "expensive", "by-method", "by-query", "param", "siwx-cheap", "siwx-expensive"];
 const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", "--url", "--crash-kill", "--crash-restart",
   ...BINDING.map((b) => `--${b}`)]);
-const BOOL = new Set(["--share", "--crash"]);
+const BOOL = new Set(["--share", "--crash", "--retry"]);
 
 function bindingTargets(o: Record<string, string>): BindingTargets | string | null {
   if (!BINDING.some((b) => o[b])) return null;
@@ -103,6 +107,7 @@ function parse(argv: string[]): Record<string, string> | number {
   const b = bindingTargets(o);
   if (typeof b === "string") { console.error(`x402conf-svm: ${b}`); return 2; }
   if (!o.resource && !b) { console.error(`x402conf-svm: give --resource or a binding option\n\n${USAGE}`); return 2; }
+  if (o.retry && !o.resource) { console.error(`x402conf-svm: --retry needs --resource\n\n${USAGE}`); return 2; }
   if (o.network && o.network !== "auto" && !(NETWORKS as readonly string[]).includes(o.network)) {
     console.error(`x402conf-svm: --network must be auto or one of ${NETWORKS.join(", ")}`);
     return 2;
@@ -251,6 +256,11 @@ async function main(): Promise<number> {
       const offered = results.find((r) => r.check.startsWith("R0"))?.detail as any;
       const bnet = (o.network && o.network !== "auto" ? o.network : offered?.network) as string | undefined;
       results = results.concat(await probeBinding(binding, double, bnet));
+    }
+    if (o.retry && o.resource) {
+      const offered = results.find((r) => r.check.startsWith("R0"))?.detail as any;
+      const rnet = (o.network && o.network !== "auto" ? o.network : offered?.network) as string | undefined;
+      results = results.concat(await probeRetry(o.resource, double, { network: rnet }));
     }
     if (exited()) throw new RunError(`${exited()} during the probe; the results are not trustworthy`);
     // R14 runs last: it kills and restarts the server. Only on a server R1 showed is wired to the double.

@@ -153,18 +153,18 @@ async function crashAt(point: CrashPoint, url: string, double: Double, control: 
     ? "/settle committed, before it answered the server" : "/settle answered success, at the first byte of the response",
     payment_identifier: id ? "sent" : "not advertised by the server" };
   double.mode = "reference";
-  const settledBefore = double.settlements.length;
+  const settledBefore = double.successes.length;
   let killed = false;
   let hook: Promise<void> | null = null;
   const kill = () => (hook ??= control.kill().then(() => { killed = true; }));
   if (point === "settle") double.onSettled = () => kill();
   const first = await request(url, { "PAYMENT-SIGNATURE": header }, opts.deadlineMs, point === "response"
-    ? async () => { if (double.settlements.length > settledBefore) await kill(); }
+    ? async () => { if (double.successes.length > settledBefore) await kill(); }
     : undefined);
   double.onSettled = undefined;
   // The client can see the connection drop before the kill has finished; wait for it.
   if (hook) { try { await hook; } catch (e) { first.error = `kill failed: ${e instanceof Error ? e.message : String(e)}`; } }
-  const settledFirst = double.settlements.slice(settledBefore);
+  const settledFirst = double.successes.slice(settledBefore);
   if (!killed) {
     detail.first_attempt = { status: first.status, error: first.error };
     detail.note = settledFirst.length === 0
@@ -188,7 +188,7 @@ async function crashAt(point: CrashPoint, url: string, double: Double, control: 
   const callsBefore = double.calls.length;
   const again = await request(url, { "PAYMENT-SIGNATURE": header }, opts.deadlineMs);
   const settleCalls = double.calls.slice(callsBefore).filter((c) => c.path === "/settle").length;
-  const settlements = double.settlements.length - settledBefore;
+  const settlements = double.successes.length - settledBefore;
   const tokens = [tx, id ?? "", ref];
   const found = surfaced(again, tokens);
   // A 402 is a request for payment: with a new challenge, or naming nothing the client already paid, it asks the

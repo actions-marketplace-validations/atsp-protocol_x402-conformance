@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/evidence/corpus/case.schema.json",
+  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/corpus/case.schema.json",
   "title": "x402-conformance.case/1",
   "description": "An anonymised corpus case: no URLs, hosts, IPs, addresses or transaction data.",
   "type": "object",
