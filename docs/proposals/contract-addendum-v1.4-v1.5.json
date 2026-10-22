@@ -1,0 +1,644 @@
+{
+ "about": "PROPOSED, UNSIGNED. New Proofline tasks for the v1.4 and v1.5 milestones in docs/ROADMAP.md. Nothing here is binding and CI does not read this file. The tasks become part of the contract only when the owner merges them into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. Task IDs XC-11 to XC-14 are left to the integration tasks proposed in docs/proposals/contract-addendum-integrations.json (PRs #11 to #14), so this file uses XC-09, XC-10 and XC-15 to XC-20.",
+ "schema": "proofline/1",
+ "status": "proposed",
+ "proposed_by": "mgillr",
+ "target": "proofline.json tasks[]",
+ "profiles": {
+  "normative": "The x402 spec, a transport spec or an extension spec says MUST or REQUIRED, and the check quotes it",
+  "security-profile": "The spec is silent or permissive, but a public, reproduced failure shows a seller losing money or a buyer paying for nothing",
+  "resilience": "Interoperability and recovery under real-world limits and faults"
+ },
+ "requirements_added": [
+  "R-ORACLE",
+  "R-R11",
+  "R-F5X",
+  "R-F11",
+  "R-P6",
+  "R-P7",
+  "R-CRED",
+  "R-CONC",
+  "R-DELIV",
+  "R-MATRIX",
+  "R-ADOPT"
+ ],
+ "tasks": [
+  {
+   "id": "XC-09",
+   "title": "Oracle hardening: strict atomic-unit parsing, fail closed",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-02",
+    "XC-08"
+   ],
+   "requirements": [
+    "R-ORACLE"
+   ],
+   "description": "The reference verifier and every double parse amounts with one strict parser (a JSON string of ASCII digits, no sign, no whitespace, no leading zeros, at most 78 digits) and return invalid_payload or invalid_payment_requirements on anything else, never an exception. A requirement amount must be positive. Spec basis: V2 5.1.2, amount in atomic token units.",
+   "scope": {
+    "allow": [
+     "src/x402conf/mock.py",
+     "src/x402conf/harness.py",
+     "tests/test_offline.py",
+     "ts/src/**",
+     "ts/test/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-09-AC01",
+     "mandatory": true,
+     "statement": "The reference returns a rejection, never an exception, for every malformed payload amount in the table",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_reference_rejects_malformed_amounts",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-09-AC02",
+     "mandatory": true,
+     "statement": "The reference rejects malformed, zero and negative requirement amounts",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_reference_rejects_malformed_requirement_amounts",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-09-AC03",
+     "mandatory": true,
+     "statement": "A lenient_amounts double (int() parsing) is caught",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_lenient_amounts_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-10",
+   "title": "R11 payment-to-request binding on a real resource server",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-M4",
+    "XC-08"
+   ],
+   "requirements": [
+    "R-R11"
+   ],
+   "description": "Against a real resource server with two routes at different prices behind the facilitator double: a payment for one route, recipient, asset, network or method never unlocks another; encoded separators and dot segments never reach a paid handler unpaid; and with sign-in-with-x the access record belongs to the route that was priced and settled, not to the client's PaymentPayload.resource.url (upstream x402#3838). Each sub-check has a passing stock control and a faulty build it catches. F10 is narrowed to the requirements a facilitator can enforce.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/harness.py",
+     "docs/SPEC.md",
+     "docs/FIXES.md",
+     "README.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-10-AC01",
+     "mandatory": true,
+     "statement": "R11a: a payment for the cheap route presented on the expensive route gets 402 and no /settle",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11a' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC02",
+     "mandatory": true,
+     "statement": "R11b: an altered payTo, asset or network gets 402 before any /settle",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11b' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC03",
+     "mandatory": true,
+     "statement": "R11c and R11d: method and query substitution are priced for the request actually made",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11c|R11d' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC04",
+     "mandatory": true,
+     "statement": "R11e: encoded separators and dot segments on a parameterised paid route get 402 unpaid",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11e' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC05",
+     "mandatory": true,
+     "statement": "R11f: a SIWX access record is keyed by the settled route, not the client's resource.url",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11f' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC06",
+     "mandatory": true,
+     "statement": "The stock @x402/express server passes R11 and each faulty build fails the sub-check it targets",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11 control' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/binding.test.ts"
+     }
+    },
+    {
+     "id": "XC-10-AC07",
+     "mandatory": true,
+     "statement": "SPEC.md says resource binding is enforced by the resource server (R11), not the facilitator (F10)",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "(?s)R11.*resource server",
+      "must": "present"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-15",
+   "title": "Normative additions: F5 extended, F11, P6, P7",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-02",
+    "XC-01"
+   ],
+   "requirements": [
+    "R-F5X",
+    "R-F11",
+    "R-P6",
+    "R-P7"
+   ],
+   "description": "F5 is extended: a settlement_pending answer carries a non-empty network as well as the transaction (V2 9), with a faulty double that drops them. F11: /verify commits nothing (V2 7.1). P6: the encoded PAYMENT-REQUIRED header is warned above 8 KB and fails above 16 KB (resilience, x402#3803). P7: a 402 whose resolved flow is not authorization declares extra.paymentFlow (V2 6.1).",
+   "scope": {
+    "allow": [
+     "src/x402conf/**",
+     "tests/**",
+     "ts/**",
+     "docs/SPEC.md",
+     "docs/FIXES.md",
+     "README.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-15-AC01",
+     "mandatory": true,
+     "statement": "F5 catches a double that answers settlement_pending without a transaction or network",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f5_pending_without_tx_or_network_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-15-AC02",
+     "mandatory": true,
+     "statement": "F11 catches a double whose /verify consumes the payment",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_f11_verify_commits_state_caught",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-15-AC03",
+     "mandatory": true,
+     "statement": "P6 warns above 8 KB and fails above 16 KB on fixtures",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_p6_header_budget",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    },
+    {
+     "id": "XC-15-AC04",
+     "mandatory": true,
+     "statement": "P7 fails a non-authorization 402 that omits extra.paymentFlow",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Live.test_p7_payment_flow_declared",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_live.py"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-16",
+   "title": "Evidence v2 and the test-credibility gate",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-09",
+    "XC-10",
+    "XC-15"
+   ],
+   "requirements": [
+    "R-CRED"
+   ],
+   "description": "Every result carries its profile (normative, security profile or resilience), spec basis, upstream reference, the faulty builds it catches, the versions under test and a lockfile hash. CI fails if any check lacks a passing control or a faulty build it catches. SARIF and JUnit carry the profile.",
+   "scope": {
+    "allow": [
+     "src/x402conf/**",
+     "ts/**",
+     "tests/**",
+     "tools/vv.py",
+     ".github/workflows/**",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-16-AC01",
+     "mandatory": true,
+     "statement": "Every check id maps to at least one passing control and at least one caught faulty build",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_credibility_matrix_complete",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-16-AC02",
+     "mandatory": true,
+     "statement": "Every result carries profile, spec basis and versions",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_results_carry_profile_and_versions",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300,
+      "test_file": "tests/test_offline.py"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-17",
+   "title": "Concurrency and idempotency: R12, R13, R14",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10"
+   ],
+   "requirements": [
+    "R-CONC"
+   ],
+   "description": "One payment is at most one grant across N parallel requests (R12), across two replicas with and without a shared store (R13), and across a crash between a successful /settle and the response (R14), with a defined, reconcilable outcome. The Lean settlement model is extended to n replicas.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "lean/X402Conformance/**",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-17-AC01",
+     "mandatory": true,
+     "statement": "R12 catches a non-atomic check-then-set under parallel load",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R12' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-17-AC02",
+     "mandatory": true,
+     "statement": "R13 catches a per-process in-memory cache across two replicas",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R13' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-17-AC03",
+     "mandatory": true,
+     "statement": "R14 catches a server that settles again after a restart",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R14' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-17-AC04",
+     "mandatory": true,
+     "statement": "The n-replica theorems build with standard axioms only",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd lean && lake build && python3 ../tools/lean_axioms.py",
+      "expect_exit": 0,
+      "timeout_s": 1800
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-18",
+   "title": "Payment versus delivery: R15 to R19",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10"
+   ],
+   "requirements": [
+    "R-DELIV"
+   ],
+   "description": "No settlement when the handler fails, redirects or throws (V2 6.1); a paid HEAD is refused before settlement (x402#3810); paid responses don't leak through a cache; settlement_pending and late success end in an explicit, reconcilable outcome; upfront and escrow flows never execute the resource unchecked (V2 6.1).",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-18-AC01",
+     "mandatory": true,
+     "statement": "R15: no /settle when the handler returns 3xx or 5xx or throws",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R15' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-18-AC02",
+     "mandatory": true,
+     "statement": "R16: a HEAD carrying a payment is refused with zero /settle calls",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R16' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-18-AC03",
+     "mandatory": true,
+     "statement": "R17: an unpaid request through a caching proxy after a paid one gets 402",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R17' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-18-AC04",
+     "mandatory": true,
+     "statement": "R18: pending, then success, is served once, never twice",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R18' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-18-AC05",
+     "mandatory": true,
+     "statement": "R19: an upfront or escrow route never executes before a check",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R19' dist/test/*.test.js",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-19",
+   "title": "Implementation matrix: stock servers at pinned versions",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10",
+    "XC-17",
+    "XC-18"
+   ],
+   "requirements": [
+    "R-MATRIX"
+   ],
+   "description": "The probe runs in CI against stock example servers (TypeScript express, hono and next; Python FastAPI and Flask; Go gin) at pinned SDK versions, with hashed evidence. Failures on stock servers go to maintainers privately first under SECURITY.md.",
+   "scope": {
+    "allow": [
+     "evidence/impl-matrix/**",
+     "docs/MATRIX.md",
+     ".github/workflows/**",
+     "ts/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-19-AC01",
+     "mandatory": true,
+     "statement": "At least five stack-and-version rows with SHA256SUMS",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(ls evidence/impl-matrix/*/SHA256SUMS 2>/dev/null | wc -l) -ge 5",
+      "expect_exit": 0
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-20",
+   "title": "Adoption track A1-A8, built into the code",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10",
+    "XC-16"
+   ],
+   "requirements": [
+    "R-ADOPT"
+   ],
+   "description": "A1 zero-config demo one-liners against a local mock target (no wallet, under 60 s); A2 a 3-line Action with an opt-in PR summary comment and SARIF; A3 a fix hint on every failure; A4 framework quickstarts run in CI; A5 a results badge; A6 a public, versioned regression corpus with a case template; A7 a compatibility matrix regenerated in CI; A8 docs examples run in CI. New paths corpus/** and examples/** need this task's scope.",
+   "scope": {
+    "allow": [
+     "corpus/**",
+     "examples/**",
+     "ts/**",
+     "src/x402conf/**",
+     "tests/**",
+     "action.yml",
+     ".github/**",
+     "docs/**",
+     "README.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-20-AC01",
+     "mandatory": true,
+     "statement": "A1: the demo one-liner finishes with results in under 60 s, offline apart from the package",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && timeout 60 node dist/src/cli.js demo",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-20-AC02",
+     "mandatory": true,
+     "statement": "A1: the Python demo runs with no wallet and exits 0",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src timeout 60 python3 -m x402conf demo",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-20-AC03",
+     "mandatory": true,
+     "statement": "A3: every check id in spec.CATALOG has a fix hint",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Report.test_every_catalog_check_has_a_fix_section",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-20-AC04",
+     "mandatory": true,
+     "statement": "A6: every corpus case has a control, a faulty build and an expected outcome, and passes",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_corpus_cases_are_complete_and_pass",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-20-AC05",
+     "mandatory": true,
+     "statement": "A6: the corpus case template exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "corpus/TEMPLATE.md"
+     }
+    },
+    {
+     "id": "XC-20-AC06",
+     "mandatory": true,
+     "statement": "A7: the compatibility matrix is generated, not hand-edited",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/vv.py hygiene >/dev/null && test -f docs/compat-matrix.json",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  }
+ ]
+}
