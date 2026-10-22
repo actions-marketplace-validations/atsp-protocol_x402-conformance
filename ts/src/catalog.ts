@@ -166,6 +166,18 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R11f": {
   "profile": "security-profile",
   "basis": "sign-in-with-x: access is for the requested resource the server priced and settled"
+ },
+ "R20": {
+  "profile": "security-profile",
+  "basis": "control: the route answers 402 with an exact offer the probe can pay"
+ },
+ "R20a": {
+  "profile": "security-profile",
+  "basis": "payment-identifier: a retry with the same id and a fresh payment is not charged again"
+ },
+ "R20b": {
+  "profile": "security-profile",
+  "basis": "a retry resending the same signed payment is settled once and gets the original result"
  }
 };
 

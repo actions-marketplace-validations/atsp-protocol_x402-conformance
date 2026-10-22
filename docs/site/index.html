@@ -80,7 +80,7 @@ npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start 
 x402conf live https://x402.org/facilitator   # S0-S4, GET /supported only
 x402conf resource https://your.api/paid      # P1-P7, one unpaid GET
 x402conf offline                             # F1-F11 against reference and fault-injected doubles
-x402conf report --dir DIR --sarif out.sarif --junit junit.xml</code></pre>
+x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json</code></pre>
 
 <h2>What it checks</h2>
 <table>
@@ -92,18 +92,22 @@ x402conf report --dir DIR --sarif out.sarif --junit junit.xml</code></pre>
 <tr><td>S3</td><td>a Solana kind uses an old V1 name such as <code>solana-devnet</code></td></tr>
 <tr><td>S4</td><td>a Solana <code>exact</code> kind has no valid fee payer (a fee payer that isn't a listed signer is a warning)</td></tr>
 <tr><td colspan="2"><em>402 answers of any paid URL, one unpaid <code>GET</code></em></td></tr>
-<tr><td>P1-P7</td><td>an unpaid request isn't answered 402, the <code>PaymentRequired</code> object is missing or doesn't decode, or <code>accepts</code> lacks a required field or the scheme's <code>extra</code> (EVM <code>name</code>/<code>version</code>, Solana <code>feePayer</code>)</td></tr>
+<tr><td>P1-P7</td><td>an unpaid request isn't answered 402, the <code>PaymentRequired</code> object is missing or doesn't decode, or <code>accepts</code> lacks a required field or the scheme's <code>extra</code> (EVM <code>name</code>/<code>version</code>, Solana <code>feePayer</code>), the <code>PAYMENT-REQUIRED</code> header is over 8 KB (warning) or 16 KB (error) (P6), or a non-authorization offer omits <code>extra.paymentFlow</code> (P7, warning)</td></tr>
 <tr><td colspan="2"><em>Safety: against doubles, on devnet and in your resource server</em></td></tr>
 <tr><td>F1</td><td>a malformed payment is accepted instead of rejected</td></tr>
 <tr><td>F2</td><td>an underpayment or dust amount is accepted</td></tr>
 <tr><td>F3</td><td>the same payment is settled, or served, twice</td></tr>
 <tr><td>F4</td><td>a used memo or nonce is replayed in a new transaction</td></tr>
-<tr><td>F5</td><td>a payment counts as settled before it's confirmed, or <code>settlement_pending</code> comes without a transaction</td></tr>
+<tr><td>F5</td><td>a payment counts as settled before it's confirmed, or <code>settlement_pending</code> comes without a transaction or a network</td></tr>
 <tr><td>F6</td><td>a facilitator timeout or garbage answer turns into a credit</td></tr>
 <tr><td>F7</td><td>a pending payment retried with the same body never reaches its final result, or is credited more than once</td></tr>
 <tr><td>F8</td><td>a payment that failed on chain stays "pending" instead of failing</td></tr>
 <tr><td>F9</td><td>a 503, an HTML page or a truncated <code>/settle</code> answer is credited, or the payment can't be retried</td></tr>
+<tr><td>F10</td><td>a payment is accepted under requirements it wasn't verified for (amount, asset, recipient or network)</td></tr>
+<tr><td>F11</td><td><code>/verify</code> commits payment state: verifying twice consumes the payment (V2 §7.1)</td></tr>
 <tr><td>R0-R10</td><td>your resource server serves paid content under any of these faults, or omits <code>PAYMENT-RESPONSE</code> (probe in <code>ts/</code>, for servers on Solana devnet or Base Sepolia; a stock <code>@x402/express</code> server passes)</td></tr>
+<tr><td>R11</td><td>a payment for one request unlocks another on your server: the cheap route's payment on the dear one (R11a), an altered <code>payTo</code>, asset or network (R11b), the cheaper method (R11c) or query (R11d), an encoded separator or dot segment reaching a paid handler unpaid (R11e), or sign-in-with-x access recorded for the client's <code>resource.url</code> instead of the settled route (R11f)</td></tr>
+<tr><td>R20</td><td>a client that times out before <code>/settle</code> answers and retries pays twice for one request: a fresh payment under the same payment-identifier id is settled again (R20a), or a resent payment loses the result it paid for (R20b). With <code>--retry</code></td></tr>
 </table>
 
 <h2 id="results">Results</h2>

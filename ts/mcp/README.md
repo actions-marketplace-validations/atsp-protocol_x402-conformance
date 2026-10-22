@@ -50,7 +50,7 @@ probe tools stay in MCP, where a person is driving.
 ## The corpus
 
 A failing report can become an anonymised case in the public
-[corpus of real x402 failures](https://github.com/atsp-protocol/x402-conformance/tree/main/evidence/corpus).
+[corpus of real x402 failures](https://github.com/atsp-protocol/x402-conformance/tree/main/corpus).
 `x402_share_case` prepares it and returns the link; the user reviews it and submits it, or doesn't. Every report names
 the entry point that produced it (`via: mcp`, `ai-sdk` or `langchain`) in the report and the User-Agent; there's no
 other identifier and no telemetry.

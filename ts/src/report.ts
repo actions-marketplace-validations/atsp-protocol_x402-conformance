@@ -9,7 +9,7 @@ export const REPO = "https://github.com/atsp-protocol/x402-conformance";
 export const LINKS = {
   repo: REPO,
   fixes: `${REPO}/blob/main/docs/FIXES.md`,
-  corpus: `${REPO}/tree/main/evidence/corpus`,
+  corpus: `${REPO}/tree/main/corpus`,
   contribute: `${REPO}/issues/new?template=corpus-case.yml`,
   using: `${REPO}/blob/main/docs/USING.md`,
   badge: `[![Tested with x402-conformance](https://img.shields.io/badge/tested%20with-x402--conformance-2ea44f)](${REPO})`,

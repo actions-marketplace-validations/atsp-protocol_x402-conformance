@@ -59,6 +59,13 @@ inputs:
       (R11f). Needs @x402/extensions in your project; nothing is signed with a funded key.
     required: false
     default: ""
+  retry:
+    description: >-
+      'true' to also check R20 retry double-pay on resource-url: the client times out before /settle answers and
+      retries, with a fresh payment under the same payment-identifier id (R20a) and with the same signed payment
+      (R20b). The request must be paid once and the retry must get the earlier result.
+    required: false
+    default: "false"
   start:
     description: >-
       Command that starts your resource server. It receives X402_FACILITATOR_URL (the double) and must use it as its
@@ -176,7 +183,7 @@ runs:
         echo "$sum  $dir/node.tgz" | (sha256sum -c - 2>/dev/null || shasum -a 256 -c -)
         tar -xzf "$dir/node.tgz" -C "$dir" --strip-components=1
         rm "$dir/node.tgz"
-    - name: Resource-server checks R0-R11 (facilitator double on loopback)
+    - name: Resource-server checks R0-R11 and R20 (facilitator double on loopback)
       if: inputs.resource-url != '' || inputs.binding-cheap-url != '' || inputs.binding-method-url != '' || inputs.binding-query-urls != '' || inputs.binding-param-url != '' || inputs.binding-siwx-urls != ''
       shell: bash
       env:
@@ -187,6 +194,7 @@ runs:
         X402C_B_QUERY: ${{ inputs.binding-query-urls }}
         X402C_B_PARAM: ${{ inputs.binding-param-url }}
         X402C_B_SIWX: ${{ inputs.binding-siwx-urls }}
+        X402C_RETRY: ${{ inputs.retry }}
         X402C_START: ${{ inputs.start }}
         X402C_PORT: ${{ inputs.port }}
         X402C_NETWORK: ${{ inputs.network }}
@@ -205,6 +213,7 @@ runs:
         if [ -n "$X402C_B_QUERY" ]; then args+=(--by-query "$X402C_B_QUERY"); fi
         if [ -n "$X402C_B_PARAM" ]; then args+=(--param "$X402C_B_PARAM"); fi
         if [ -n "$X402C_B_SIWX" ]; then args+=(--siwx-cheap "${X402C_B_SIWX%%,*}" --siwx-expensive "${X402C_B_SIWX#*,}"); fi
+        if [ "$X402C_RETRY" = "true" ] && [ -n "$X402C_RESOURCE" ]; then args+=(--retry); fi
         if [ -n "$X402C_START" ]; then args+=(--start "$X402C_START"); fi
         # The exit code is read from the results file by the summary step; a missing file is a failure there.
         "$node_dir/bin/node" "$GITHUB_ACTION_PATH/ts/dist/src/cli.js" "${args[@]}" > /dev/null || true

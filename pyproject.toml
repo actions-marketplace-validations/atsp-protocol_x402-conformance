@@ -11,7 +11,7 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Ryan Gillespie / Optitransfer" }]
 requires-python = ">=3.10"
 dependencies = []
-keywords = ["x402", "http-402", "agentic-payments", "ai-agents", "micropayments", "stablecoin", "usdc", "solana", "evm",
+keywords = ["x402", "http-402", "pytest", "pytest-plugin", "fastapi", "flask", "agentic-payments", "ai-agents", "micropayments", "stablecoin", "usdc", "solana", "evm",
             "conformance", "fault-injection", "ci", "sarif"]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -30,6 +30,7 @@ classifiers = [
   "Topic :: Security",
   "Topic :: Software Development :: Quality Assurance",
   "Topic :: Software Development :: Testing",
+  "Framework :: Pytest",
   "Typing :: Typed",
 ]
 
@@ -42,6 +43,13 @@ Issues = "https://github.com/atsp-protocol/x402-conformance/issues"
 
 [project.scripts]
 x402conf = "x402conf.cli:main"
+
+# The pytest plugin loads only when pytest is installed; the package itself still has no dependencies.
+[project.entry-points.pytest11]
+x402 = "x402conf.pytest_plugin"
+
+[project.optional-dependencies]
+pytest = ["pytest>=7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

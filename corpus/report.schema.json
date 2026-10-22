@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/evidence/corpus/report.schema.json",
+  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/corpus/report.schema.json",
   "title": "x402-conformance.report/1",
   "description": "The report every x402-conformance entry point writes. Same check IDs everywhere.",
   "type": "object",

@@ -1,7 +1,7 @@
 {
  "about": "PROPOSED, UNSIGNED. New Proofline tasks for the v1.4 and v1.5 milestones in docs/ROADMAP.md. Nothing here is binding and CI does not read this file. The tasks become part of the contract only when the owner merges them into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. Task IDs XC-11 to XC-14 are left to the integration tasks proposed in docs/proposals/contract-addendum-integrations.json (PRs #11 to #14), so this file uses XC-09, XC-10 and XC-15 to XC-20.",
  "schema": "proofline/1",
- "status": "proposed",
+ "status": "merged into proofline.json (signed)",
  "proposed_by": "mgillr",
  "target": "proofline.json tasks[]",
  "profiles": {
@@ -87,6 +87,22 @@
       "timeout_s": 300,
       "test_file": "tests/test_offline.py"
      }
+    },
+    {
+     "id": "XC-09-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-09-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -122,7 +138,7 @@
      "statement": "R11a: a payment for the cheap route presented on the expensive route gets 402 and no /settle",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11a' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11a' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11a'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -134,7 +150,7 @@
      "statement": "R11b: an altered payTo, asset or network gets 402 before any /settle",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11b' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11b'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -146,7 +162,7 @@
      "statement": "R11c and R11d: method and query substitution are priced for the request actually made",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11c|R11d' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11c|R11d' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11c|R11d'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -158,7 +174,7 @@
      "statement": "R11e: encoded separators and dot segments on a parameterised paid route get 402 unpaid",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11e' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11e' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11e'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -170,7 +186,7 @@
      "statement": "R11f: a SIWX access record is keyed by the settled route, not the client's resource.url",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11f' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11f' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11f'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -182,7 +198,7 @@
      "statement": "The stock @x402/express server passes R11 and each faulty build fails the sub-check it targets",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11 control' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11 control' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R11 control'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -197,6 +213,22 @@
       "file": "docs/SPEC.md",
       "pattern": "(?s)R11.*resource server",
       "must": "present"
+     }
+    },
+    {
+     "id": "XC-10-AC08",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-10-AC09",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -286,6 +318,22 @@
       "timeout_s": 300,
       "test_file": "tests/test_live.py"
      }
+    },
+    {
+     "id": "XC-15-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-15-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -344,6 +392,22 @@
       "timeout_s": 300,
       "test_file": "tests/test_offline.py"
      }
+    },
+    {
+     "id": "XC-16-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-16-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -376,7 +440,7 @@
      "statement": "R12 catches a non-atomic check-then-set under parallel load",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R12' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R12' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R12'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -388,7 +452,7 @@
      "statement": "R13 catches a per-process in-memory cache across two replicas",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R13' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R13' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R13'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -400,7 +464,7 @@
      "statement": "R14 catches a server that settles again after a restart",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R14' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R14' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R14'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -415,6 +479,22 @@
       "cmd": "cd lean && lake build && python3 ../tools/lean_axioms.py",
       "expect_exit": 0,
       "timeout_s": 1800
+     }
+    },
+    {
+     "id": "XC-17-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-17-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -447,7 +527,7 @@
      "statement": "R15: no /settle when the handler returns 3xx or 5xx or throws",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R15' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R15' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R15'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -459,7 +539,7 @@
      "statement": "R16: a HEAD carrying a payment is refused with zero /settle calls",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R16' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R16' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R16'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -471,7 +551,7 @@
      "statement": "R17: an unpaid request through a caching proxy after a paid one gets 402",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R17' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R17' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R17'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -483,7 +563,7 @@
      "statement": "R18: pending, then success, is served once, never twice",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R18' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R18' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R18'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -495,10 +575,26 @@
      "statement": "R19: an upfront or escrow route never executes before a check",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R19' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R19' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R19'",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-18-AC06",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-18-AC07",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -537,6 +633,22 @@
       "type": "command",
       "cmd": "test $(ls evidence/impl-matrix/*/SHA256SUMS 2>/dev/null | wc -l) -ge 5",
       "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-19-AC02",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-19-AC03",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -633,6 +745,22 @@
       "cmd": "python3 tools/vv.py hygiene >/dev/null && test -f docs/compat-matrix.json",
       "expect_exit": 0,
       "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-20-AC07",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-20-AC08",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
