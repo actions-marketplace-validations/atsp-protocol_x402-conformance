@@ -1,7 +1,7 @@
 {
  "about": "PROPOSED, UNSIGNED. One new Proofline task for R14, a crash between a successful /settle and the response. Nothing here is binding and CI does not read this file. The task becomes part of the contract only when the owner merges it into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. It is meant to be signed after the v1.4 addenda (XC-09 to XC-20) are in the contract, so it takes the next free ID, XC-21. R14 is also listed under XC-17 (R12, R13 and R14 together); XC-21 lets R14 be claimed done on its own while R12 and R13 are still being built, and XC-17-AC03 runs the same tests.",
  "schema": "proofline/1",
- "status": "proposed",
+ "status": "merged into proofline.json (signed)",
  "proposed_by": "mgillr",
  "target": "proofline.json tasks[]",
  "tasks": [
