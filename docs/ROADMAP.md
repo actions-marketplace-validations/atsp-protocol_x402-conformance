@@ -102,8 +102,8 @@ from the server's own matching.
 
 | check | what | spec basis | faulty build | where |
 |---|---|---|---|---|
-| F11 | a `settlement_pending` answer carries a non-empty `transaction` and `network` | V2 §9: "MUST carry a non-empty `transaction` … and `network`" | a double that returns pending with no hash | offline, devnet, and the probe's double |
-| F12 | `/verify` is read-only: verifying twice, then settling, still settles once, and verify alone consumes nothing | V2 §7.1: `/verify` "MUST NOT commit payment state" | a double whose verify burns the nonce | offline, devnet |
+| F5, extended | a `settlement_pending` answer carries a non-empty `network` as well as the `transaction` F5 already requires, and a faulty double that drops them proves F5 can fail | V2 §9: "MUST carry a non-empty `transaction` … and `network`" | a double that returns pending with no hash or network | offline, devnet, and the probe's double |
+| F11 | `/verify` is read-only: verifying twice, then settling, still settles once, and verify alone consumes nothing | V2 §7.1: `/verify` "MUST NOT commit payment state" | a double whose verify burns the nonce | offline, devnet |
 | P6 | the encoded `PAYMENT-REQUIRED` header fits common client limits: warning above 8 KB, error above 16 KB | resilience: the spec sets no budget. Upstream [x402#3803](https://github.com/x402-foundation/x402/issues/3803), open: Node's fetch fails above 16 KB of headers and aiohttp above about 8 KB | a fixture with a large discovery extension | `resource`, read-only |
 | P7 | a 402 whose resolved payment flow isn't `authorization` declares `extra.paymentFlow` | V2 §6.1: it "MUST be present" | a fixture that omits it | `resource`, read-only |
 
@@ -114,10 +114,10 @@ from the server's own matching.
 - **A credibility gate in CI:** a test fails the build if any check has no passing control or no faulty build it
   catches. The mutation matrix (check × faulty build) is published on the project page.
 - **False positives:** each one gets a public issue, a fix or a documented exception, and a regression test.
-- **README and SPEC.md** list F10 to F12, P6, P7 and R11 with the profile of each.
+- **README and SPEC.md** list F10, F11, P6, P7 and R11 with the profile of each.
 
 **v1.4 is done when** R11a to R11f catch their faulty builds and the stock server passes on Solana devnet and Base
-Sepolia, the oracle survives the malformed-amount table, F11, F12, P6 and P7 ship with controls and faulty builds, and
+Sepolia, the oracle survives the malformed-amount table, the extended F5, F11, P6 and P7 ship with controls and faulty builds, and
 the credibility gate is green.
 
 ## v1.5: concurrency, delivery and an implementation matrix (target: December 2026)
