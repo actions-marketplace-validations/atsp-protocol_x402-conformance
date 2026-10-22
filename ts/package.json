@@ -29,7 +29,13 @@
     "ci",
     "sarif",
     "testing",
-    "facilitator"
+    "facilitator",
+    "vitest",
+    "jest",
+    "hono",
+    "express",
+    "test-matchers",
+    "security-testing"
   ],
   "type": "module",
   "engines": {
@@ -45,6 +51,10 @@
       "types": "./dist/src/index.d.ts",
       "default": "./dist/src/index.js"
     },
+    "./testing": {
+      "types": "./dist/src/testing.d.ts",
+      "default": "./dist/src/testing.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -53,20 +63,24 @@
   ],
   "scripts": {
     "build": "tsc -p .",
-    "test": "tsc -p . && node --test --test-reporter=spec dist/test/*.test.js",
+    "test": "tsc -p . && node --test --test-reporter=spec dist/test/*.test.js && vitest run --config vitest.config.mjs",
     "prepack": "tsc -p ."
   },
   "dependencies": {
     "@x402/core": "2.28.0"
   },
   "devDependencies": {
+    "@hono/node-server": "2.1.5",
     "@solana/kit": "5.5.1",
     "@types/express": "4.17.21",
     "@types/node": "20.17.6",
     "@x402/evm": "2.28.0",
     "@x402/express": "2.28.0",
+    "@x402/hono": "2.28.0",
     "@x402/svm": "2.28.0",
     "express": "4.22.3",
-    "typescript": "5.6.3"
+    "hono": "4.13.13",
+    "typescript": "5.6.3",
+    "vitest": "4.0.15"
   }
 }

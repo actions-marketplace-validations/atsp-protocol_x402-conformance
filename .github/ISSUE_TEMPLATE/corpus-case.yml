@@ -1,0 +1,39 @@
+name: Share a corpus case
+description: A failure x402-conformance found in a real stack, anonymised, so everyone's tests catch it too
+title: "[corpus] <check ids> via <entry point> on <framework>"
+labels: [corpus-case]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        Thank you. Every reproduced failure becomes a regression case that every user of the suite runs. `--share`
+        (or `saveReport(..., { share: true })`, or the MCP tool `x402_share_case`) filled this in from an anonymised
+        case file: URLs, hosts, IPs, addresses and transaction data are removed. Read it before you submit and remove
+        anything else you'd rather not publish. Never paste credentials or keys. If the failure could put someone's
+        money at risk, report it privately instead (see SECURITY.md).
+  - type: input
+    id: via
+    attributes: { label: Entry point (via), placeholder: "cli-ts, cli-py, action, vitest, pytest, mcp, docker ..." }
+    validations: { required: true }
+  - type: input
+    id: checks
+    attributes: { label: Failed check ids, placeholder: "R3, R5" }
+    validations: { required: true }
+  - type: textarea
+    id: stack
+    attributes: { label: "Stack: framework, SDK and version, network", placeholder: "framework: hono\nsdk: @x402/hono\nsdk_version: 2.28.0\nnetwork: eip155:84532" }
+    validations: { required: true }
+  - type: textarea
+    id: case
+    attributes: { label: Anonymised case (x402-conformance.case/1), render: json }
+    validations: { required: true }
+  - type: textarea
+    id: repro
+    attributes: { label: "How to reproduce (optional: a minimal server, or the config that triggers it)" }
+  - type: checkboxes
+    id: consent
+    attributes:
+      label: Consent
+      options:
+        - label: I reviewed the case, it contains nothing secret or identifying, and I agree to publish it under Apache-2.0
+          required: true

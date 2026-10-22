@@ -43,6 +43,10 @@ jobs:
           start: node server.js                      # must use X402_FACILITATOR_URL as its facilitator
 ```
 
+**From your test suite, agent or CI system:** [docs/USING.md](docs/USING.md) covers vitest, jest, node:test, Hono and
+Express, with the same checks and report everywhere. Failures you choose to share build the public
+[corpus](evidence/corpus) of real x402 failures.
+
 ## Who should use this
 
 - **Resource-server builders** selling an API over x402. The probe puts a misbehaving facilitator in front of your paid

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/evidence/corpus/report.schema.json",
+  "title": "x402-conformance.report/1",
+  "description": "The report every x402-conformance entry point writes. Same check IDs everywhere.",
+  "type": "object",
+  "required": ["schema", "tool", "version", "via", "kind", "run_at", "target", "results", "summary"],
+  "properties": {
+    "schema": { "const": "x402-conformance.report/1" },
+    "tool": { "type": "string" },
+    "version": { "type": "string" },
+    "via": { "enum": ["cli-ts", "cli-py", "action", "testing", "vitest", "jest", "node-test", "mcp", "ai-sdk", "langchain", "pytest", "docker", "gitlab", "library"] },
+    "kind": { "enum": ["resource-402", "resource-server", "facilitator-supported", "self-test"] },
+    "run_at": { "type": "string" },
+    "target": { "type": "string" },
+    "error": { "type": "string" },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check", "pass", "status", "severity"],
+        "properties": {
+          "check": { "type": "string", "pattern": "^[A-Z]+[0-9]+[a-z]? " },
+          "pass": { "type": "boolean" },
+          "status": { "enum": ["pass", "fail", "unsupported"] },
+          "severity": { "enum": ["error", "warning"] },
+          "detail": {}
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["checks", "failed", "failed_ids", "unsupported"],
+      "properties": {
+        "checks": { "type": "integer" }, "failed": { "type": "integer" },
+        "failed_ids": { "type": "array", "items": { "type": "string" } }, "unsupported": { "type": "boolean" }
+      }
+    },
+    "links": { "type": "object" }
+  }
+}

@@ -1,4 +1,16 @@
 # Changelog
+## Unreleased
+- Entry points share one report: `x402-conformance.report/1` (check IDs, status, severity, detail, summary, links)
+  from the Node CLI and the new test helpers, with a `via` field naming the entry point. The same `via` goes into the
+  User-Agent. No telemetry.
+- `x402conf-svm resource --url`: P1-P5 in Node, ported from the Python CLI and checked against it on 29 answers in CI.
+- `x402-conformance-svm/testing`: `runConformance()`, vitest and jest matchers (`toPassX402Conformance`,
+  `toBeValidX402Challenge`), `assertX402Conformance()` for node:test, and `saveReport()`.
+- `--share` (opt-in): writes an anonymised corpus case and prints a link to the new "Share a corpus case" issue form.
+  Nothing is sent. The corpus and its schemas live in `evidence/corpus`.
+- A stock `@x402/hono` example server, tested on Solana devnet and Base Sepolia alongside `@x402/express`.
+- docs/USING.md: one page for using the suite from each stack.
+
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction
   was verified under and refuses the same transaction against a different requirements set (amount escalation, recipient
