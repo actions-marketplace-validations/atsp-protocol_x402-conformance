@@ -81,6 +81,12 @@ describe("corpus case: anonymised, opt-in, never sent", () => {
     assert.equal(c.via, "vitest");
     assert.equal(c.results[0].detail, null);
   });
+  test("anonymise matches the fixture the Python CLI also matches", () => {
+    const root = new URL("../../../evidence/corpus/fixtures/", import.meta.url);
+    const input = JSON.parse(readFileSync(new URL("anonymise-input.json", root), "utf8"));
+    const expected = JSON.parse(readFileSync(new URL("anonymise-expected.json", root), "utf8"));
+    assert.deepEqual(anonymise(input.report, input.stack), expected);
+  });
   test("shareUrl pre-fills the corpus-case issue form and is null for a passing run", () => {
     const u = new URL(shareUrl(anonymise(report, { framework: "hono" }))!);
     assert.equal(u.origin + u.pathname, "https://github.com/atsp-protocol/x402-conformance/issues/new");

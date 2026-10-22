@@ -3,7 +3,11 @@
   "name": "io.github.atsp-protocol/x402-conformance",
   "title": "x402 Conformance",
   "description": "x402 payment safety checks: validate a 402 answer, prove a server never serves before settlement.",
-  "repository": { "url": "https://github.com/atsp-protocol/x402-conformance", "source": "github", "subfolder": "ts/mcp" },
+  "repository": {
+    "url": "https://github.com/atsp-protocol/x402-conformance",
+    "source": "github",
+    "subfolder": "ts/mcp"
+  },
   "websiteUrl": "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/USING.md",
   "version": "1.4.0",
   "packages": [
@@ -12,7 +16,16 @@
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "x402-conformance-mcp",
       "version": "1.4.0",
-      "transport": { "type": "stdio" }
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/atsp-protocol/x402-conformance:1.4.0",
+      "transport": {
+        "type": "stdio"
+      }
     }
   ]
 }
