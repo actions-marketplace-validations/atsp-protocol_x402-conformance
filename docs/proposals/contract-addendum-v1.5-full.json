@@ -1,7 +1,7 @@
 {
  "about": "PROPOSED, UNSIGNED. Every docs/ROADMAP.md item that no earlier task (XC-01 to XC-21) covers, decomposed into Proofline tasks XC-22 to XC-37 with verifiers that fail until the work is built. Nothing here is binding and CI does not read this file. Apply after the v1.4 addenda (XC-09 to XC-20) and the R14 addendum (XC-21) are signed.",
  "schema": "proofline/1",
- "status": "proposed",
+ "status": "merged into proofline.json (signed)",
  "proposed_by": "mgillr",
  "target": "proofline.json tasks[]",
  "applies_after": [
