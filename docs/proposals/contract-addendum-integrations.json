@@ -10,6 +10,10 @@
       "depends_on": [
         "XC-M4"
       ],
+      "requirements": [
+        "R-ADOPT"
+      ],
+      "description": "One report format (x402-conformance.report/1) shared by every entry point, the Node P1-P7 port of the 402 checks, runConformance and the vitest, jest and node:test matchers, and opt-in corpus sharing (--share, saveReport share) that writes an anonymised case and a link to the corpus-case issue form. Nothing is ever sent automatically. The corpus lives at top-level corpus/.",
       "scope": {
         "allow": [
           "ts/**",
@@ -73,10 +77,26 @@
             "expect_exit": 0,
             "timeout_s": 60
           }
+        },
+        {
+          "id": "XC-11-AC06",
+          "mandatory": true,
+          "statement": "Every changed file is inside this task's scope",
+          "verifier": {
+            "type": "scope"
+          }
+        },
+        {
+          "id": "XC-11-AC07",
+          "mandatory": true,
+          "statement": "Committed and pushed to main",
+          "verifier": {
+            "type": "pushed"
+          }
         }
       ],
-      "requirements": [
-        "R-ADOPT"
+      "stop_rules": [
+        "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
       ]
     },
     {
@@ -87,6 +107,10 @@
       "depends_on": [
         "XC-11"
       ],
+      "requirements": [
+        "R-ADOPT"
+      ],
+      "description": "x402-conformance-mcp: an MCP server over stdio with seven tools (demo, check, probe on loopback only, explain, share and two reporting tools) and read-only adapters for the Vercel AI SDK and LangChain. Registry metadata (server.json) matches package.json and the README.",
       "scope": {
         "allow": [
           "ts/mcp/**",
@@ -127,10 +151,26 @@
             "pattern": "mcp-name: io.github.atsp-protocol/x402-conformance",
             "must": "present"
           }
+        },
+        {
+          "id": "XC-12-AC04",
+          "mandatory": true,
+          "statement": "Every changed file is inside this task's scope",
+          "verifier": {
+            "type": "scope"
+          }
+        },
+        {
+          "id": "XC-12-AC05",
+          "mandatory": true,
+          "statement": "Committed and pushed to main",
+          "verifier": {
+            "type": "pushed"
+          }
         }
       ],
-      "requirements": [
-        "R-ADOPT"
+      "stop_rules": [
+        "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
       ]
     },
     {
@@ -142,6 +182,10 @@
         "XC-11",
         "XC-12"
       ],
+      "requirements": [
+        "R-ADOPT"
+      ],
+      "description": "The Python CLI tags its runs with via and writes the same anonymised case as TypeScript from the shared fixture; a Docker image (Python and Node CLIs, the MCP server by default) and a GitLab CI template that runs x402-conformance ci.",
       "scope": {
         "allow": [
           "src/x402conf/cli.py",
@@ -189,10 +233,26 @@
             "pattern": "X402CONF_VIA: gitlab",
             "must": "present"
           }
+        },
+        {
+          "id": "XC-13-AC04",
+          "mandatory": true,
+          "statement": "Every changed file is inside this task's scope",
+          "verifier": {
+            "type": "scope"
+          }
+        },
+        {
+          "id": "XC-13-AC05",
+          "mandatory": true,
+          "statement": "Committed and pushed to main",
+          "verifier": {
+            "type": "pushed"
+          }
         }
       ],
-      "requirements": [
-        "R-ADOPT"
+      "stop_rules": [
+        "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
       ]
     },
     {
@@ -204,6 +264,10 @@
         "XC-11",
         "XC-13"
       ],
+      "requirements": [
+        "R-ADOPT"
+      ],
+      "description": "A pytest plugin (pytest11 entry point, the x402 fixture, --x402-report-dir and --x402-share) and Python server examples run in CI, including the stock x402 Python SDK FastAPI middleware. The package keeps no runtime dependencies.",
       "scope": {
         "allow": [
           "src/x402conf/pytest_plugin.py",
@@ -249,10 +313,26 @@
             "pattern": "^dependencies = \\[\\]",
             "must": "present"
           }
+        },
+        {
+          "id": "XC-14-AC04",
+          "mandatory": true,
+          "statement": "Every changed file is inside this task's scope",
+          "verifier": {
+            "type": "scope"
+          }
+        },
+        {
+          "id": "XC-14-AC05",
+          "mandatory": true,
+          "statement": "Committed and pushed to main",
+          "verifier": {
+            "type": "pushed"
+          }
         }
       ],
-      "requirements": [
-        "R-ADOPT"
+      "stop_rules": [
+        "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
       ]
     }
   ],

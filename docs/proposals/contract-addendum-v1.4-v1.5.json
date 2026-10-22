@@ -87,6 +87,22 @@
       "timeout_s": 300,
       "test_file": "tests/test_offline.py"
      }
+    },
+    {
+     "id": "XC-09-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-09-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -198,6 +214,22 @@
       "pattern": "(?s)R11.*resource server",
       "must": "present"
      }
+    },
+    {
+     "id": "XC-10-AC08",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-10-AC09",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -286,6 +318,22 @@
       "timeout_s": 300,
       "test_file": "tests/test_live.py"
      }
+    },
+    {
+     "id": "XC-15-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-15-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -343,6 +391,22 @@
       "max_skipped": 0,
       "timeout_s": 300,
       "test_file": "tests/test_offline.py"
+     }
+    },
+    {
+     "id": "XC-16-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-16-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -415,6 +479,22 @@
       "cmd": "cd lean && lake build && python3 ../tools/lean_axioms.py",
       "expect_exit": 0,
       "timeout_s": 1800
+     }
+    },
+    {
+     "id": "XC-17-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-17-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -500,6 +580,22 @@
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
      }
+    },
+    {
+     "id": "XC-18-AC06",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-18-AC07",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
     }
    ],
    "stop_rules": [
@@ -537,6 +633,22 @@
       "type": "command",
       "cmd": "test $(ls evidence/impl-matrix/*/SHA256SUMS 2>/dev/null | wc -l) -ge 5",
       "expect_exit": 0
+     }
+    },
+    {
+     "id": "XC-19-AC02",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-19-AC03",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
@@ -633,6 +745,22 @@
       "cmd": "python3 tools/vv.py hygiene >/dev/null && test -f docs/compat-matrix.json",
       "expect_exit": 0,
       "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-20-AC07",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-20-AC08",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
      }
     }
    ],
