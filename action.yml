@@ -90,6 +90,17 @@ inputs:
       nothing it could grade.
     required: false
     default: "true"
+  pr-comment:
+    description: >-
+      "true" posts the result as one sticky pull request comment, updated in place on every run, with a fix link for
+      each failed check. Off by default. The calling job needs `permissions: pull-requests: write`; on a fork's pull
+      request the token is read-only and the action only warns.
+    required: false
+    default: "false"
+  github-token:
+    description: Token for pr-comment. The default job token is enough.
+    required: false
+    default: ${{ github.token }}
 outputs:
   result:
     description: '"pass" when every requested check passed, "unsupported" when the probe found nothing it could grade, otherwise "fail".'
@@ -97,6 +108,14 @@ outputs:
   results-dir:
     description: Directory holding live.json, resource-402.json, resource-server.json and offline.json.
     value: ${{ inputs.results-dir }}
+  badge:
+    description: >-
+      <results-dir>/badge.json, a shields.io endpoint badge (label "x402 conformance", pass n/n or n failing). Publish
+      it anywhere public and use https://img.shields.io/endpoint?url=<its URL>.
+    value: ${{ inputs.results-dir }}/badge.json
+  pr-comment:
+    description: <results-dir>/pr-comment.md, the markdown posted by pr-comment (written on every run).
+    value: ${{ inputs.results-dir }}/pr-comment.md
   sarif:
     description: SARIF 2.1.0 file of failed checks, for github/codeql-action/upload-sarif (GitHub code scanning).
     value: ${{ inputs.results-dir }}/x402-conformance.sarif
@@ -220,3 +239,12 @@ runs:
         X402C_WANT_OFFLINE: ${{ inputs.offline == 'true' }}
         X402C_RESOURCE: ${{ inputs.resource-url }}
       run: python3 -c 'import sys; from x402conf import cli; sys.exit(cli.action_summary())'
+    - name: Sticky pull request comment (opt-in)
+      if: always() && inputs.pr-comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        if [ -f "$X402C_DIR/pr-comment.md" ]; then python3 -m x402conf pr-comment "$X402C_DIR/pr-comment.md" || true; fi

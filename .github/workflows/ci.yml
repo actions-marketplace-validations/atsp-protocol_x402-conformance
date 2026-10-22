@@ -59,6 +59,37 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "${{ matrix.node }}" }
       - run: cd ts && npm ci --no-audit --no-fund && npm test
+  first-run:
+    # A1: what a new user types, from the packed packages, timed. Under 60 s each, no wallet, no project, no config.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Pack both packages as they would be published
+        run: |
+          (cd ts && npm ci --no-audit --no-fund && npm pack --pack-destination "$RUNNER_TEMP")
+          python3 -m pip wheel --no-deps -w "$RUNNER_TEMP" .
+          pipx --version
+      - name: npx one-liner against the bundled mock, under 60 s
+        working-directory: ${{ runner.temp }}
+        run: |
+          t0=$(date +%s)
+          npx --yes --package "$PWD/$(ls x402-conformance-svm-*.tgz)" x402conf-svm demo
+          t=$(( $(date +%s) - t0 )); echo "npx demo, install included: ${t} s"; test "$t" -lt 60
+      - name: pipx one-liner against the bundled mock, under 60 s
+        working-directory: ${{ runner.temp }}
+        run: |
+          t0=$(date +%s)
+          pipx run --spec "$PWD/$(ls x402_conformance-*.whl)" x402conf demo
+          t=$(( $(date +%s) - t0 )); echo "pipx demo, install included: ${t} s"; test "$t" -lt 60
+      - name: A faulty demo exits 1 with fix links
+        working-directory: ${{ runner.temp }}
+        run: |
+          set +e
+          out=$(pipx run --spec "$PWD/$(ls x402_conformance-*.whl)" x402conf demo --fault no_fee_payer); code=$?
+          echo "$out"; test "$code" = 1 && echo "$out" | grep -q "fix: https://"
   action:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -83,6 +114,10 @@ jobs:
           python3 -c "import json,sys;d=json.load(open('${{ steps.probe.outputs.sarif }}'));sys.exit(0 if d['version']=='2.1.0' and d['runs'][0]['results']==[] else 1)"
           python3 -c "import sys,xml.etree.ElementTree as E;r=E.parse('${{ steps.probe.outputs.junit }}').getroot();sys.exit(0 if int(r.get('tests'))>=21 and r.get('failures')=='0' else 1)"
       - run: python3 -c "import json,sys;d=json.load(open('x402-conformance/resource-server.json'));sys.exit(0 if len(d['results'])==11 and all(r['pass'] for r in d['results']) else 1)"
+      - name: The badge and the sticky comment body are written (A2, A5)
+        run: |
+          python3 -c "import json,sys;d=json.load(open('${{ steps.probe.outputs.badge }}'));sys.exit(0 if d['schemaVersion']==1 and d['color']=='brightgreen' and d['message'].startswith('pass') else 1)"
+          head -1 '${{ steps.probe.outputs.pr-comment }}' | grep -qx '<!-- x402-conformance:sticky -->'
       - name: A stock @x402/express server on Base Sepolia passes, R3 included
         id: stock
         uses: ./
@@ -104,6 +139,8 @@ jobs:
           offline: "false"
           results-dir: faulty
       - run: test "${{ steps.faulty.outputs.result }}" = fail
+      - run: python3 -c "import json,sys;d=json.load(open('faulty/badge.json'));sys.exit(0 if d['color']=='red' else 1)"
+      - run: grep -q 'FIXES.md#r' faulty/pr-comment.md
       - name: The faulty server's failures reach the SARIF file
         run: python3 -c "import json,sys;d=json.load(open('faulty/x402-conformance.sarif'));sys.exit(0 if d['runs'][0]['results'] else 1)"
       - name: Fail closed - the double's port is taken, so the probe cannot run
@@ -171,7 +208,7 @@ jobs:
           results-dir: siwx-stock
       - run: test "${{ steps.siwx-stock.outputs.result }}" = fail
   vv:
-    needs: [lint, test, lean, ts, action]
+    needs: [lint, test, lean, ts, first-run, action]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

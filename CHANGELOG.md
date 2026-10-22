@@ -1,5 +1,14 @@
 # Changelog
 ## Unreleased
+- A first run with nothing to set up: `npx -y x402-conformance-svm demo` runs R0-R10 against a bundled mock resource
+  server (`ts/src/mock-server.ts`, @x402/core only) behind the facilitator double, and `x402conf demo` runs S1-S4 and
+  P1-P7 against a bundled mock facilitator and paid route, then the F1-F11 self-test. No wallet, no chain, a few
+  seconds each. `--fault` shows a failing run, with a fix link under every failed check. A CI job installs both packed
+  packages the way a new user would and fails if either one-liner takes 60 s or more.
+- Action `pr-comment: "true"` (off by default) posts one sticky pull request comment with the result and a fix link
+  per failed check, updated in place on every run (`x402conf pr-comment`). On a fork's read-only token it warns.
+- Badge: the action writes `badge.json` (a shields.io endpoint: `pass n/n`, `n failing` or `unsupported`) and has a
+  `badge` output; `x402conf report --badge FILE` writes it outside the action.
 - The suite's oracle fails closed. The reference verifier parsed amounts with `int()`, so a malformed amount raised
   instead of being rejected, and forms `int()` accepts but V2 atomic units don't (`" 10000 "`, `"+10000"`, `"10_000"`,
   `"010000"`, non-ASCII digits) passed. Amounts are now parsed strictly (ASCII digits, no leading zeros, within

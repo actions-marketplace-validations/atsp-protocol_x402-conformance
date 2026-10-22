@@ -11,6 +11,8 @@ import { NETWORKS, PortInUseError, startDouble, type Network } from "./double.js
 import { probe, type Result } from "./probe.js";
 import { probeBinding, type BindingTargets } from "./binding.js";
 import { EVIDENCE_FORMAT, label } from "./catalog.js";
+import { MOCK_FAULTS, startMockResource } from "./mock-server.js";
+type Labelled = Result & { profile: string; basis: string; fix: string };
 
 export const VERSION: string = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
@@ -20,7 +22,11 @@ usage:
   x402conf-svm probe --resource <url> [binding options] [--port 4402] [--start "<command>"]
                      [--network auto|${NETWORKS.join("|")}] [--out file]
   x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file]
+  x402conf-svm demo [--fault ${MOCK_FAULTS.join("|")}] [--out file]
   x402conf-svm --help | --version
+
+  demo              run R0-R10 against a bundled mock resource server and facilitator double on loopback: no project,
+                    no wallet, no chain, well under a minute. --fault shows a failing run and its fix hints
 
   --resource        your paid route, e.g. http://127.0.0.1:4020/paid (R0-R10)
   binding options (R11; give at least --resource or one of these):
@@ -87,7 +93,54 @@ function stop(child: ChildProcess | null) {
   try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
 }
 
+/** One line per check, a fix link under each failure. */
+export function table(results: Labelled[]): string {
+  const lines = results.map((r) => `  ${r.pass ? "pass" : r.status === "unsupported" ? "n/a " : "FAIL"}  ${r.check}` +
+    (r.pass ? "" : `\n        fix: ${r.fix}`));
+  const failed = results.filter((r) => !r.pass).length;
+  return lines.join("\n") + `\n\n${results.length - failed}/${results.length} checks pass`;
+}
+
+async function demo(argv: string[]): Promise<number> {
+  const o: Record<string, string> = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    if (!["--fault", "--out"].includes(argv[i]) || argv[i + 1] === undefined) {
+      console.error(`x402conf-svm: unknown or incomplete option ${argv[i]}\n\n${USAGE}`);
+      return 2;
+    }
+    o[argv[i].slice(2)] = argv[i + 1];
+  }
+  if (o.fault && !(MOCK_FAULTS as readonly string[]).includes(o.fault)) {
+    console.error(`x402conf-svm: --fault must be one of ${MOCK_FAULTS.join(", ")}`);
+    return 2;
+  }
+  const t0 = Date.now();
+  const double = await startDouble(0);
+  const mock = await startMockResource(double.url, o.fault ?? "");
+  let results: Labelled[];
+  try {
+    results = (await probe(mock.url, double, { network: "auto", deadlineMs: 10_000 })).map(label);
+  } finally {
+    await mock.close();
+    await double.close();
+  }
+  const secs = ((Date.now() - t0) / 1000).toFixed(1);
+  if (o.out) {
+    writeFileSync(o.out, JSON.stringify({ tool: `x402-conformance-svm ${VERSION}`, evidence: EVIDENCE_FORMAT,
+      versions: { "x402-conformance-svm": VERSION, node: process.versions.node }, run_at: new Date().toISOString(),
+      resource: "demo://bundled-mock" + (o.fault ? `?fault=${o.fault}` : ""), demo: true, seconds: Number(secs),
+      results }, null, 1) + "\n");
+  }
+  console.log(`x402conf-svm ${VERSION} demo: a bundled mock resource server${o.fault ? ` (fault: ${o.fault})` : ""} ` +
+    "behind a facilitator double on loopback. No wallet, no chain.\n");
+  console.log(table(results) + ` in ${secs} s\n`);
+  console.log("Next, point it at your own server (it gets X402_FACILITATOR_URL and must use it):\n" +
+    "  npx x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start \"node server.js\"");
+  return results.every((r) => r.pass) ? 0 : 1;
+}
+
 async function main(): Promise<number> {
+  if (process.argv[2] === "demo") return demo(process.argv.slice(3));
   const o = parse(process.argv.slice(2));
   if (typeof o === "number") return o;
   const binding = bindingTargets(o) as BindingTargets | null;
