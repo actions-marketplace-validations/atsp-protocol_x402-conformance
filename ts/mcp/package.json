@@ -1,0 +1,93 @@
+{
+  "name": "x402-conformance-mcp",
+  "version": "1.4.0",
+  "description": "x402 conformance and safety checks as MCP tools, Vercel AI SDK tools and LangChain tools: check a paid route's 402 answer, prove your server never serves before settlement, explain a failure and share it to the public corpus. Never pays, signs or touches mainnet.",
+  "mcpName": "io.github.atsp-protocol/x402-conformance",
+  "license": "Apache-2.0",
+  "author": "Ryan Gillespie / Optitransfer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atsp-protocol/x402-conformance.git",
+    "directory": "ts/mcp"
+  },
+  "homepage": "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/USING.md#mcp-claude-cursor-and-other-mcp-clients",
+  "bugs": {
+    "url": "https://github.com/atsp-protocol/x402-conformance/issues"
+  },
+  "keywords": [
+    "x402",
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "ai-agents",
+    "agentic-payments",
+    "ai-sdk",
+    "vercel-ai",
+    "langchain",
+    "tools",
+    "http-402",
+    "payments",
+    "conformance",
+    "security-testing",
+    "solana",
+    "base"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "x402-conformance-mcp": "dist/src/bin.js"
+  },
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./ai-sdk": {
+      "types": "./dist/src/ai-sdk.d.ts",
+      "default": "./dist/src/ai-sdk.js"
+    },
+    "./langchain": {
+      "types": "./dist/src/langchain.d.ts",
+      "default": "./dist/src/langchain.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/src",
+    "dist/FIXES.md",
+    "README.md",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc -p . && node -e \"require('fs').copyFileSync('../../docs/FIXES.md','dist/FIXES.md')\"",
+    "test": "npm run build && node --test --test-reporter=spec dist/test/*.test.js",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "x402-conformance-svm": "file:..",
+    "zod": "4.1.12"
+  },
+  "peerDependencies": {
+    "@langchain/core": ">=0.3.0",
+    "ai": ">=5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/core": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@langchain/core": "1.2.20",
+    "@types/node": "20.17.6",
+    "ai": "6.0.312",
+    "typescript": "5.6.3"
+  }
+}

@@ -27,6 +27,9 @@ ecosystem.
 | [jest](#jest) | `jest` | `npm i -D x402-conformance-svm` |
 | [node:test and other runners](#nodetest-and-other-runners) | `node-test` | `npm i -D x402-conformance-svm` |
 | [Hono, Express and other servers](#hono-express-and-other-servers) | any of the above | |
+| [MCP: Claude, Cursor and other MCP clients](#mcp-claude-cursor-and-other-mcp-clients) | `mcp` | `npx -y x402-conformance-mcp` |
+| [Vercel AI SDK](#vercel-ai-sdk) | `ai-sdk` | `npm i x402-conformance-mcp` |
+| [LangChain and LangGraph](#langchain-and-langgraph) | `langchain` | `npm i x402-conformance-mcp` |
 
 ## Command line
 
@@ -95,3 +98,34 @@ Any server works if its facilitator URL comes from configuration. CI runs the st
 ([example](../ts/example/hono-server.ts)) and `@x402/express` ([example](../ts/example/express-server.ts)) middleware
 through `runConformance` on Solana devnet and Base Sepolia, and both pass. For a server you can't start in-process,
 use the CLI's `--start` or the Action.
+
+## MCP: Claude, Cursor and other MCP clients
+
+```json
+{ "mcpServers": { "x402-conformance": { "command": "npx", "args": ["-y", "x402-conformance-mcp"] } } }
+```
+
+Seven tools: `x402_check_payment_required` (P1-P5), `x402_demo` (the whole suite on a built-in demo server, no wallet),
+`x402_start_facilitator_double`, `x402_probe_resource_server` (R0-R10, loopback only) and
+`x402_stop_facilitator_double`, `x402_explain_check` (the FIXES.md section) and `x402_share_case` (an anonymised case
+and the issue link; it sends nothing). Listed in the MCP registry as `io.github.atsp-protocol/x402-conformance`. CI
+drives the server over real stdio with the MCP SDK client. [ts/mcp/README.md](../ts/mcp/README.md) has the details.
+
+## Vercel AI SDK
+
+```ts
+import { x402ConformanceTools } from "x402-conformance-mcp/ai-sdk";
+await generateText({ model, tools: x402ConformanceTools(), prompt: "Is the 402 answer at https://api.example.com/paid valid?" });
+```
+
+An agent gets the four read-only tools: check, demo, explain and share. A pre-flight `x402_check_payment_required`
+before paying an unfamiliar endpoint is the common use. CI runs a tool call through `generateText` with a mock model.
+
+## LangChain and LangGraph
+
+```ts
+import { x402ConformanceTools } from "x402-conformance-mcp/langchain";
+const agent = createReactAgent({ llm, tools: x402ConformanceTools() });
+```
+
+The same four tools as LangChain `StructuredTool`s, which also work in LangGraph agents.

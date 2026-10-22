@@ -58,6 +58,8 @@
   Nothing is sent. The corpus and its schemas live in `evidence/corpus`.
 - A stock `@x402/hono` example server, tested on Solana devnet and Base Sepolia alongside `@x402/express`.
 - docs/USING.md: one page for using the suite from each stack.
+- `x402-conformance-mcp`, a new package: the suite as seven MCP tools over stdio (`npx -y x402-conformance-mcp`), with
+  MCP registry metadata, plus the four read-only tools for the Vercel AI SDK (`/ai-sdk`) and LangChain (`/langchain`).
 
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction

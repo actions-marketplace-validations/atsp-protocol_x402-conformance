@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.atsp-protocol/x402-conformance",
+  "title": "x402 Conformance",
+  "description": "x402 payment safety checks: validate a 402 answer, prove a server never serves before settlement.",
+  "repository": { "url": "https://github.com/atsp-protocol/x402-conformance", "source": "github", "subfolder": "ts/mcp" },
+  "websiteUrl": "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/USING.md",
+  "version": "1.4.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "x402-conformance-mcp",
+      "version": "1.4.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}
