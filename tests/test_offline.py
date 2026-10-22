@@ -5,6 +5,7 @@ import io
 import json
 import os
 import tempfile
+import time
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -308,6 +309,111 @@ class Report(unittest.TestCase):
         want = {k: {"profile": v["profile"], "basis": v["basis"]} for k, v in S.CATALOG.items() if k.startswith("R")}
         self.assertEqual(json.loads(body), want)
         self.assertIn(f'EVIDENCE_FORMAT = "{S.EVIDENCE_FORMAT}"', src)
+
+    def test_demo_passes_in_under_60_seconds_with_no_wallet(self):
+        d = tempfile.mkdtemp()
+        out = io.StringIO()
+        t0 = time.monotonic()
+        with contextlib.redirect_stdout(out):
+            code = cli.main(["demo", "--dir", d])
+        self.assertEqual(code, 0, out.getvalue())
+        self.assertLess(time.monotonic() - t0, 60)
+        self.assertRegex(out.getvalue(), r"(\d+)/\1 checks pass")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["report", "--dir", d, "--fail-on-error"]), 0)
+
+    def test_demo_faults_fail_with_a_fix_link_under_every_failure(self):
+        for fault in cli.DEMO_FAULTS:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cli.main(["demo", "--fault", fault]), 1, fault)
+            lines = out.getvalue().splitlines()
+            fails = [x for x in lines if x.strip().startswith("FAIL")]
+            fixes = [x for x in lines if x.strip().startswith("fix: https://")]
+            self.assertTrue(fails, fault)
+            self.assertEqual(len(fails), len(fixes), fault)
+
+    def test_badge_is_a_shields_endpoint(self):
+        ok = [{"pass": True, "severity": "error"}] * 3
+        self.assertEqual(cli.badge(ok), {"schemaVersion": 1, "label": "x402 conformance", "message": "pass 3/3",
+                                         "color": "brightgreen"})
+        bad = cli.badge(ok + [{"pass": False, "severity": "error"}, {"pass": False, "severity": "warning"}])
+        self.assertEqual((bad["message"], bad["color"]), ("1 failing", "red"))
+        self.assertEqual(cli.badge([], "unsupported")["message"], "unsupported")
+        d = tempfile.mkdtemp()
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["demo", "--dir", d])
+            cli.main(["report", "--dir", d, "--badge", os.path.join(d, "b.json")])
+        self.assertEqual(json.load(open(os.path.join(d, "b.json")))["color"], "brightgreen")
+
+    def test_action_summary_writes_the_sticky_comment_and_badge(self):
+        d = tempfile.mkdtemp()
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["demo", "--fault", "no_402", "--dir", d])
+            cli.action_summary({"X402C_DIR": d, "X402C_WANT_402": "true", "X402C_FAIL": "false"})
+        body = open(os.path.join(d, "pr-comment.md")).read()
+        self.assertTrue(body.startswith(cli.COMMENT_MARKER))
+        self.assertIn("FIXES.md#p1", body)
+        self.assertEqual(json.load(open(os.path.join(d, "badge.json")))["color"], "red")
+
+    def test_pr_comment_posts_once_then_updates_in_place(self):
+        import http.server
+        import threading
+        comments: list[dict] = []
+        calls: list[str] = []
+
+        class Fake(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def _json(self, code, body):
+                raw = json.dumps(body).encode()
+                self.send_response(code)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_GET(self):
+                calls.append("GET")
+                assert self.headers["Authorization"] == "Bearer t0ken"
+                self._json(200, comments)
+
+            def do_POST(self):
+                calls.append("POST")
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                comments.append({"id": 7, "body": body["body"]})
+                self._json(201, comments[-1])
+
+            def do_PATCH(self):
+                calls.append("PATCH " + self.path)
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                comments[0]["body"] = body["body"]
+                self._json(200, comments[0])
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        d = tempfile.mkdtemp()
+        ev = os.path.join(d, "event.json")
+        json.dump({"pull_request": {"number": 3}}, open(ev, "w"))
+        md = os.path.join(d, "c.md")
+        env = {"GITHUB_EVENT_PATH": ev, "GITHUB_TOKEN": "t0ken", "GITHUB_REPOSITORY": "o/r",
+               "GITHUB_API_URL": f"http://127.0.0.1:{srv.server_address[1]}"}
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                open(md, "w").write("first")
+                self.assertEqual(cli.pr_comment(md, env), 0)
+                open(md, "w").write("second")
+                self.assertEqual(cli.pr_comment(md, env), 0)
+                out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cli.pr_comment(md, {**env, "GITHUB_EVENT_PATH": "/nonexistent"}), 0)
+        finally:
+            srv.shutdown()
+            srv.server_close()
+        self.assertEqual(calls, ["GET", "POST", "GET", "PATCH /repos/o/r/issues/comments/7"])
+        self.assertEqual(len(comments), 1)
+        self.assertTrue(comments[0]["body"].startswith(cli.COMMENT_MARKER) and comments[0]["body"].endswith("second"))
+        self.assertIn("no comment posted", out.getvalue())
 
     def test_report_without_results_exits_2(self):
         self.assertEqual(cli.main(["report", "--dir", tempfile.mkdtemp()]), 2)

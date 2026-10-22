@@ -21,6 +21,16 @@ Project page with the checks and the latest results: https://atsp-protocol.githu
 
 ## 60-second quickstart
 
+See it work first, with nothing to set up: no project, no wallet, no chain, a few seconds each.
+
+```
+npx -y x402-conformance-svm demo                       # R0-R10 against a bundled mock server behind a facilitator double
+pipx run --spec x402-conformance x402conf demo         # S1-S4, P1-P7 against a bundled mock, then the F1-F11 self-test
+npx -y x402-conformance-svm demo --fault serve_on_any_settle   # what a failure looks like, with a fix link per check
+```
+
+Then point it at your own code:
+
 ```
 pipx run --spec x402-conformance x402conf live https://x402.org/facilitator        # a facilitator's GET /supported
 pipx run --spec x402-conformance x402conf resource https://your.api/paid-route      # your 402 answer, one unpaid GET
@@ -124,11 +134,14 @@ follows the latest 1.x release.
 ## CLI
 
 ```
+x402conf demo [--fault no_fee_payer|no_402]           # a bundled mock on loopback, then the self-test
 x402conf live https://x402.org/facilitator             # S0-S4, GET /supported only
-x402conf resource https://api.example.com/paid         # P1-P5, one unpaid GET
+x402conf resource https://api.example.com/paid         # P1-P7, one unpaid GET
 x402conf offline                                       # F1-F11 self-test against the built-in doubles
-x402conf report --dir DIR --sarif out.sarif --junit junit.xml
+x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
+x402conf pr-comment DIR/pr-comment.md                  # sticky PR comment (GITHUB_TOKEN, in a pull_request run)
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
+x402conf-svm demo [--fault serve_on_any_settle]       # R0-R10 against a bundled mock server
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out resource-server.json
 ```
 
@@ -186,6 +199,8 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 |---|---|
 | `result` | `pass` when every requested check passed, `unsupported` when the probe found nothing it could grade, otherwise `fail` |
 | `results-dir` | the directory holding the results JSON |
+| `badge` | `<results-dir>/badge.json`, a shields.io endpoint badge |
+| `pr-comment` | `<results-dir>/pr-comment.md`, the sticky comment body |
 | `sarif` | `<results-dir>/x402-conformance.sarif`, SARIF 2.1.0 of the failed checks |
 | `junit` | `<results-dir>/junit.xml`, one test case per check |
 
@@ -219,6 +234,11 @@ and how to fix it. Add `permissions: { security-events: write, contents: read }`
 ```
 
 The `junit` output works with any JUnit test-report viewer.
+
+**A comment on the pull request.** Set `pr-comment: "true"` and give the job `permissions: { pull-requests: write }`.
+The action posts one comment with the result and a fix link for each failed check, and updates that same comment on
+every push instead of adding new ones. It's off by default; on a fork's pull request the token can't comment, so it
+only warns.
 
 ## Results
 
@@ -305,6 +325,15 @@ If your project runs the suite in CI, you can say so. It means "tested with", no
 ```
 
 [![x402 conformance: tested](https://img.shields.io/badge/x402%20conformance-tested-2ea44f)](https://github.com/atsp-protocol/x402-conformance)
+
+For a badge that shows the latest result (`pass 32/32` or `2 failing`), publish the action's `badge` output somewhere
+public, for example with GitHub Pages or a gist, and point shields.io at it:
+
+```markdown
+[![x402 conformance](https://img.shields.io/endpoint?url=https://YOU.github.io/YOUR-REPO/x402-badge.json)](https://github.com/atsp-protocol/x402-conformance)
+```
+
+`x402conf report --dir x402-conformance --badge x402-badge.json` writes the same file outside the action.
 
 ## Who uses it
 

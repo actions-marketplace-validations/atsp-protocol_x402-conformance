@@ -192,6 +192,26 @@ describe("CLI", () => {
     const profiles = lastDoc(bad.out).results.filter((x: any) => !x.pass).map((x: any) => x.profile);
     assert.deepEqual(profiles, ["normative", "normative", "security-profile", "security-profile"]);
   });
+  test("demo: the bundled mock passes R0-R10 in under 60 s with no wallet or project", async () => {
+    const out = join(mkdtempSync(join(tmpdir(), "x402c-demo-")), "demo.json");
+    const t0 = Date.now();
+    const r = await cli(["demo", "--out", out]);
+    const secs = (Date.now() - t0) / 1000;
+    assert.equal(r.code, 0, r.err + r.out);
+    assert.ok(secs < 60, `the demo took ${secs} s`);
+    assert.match(r.out, /11\/11 checks pass/);
+    const doc = JSON.parse(readFileSync(out, "utf8"));
+    assert.equal(doc.evidence, "x402-conformance-evidence/2");
+    assert.equal(doc.results.length, 11);
+  });
+  test("demo --fault: a failing run exits 1 and prints a fix link under every failure", async () => {
+    const r = await cli(["demo", "--fault", "serve_on_any_settle"]);
+    assert.equal(r.code, 1, r.err + r.out);
+    const fails = r.out.split("\n").filter((l) => l.trimStart().startsWith("FAIL"));
+    const fixes = r.out.split("\n").filter((l) => l.trimStart().startsWith("fix: https://"));
+    assert.ok(fails.length > 0 && fails.length === fixes.length, r.out);
+    assert.equal((await cli(["demo", "--fault", "nope"])).code, 2);
+  });
   test("binding options are checked before anything starts", async () => {
     assert.equal((await cli(["probe", "--cheap", "http://127.0.0.1:1/a"])).code, 2);
     assert.equal((await cli(["probe", "--param", "http://127.0.0.1:1/items/x"])).code, 2);
