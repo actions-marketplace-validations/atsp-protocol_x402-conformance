@@ -1,4 +1,17 @@
 # Changelog
+## Unreleased
+- The suite's oracle fails closed. The reference verifier parsed amounts with `int()`, so a malformed amount raised
+  instead of being rejected, and forms `int()` accepts but V2 atomic units don't (`" 10000 "`, `"+10000"`, `"10_000"`,
+  `"010000"`, non-ASCII digits) passed. Amounts are now parsed strictly (ASCII digits, no leading zeros, within
+  uint256); a malformed payload amount is `invalid_payload`, and a malformed, zero or negative requirement amount is
+  `invalid_payment_requirements`. F1 also refuses six non-canonical amounts, and a new `lenient_amounts` double is
+  caught by F1.
+- R11, payment-to-request binding on a real resource server (TypeScript, `probeBinding`): a control, R11a (a payment
+  for the cheap route presented on the expensive one), R11b (`payTo`, asset or network altered) and R11e (encoded
+  separators and dot segments in a parameterised paid route). The stock `@x402/express` 2.28.0 server passes on Solana
+  devnet and Base Sepolia, and two faulty builds in `ts/example/binding-server.ts` are each caught by the sub-check
+  they target. R11c, R11d and R11f, and the CLI and Action wiring, follow.
+
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction
   was verified under and refuses the same transaction against a different requirements set (amount escalation, recipient
