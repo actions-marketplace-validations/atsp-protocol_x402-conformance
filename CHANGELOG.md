@@ -1,5 +1,5 @@
 # Changelog
-## Unreleased
+## 1.4.0 (2026-10-22)
 - R14, a crash between a successful `/settle` and the response (`x402conf-svm probe --crash`, Action `crash: "true"`).
   The probe kills the server while `/settle` is answering and again as the response starts, restarts it (the `--start`
   command, or `--crash-kill` and `--crash-restart` for a server it didn't start) and presents the same payment, with a
