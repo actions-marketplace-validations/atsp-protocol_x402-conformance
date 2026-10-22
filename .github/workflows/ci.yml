@@ -59,6 +59,37 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "${{ matrix.node }}" }
       - run: cd ts && npm ci --no-audit --no-fund && npm test
+  first-run:
+    # A1: what a new user types, from the packed packages, timed. Under 60 s each, no wallet, no project, no config.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: Pack both packages as they would be published
+        run: |
+          (cd ts && npm ci --no-audit --no-fund && npm pack --pack-destination "$RUNNER_TEMP")
+          python3 -m pip wheel --no-deps -w "$RUNNER_TEMP" .
+          pipx --version
+      - name: npx one-liner against the bundled mock, under 60 s
+        working-directory: ${{ runner.temp }}
+        run: |
+          t0=$(date +%s)
+          npx --yes --package "$PWD/$(ls x402-conformance-svm-*.tgz)" x402conf-svm demo
+          t=$(( $(date +%s) - t0 )); echo "npx demo, install included: ${t} s"; test "$t" -lt 60
+      - name: pipx one-liner against the bundled mock, under 60 s
+        working-directory: ${{ runner.temp }}
+        run: |
+          t0=$(date +%s)
+          pipx run --spec "$PWD/$(ls x402_conformance-*.whl)" x402conf demo
+          t=$(( $(date +%s) - t0 )); echo "pipx demo, install included: ${t} s"; test "$t" -lt 60
+      - name: A faulty demo exits 1 with fix links
+        working-directory: ${{ runner.temp }}
+        run: |
+          set +e
+          out=$(pipx run --spec "$PWD/$(ls x402_conformance-*.whl)" x402conf demo --fault no_fee_payer); code=$?
+          echo "$out"; test "$code" = 1 && echo "$out" | grep -q "fix: https://"
   action:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -83,6 +114,10 @@ jobs:
           python3 -c "import json,sys;d=json.load(open('${{ steps.probe.outputs.sarif }}'));sys.exit(0 if d['version']=='2.1.0' and d['runs'][0]['results']==[] else 1)"
           python3 -c "import sys,xml.etree.ElementTree as E;r=E.parse('${{ steps.probe.outputs.junit }}').getroot();sys.exit(0 if int(r.get('tests'))>=21 and r.get('failures')=='0' else 1)"
       - run: python3 -c "import json,sys;d=json.load(open('x402-conformance/resource-server.json'));sys.exit(0 if len(d['results'])==11 and all(r['pass'] for r in d['results']) else 1)"
+      - name: The badge and the sticky comment body are written (A2, A5)
+        run: |
+          python3 -c "import json,sys;d=json.load(open('${{ steps.probe.outputs.badge }}'));sys.exit(0 if d['schemaVersion']==1 and d['color']=='brightgreen' and d['message'].startswith('pass') else 1)"
+          head -1 '${{ steps.probe.outputs.pr-comment }}' | grep -qx '<!-- x402-conformance:sticky -->'
       - name: A stock @x402/express server on Base Sepolia passes, R3 included
         id: stock
         uses: ./
@@ -104,6 +139,8 @@ jobs:
           offline: "false"
           results-dir: faulty
       - run: test "${{ steps.faulty.outputs.result }}" = fail
+      - run: python3 -c "import json,sys;d=json.load(open('faulty/badge.json'));sys.exit(0 if d['color']=='red' else 1)"
+      - run: grep -q 'FIXES.md#r' faulty/pr-comment.md
       - name: The faulty server's failures reach the SARIF file
         run: python3 -c "import json,sys;d=json.load(open('faulty/x402-conformance.sarif'));sys.exit(0 if d['runs'][0]['results'] else 1)"
       - name: Fail closed - the double's port is taken, so the probe cannot run
@@ -118,8 +155,60 @@ jobs:
           offline: "false"
           results-dir: closed
       - run: test "${{ steps.closed.outputs.result }}" = fail && test "${{ steps.closed.outcome }}" = failure
+      - name: R11 binding inputs - the stock @x402/express binding server passes R11-R11e
+        id: binding
+        uses: ./
+        with:
+          binding-cheap-url: http://127.0.0.1:4024/cheap
+          binding-expensive-url: http://127.0.0.1:4024/expensive
+          binding-method-url: http://127.0.0.1:4024/item
+          binding-query-urls: http://127.0.0.1:4024/report?tier=basic,http://127.0.0.1:4024/report?tier=pro
+          binding-param-url: http://127.0.0.1:4024/items/{id}/premium
+          start: PORT=4024 node ts/dist/example/binding-server.js
+          port: "4406"
+          offline: "false"
+          results-dir: binding
+      - run: test "${{ steps.binding.outputs.result }}" = pass
+      - run: python3 -c "import json,sys;d=json.load(open('binding/resource-server.json'));ids=[r['check'].split()[0] for r in d['results']];sys.exit(0 if ids==['R11','R11a','R11b','R11c','R11d','R11e'] and all(r['pass'] and r['profile'] for r in d['results']) else 1)"
+      - name: R11 binding inputs - a server that trusts the client's accepted requirements fails R11a-R11d
+        id: binding-faulty
+        uses: ./
+        continue-on-error: true
+        with:
+          binding-cheap-url: http://127.0.0.1:4025/cheap
+          binding-expensive-url: http://127.0.0.1:4025/expensive
+          binding-method-url: http://127.0.0.1:4025/item
+          binding-query-urls: http://127.0.0.1:4025/report?tier=basic,http://127.0.0.1:4025/report?tier=pro
+          start: PORT=4025 BINDING_FAULT=trust_client node ts/dist/example/binding-server.js
+          port: "4407"
+          offline: "false"
+          results-dir: binding-faulty
+      - run: test "${{ steps.binding-faulty.outputs.result }}" = fail
+      - name: The binding failures reach the SARIF file
+        run: python3 -c "import json,sys;d=json.load(open('binding-faulty/x402-conformance.sarif'));ids={r['ruleId'] for r in d['runs'][0]['results']};print(sorted(ids));sys.exit(0 if {'R11a','R11b','R11c','R11d'}<=ids else 1)"
+      - name: R11f input - a sign-in-with-x server that records the settled route passes
+        id: siwx
+        uses: ./
+        with:
+          binding-siwx-urls: http://127.0.0.1:4026/siwx/cheap,http://127.0.0.1:4026/siwx/expensive
+          start: PORT=4026 SIWX_MODE=fixed node ts/dist/example/binding-server.js
+          port: "4408"
+          offline: "false"
+          results-dir: siwx
+      - run: test "${{ steps.siwx.outputs.result }}" = pass
+      - name: R11f input - the stock @x402/extensions settle hook fails (x402#3838)
+        id: siwx-stock
+        uses: ./
+        continue-on-error: true
+        with:
+          binding-siwx-urls: http://127.0.0.1:4027/siwx/cheap,http://127.0.0.1:4027/siwx/expensive
+          start: PORT=4027 SIWX_MODE=stock node ts/dist/example/binding-server.js
+          port: "4409"
+          offline: "false"
+          results-dir: siwx-stock
+      - run: test "${{ steps.siwx-stock.outputs.result }}" = fail
   vv:
-    needs: [lint, test, lean, ts, action]
+    needs: [lint, test, lean, ts, first-run, action]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
