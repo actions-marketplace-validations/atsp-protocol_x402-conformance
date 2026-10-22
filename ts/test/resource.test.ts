@@ -12,6 +12,8 @@ import { userAgent } from "../src/report.js";
 const SRC = fileURLToPath(new URL("../../../src", import.meta.url));
 const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64");
 const b64url = (o: unknown) => Buffer.from(JSON.stringify(o)).toString("base64url");
+// JSON.stringify writes 60.0 as 60, so the "60.0 on the wire" fixtures patch the encoded text.
+const b64raw = (o: unknown, from: string, to: string) => Buffer.from(JSON.stringify(o).replace(from, to)).toString("base64");
 const svm = { scheme: "exact", network: "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", asset: "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
   payTo: "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin", amount: "1000", maxTimeoutSeconds: 60,
   extra: { feePayer: "11111111111111111111111111111111" } };
@@ -42,6 +44,11 @@ const FIXTURES: Record<string, Fixture> = {
   "amount decimal": [402, { "payment-required": b64(v2([{ ...svm, amount: "0.01" }])) }, "{}"],
   "network not caip2": [402, { "payment-required": b64(v2([{ ...svm, network: "solana-devnet" }])) }, "{}"],
   "timeout missing": [402, { "payment-required": b64(v2([{ ...svm, maxTimeoutSeconds: undefined }])) }, "{}"],
+  "valid timeout written 60.0": [402, { "payment-required": b64raw(v2([svm]), '"maxTimeoutSeconds":60', '"maxTimeoutSeconds":60.0') }, "{}"],
+  "timeout fractional": [402, { "payment-required": b64(v2([{ ...svm, maxTimeoutSeconds: 60.5 }])) }, "{}"],
+  "timeout zero as 0.0": [402, { "payment-required": b64raw(v2([svm]), '"maxTimeoutSeconds":60', '"maxTimeoutSeconds":0.0') }, "{}"],
+  "amount trailing newline": [402, { "payment-required": b64(v2([{ ...svm, amount: "1000\n" }])) }, "{}"],
+  "network trailing newline": [402, { "payment-required": b64(v2([{ ...svm, network: svm.network + "\n" }])) }, "{}"],
   "timeout bool": [402, { "payment-required": b64(v2([{ ...svm, maxTimeoutSeconds: true }])) }, "{}"],
   "payTo empty": [402, { "payment-required": b64(v2([{ ...svm, payTo: "" }])) }, "{}"],
   "extra not object": [402, { "payment-required": b64(v2([{ ...svm, extra: "x" }])) }, "{}"],

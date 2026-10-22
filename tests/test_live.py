@@ -186,6 +186,22 @@ class Live(unittest.TestCase):
         upto["accepts"][0]["extra"]["paymentFlow"] = ""
         self.assertFalse([r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]["pass"])
 
+    def test_p4_json_number_and_trailing_newline_parity(self):
+        # Same verdicts as ts/src/resource.ts: 60.0 is the JSON number 60 (JSON.parse cannot tell them apart), and a
+        # trailing newline makes an amount or a network invalid (Python's $ would have matched before it).
+        def entry(**kw):
+            return dict(self.V2_EVM, accepts=[dict(self.V2_EVM["accepts"][0], **kw)])
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=60.0)))), set())
+        wire = json.dumps(self.V2_EVM).replace('"maxTimeoutSeconds": 60', '"maxTimeoutSeconds": 60.0')
+        self.assertIn("60.0", wire)
+        raw = {"payment-required": base64.b64encode(wire.encode()).decode()}
+        self.assertEqual(fails(H.check_402(self._resp(headers=raw))), set())
+        for bad in (60.5, 0.0, -60.0, float("nan"), float("inf"), True, "60"):
+            self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=bad)))), {"P4"}, bad)
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(amount="10000\n")))), {"P4"})
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(network="eip155:84532\n")))), {"P4"})
+        self.assertIsNone(S.CAIP2.match("eip155:84532\n"))
+
     def test_p1_served_without_payment(self):
         self.assertEqual(fails(H.check_402(self._resp(status=200))), {"P1"})
 
