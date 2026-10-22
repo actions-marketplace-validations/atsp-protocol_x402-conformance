@@ -48,7 +48,7 @@ inputs:
     default: "4402"
   offline:
     description: >-
-      Also run the F1-F9 self-test of the suite against its reference and fault-injected doubles. It checks the suite,
+      Also run the F1-F10 self-test of the suite against its reference and fault-injected doubles. It checks the suite,
       not your code. On by default in 1.x for compatibility; set "false" to skip it.
     required: false
     default: "true"
@@ -150,7 +150,7 @@ runs:
         if [ -n "$X402C_START" ]; then args+=(--start "$X402C_START"); fi
         # The exit code is read from the results file by the summary step; a missing file is a failure there.
         "$node_dir/bin/node" "$GITHUB_ACTION_PATH/ts/dist/src/cli.js" "${args[@]}" > /dev/null || true
-    - name: Offline self-test F1-F9
+    - name: Offline self-test F1-F10
       if: inputs.offline == 'true'
       shell: bash
       env:
