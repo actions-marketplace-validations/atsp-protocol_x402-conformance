@@ -39,6 +39,7 @@ ecosystem.
 x402conf resource https://your.api/paid                              # P1-P7, one unpaid GET (Python)
 npx -y x402-conformance-svm resource --url https://your.api/paid      # the same P1-P7, in Node
 npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --share
+npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --retry  # + R20
 ```
 
 `x402conf resource --share` does the same in Python: one anonymised case file per URL, and the link for each failing

@@ -7,7 +7,7 @@ flowchart LR
   subgraph suite[x402-conformance]
     CLI[x402conf CLI] --> LIVE[Live checks S0-S4<br/>GET /supported only]
     CLI --> RES[402 checks P1-P7<br/>one unpaid GET]
-    PROBE[x402conf-svm probe<br/>R0-R11] --> DBL[Facilitator double<br/>loopback, fault modes]
+    PROBE[x402conf-svm probe<br/>R0-R11, R20] --> DBL[Facilitator double<br/>loopback, fault modes]
     DBL -->|X402_FACILITATOR_URL| RS[(Your resource server<br/>Solana devnet or Base Sepolia)]
     CLI --> OFF[Safety checks F1-F11]
     OFF --> DOUBLES[Facilitator doubles<br/>Reference + Faulty]
@@ -35,6 +35,7 @@ flowchart LR
 | `ts/` | TypeScript probe for resource servers: a facilitator double with fault modes on Solana devnet and Base Sepolia, and a probe of the paid route (R0-R10) and of payment-to-request binding (R11, `binding.ts`) |
 | `action.yml` | The GitHub Action: live, 402, resource-server and offline checks, a job summary, SARIF and JUnit. It fails closed when a requested run leaves no results, and runs the probe on a pinned Node that never goes on the caller's PATH |
 | `ts/src/binding.ts` | R11: payment-to-request binding on a real resource server (two routes, method, query, encoded path, SIWX) |
+| `ts/src/retry.ts` | R20: retry double-pay. The client times out before `/settle` answers and retries with a fresh payment under the same key (R20a) or the same signed payment (R20b); `checkClientRetry` grades a client's retry |
 | `ts/src/resource.ts` | P1-P7 in Node, a port of `run_resource` that CI checks against the Python CLI |
 | `ts/src/testing.ts`, `ts/src/report.ts` | `runConformance()`, the vitest and jest matchers, `assertX402Conformance()` and the shared `x402-conformance.report/1` format every entry point writes |
 | `ts/src/mock-server.ts` | The bundled mock resource server behind `x402conf-svm demo` |

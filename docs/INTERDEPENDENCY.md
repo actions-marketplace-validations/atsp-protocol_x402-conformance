@@ -163,7 +163,7 @@ Dependencies on tasks not in this tree yet (their addendum is on another branch)
 | XC-18 Payment versus delivery: R15 to R19 | implement | proposed | XC-10 | XC-19, XC-31 | R-DELIV | 0/0 | `ts/**` (42); `docs/**` (15) |
 | XC-19 Implementation matrix: stock servers at pinned versions | verify | proposed | XC-10, XC-17, XC-18 | XC-28, XC-31 | R-MATRIX | 0/0 | `evidence/impl-matrix/**` (0); `docs/MATRIX.md` (1); `.github/workflows/**` (2); `ts/**` (42) |
 | XC-20 Adoption track A1-A8, built into the code | integrate | proposed | XC-10, XC-16 | XC-26, XC-30 | R-ADOPT | 0/1 | `corpus/**` (0); `examples/**` (0); `ts/**` (42); `src/x402conf/**` (17); `tests/**` (3); `action.yml` (1); `.github/**` (10); `docs/**` (15); `README.md` (1) |
-| XC-22 R20: a client retry never pays twice for one request | implement | proposed | XC-17, XC-21 | XC-31 | R-CONC | 0/2 | `ts/**` (42); `src/x402conf/spec.py` (1); `tests/test_offline.py` (1); `tests/test_live.py` (1); `action.yml` (1); `.github/workflows/ci.yml` (1); `docs/**` (15); `README.md` (1); `CHANGELOG.md` (1); `corpus/cases/**` (0) |
+| XC-22 R20: a client retry never pays twice for one request | implement | proposed | XC-17, XC-21 | XC-31 | R-CONC | 2/2 | `ts/**` (42); `src/x402conf/spec.py` (1); `tests/test_offline.py` (1); `tests/test_live.py` (1); `action.yml` (1); `.github/workflows/ci.yml` (1); `docs/**` (15); `README.md` (1); `CHANGELOG.md` (1); `corpus/cases/**` (0) |
 | XC-23 Docs in sync with the build, and a generated interdependency map | integrate | proposed | XC-04, XC-05 | XC-27, XC-30 | R-DOCS | 1/2 | `README.md` (1); `CHANGELOG.md` (1); `CONTRIBUTING.md` (1); `docs/**` (15); `ts/README.md` (1); `ts/mcp/README.md` (1); `tools/interdeps.py` (0); `tests/test_interdeps.py` (0); `.github/workflows/ci.yml` (1) |
 | XC-24 Lean: n replicas, shared atomic check-and-set versus partitioned caches | verify | proposed | XC-03, XC-M3 | XC-31 | R-LEAN | 0/0 | `lean/X402Conformance/Replicas.lean` (0); `lean/X402Conformance.lean` (1); `lean/Axioms.lean` (1); `docs/SPEC.md` (1) |
 | XC-25 A2 and A5: the PR summary comment and the results badge | integrate | proposed | XC-M4, XC-16 | XC-30 | R-ADOPT | 1/1 | `action.yml` (1); `src/x402conf/cli.py` (1); `src/x402conf/harness.py` (1); `tests/test_offline.py` (1); `README.md` (1); `docs/**` (15) |
@@ -227,6 +227,9 @@ Built checks are in `src/x402conf/spec.py` CATALOG. Planned checks are named in 
 | R11d | built | security-profile | a route priced by query is priced for the query sent | - | XC-10 | action.yml, src/x402conf/spec.py, ts/src/binding.ts, ts/src/catalog.ts, ts/src/cli.ts | tests/test_offline.py, ts/test/binding.test.ts, ts/test/probe.test.ts | README.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/site/index.html |
 | R11e | built | security-profile | payment middleware and framework must agree on the path | - | XC-10 | action.yml, src/x402conf/spec.py, ts/src/binding.ts, ts/src/catalog.ts, ts/src/cli.ts | tests/test_offline.py, ts/test/binding.test.ts, ts/test/probe.test.ts | README.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/site/index.html |
 | R11f | built | security-profile | sign-in-with-x: access is for the requested resource the server priced and settled | - | XC-10 | action.yml, src/x402conf/spec.py, ts/src/binding.ts, ts/src/catalog.ts, ts/src/cli.ts | tests/test_offline.py, ts/test/binding.test.ts | README.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/site/index.html |
+| R20 | built | security-profile | control: the route answers 402 with an exact offer the probe can pay | - | XC-22 | action.yml, src/x402conf/spec.py, ts/src/catalog.ts, ts/src/cli.ts, ts/src/double.ts | tests/test_offline.py | README.md, docs/ARCHITECTURE.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/USING.md, docs/site/index.html, ts/README.md |
+| R20a | built | security-profile | payment-identifier: a retry with the same id and a fresh payment is not charged again | - | XC-22 | action.yml, src/x402conf/spec.py, ts/src/catalog.ts, ts/src/cli.ts | tests/test_offline.py | README.md, docs/ARCHITECTURE.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/site/index.html, ts/README.md |
+| R20b | built | security-profile | a retry resending the same signed payment is settled once and gets the original result | - | XC-22 | action.yml, src/x402conf/spec.py, ts/src/catalog.ts, ts/src/cli.ts | tests/test_offline.py | README.md, docs/ARCHITECTURE.md, docs/FIXES.md, docs/ROADMAP.md, docs/SPEC.md, docs/site/index.html, ts/README.md |
 | B1 | planned | - | - | - | XC-35, XC-35 | - | - | - |
 | B2 | planned | - | - | - | XC-35 | - | - | - |
 | B3 | planned | - | - | - | XC-35 | - | - | - |
@@ -240,7 +243,6 @@ Built checks are in `src/x402conf/spec.py` CATALOG. Planned checks are named in 
 | R17 | planned | - | - | - | XC-18 | - | - | docs/ROADMAP.md |
 | R18 | planned | - | - | - | XC-18 | - | - | docs/ROADMAP.md |
 | R19 | planned | - | - | - | XC-18, XC-18 | - | - | docs/ROADMAP.md |
-| R20 | planned | - | - | - | XC-22 | - | - | docs/ROADMAP.md |
 | R21 | planned | - | - | - | XC-34 | - | - | - |
 | U1 | planned | - | - | - | XC-35, XC-35 | - | - | - |
 | U2 | planned | - | - | - | XC-35 | - | - | - |

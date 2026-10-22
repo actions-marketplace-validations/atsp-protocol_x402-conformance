@@ -99,7 +99,7 @@ report everywhere. Failures you choose to share build the public
 - **P7** an offer whose scheme defaults to a non-authorization flow (`upto` on Solana) doesn't declare
   `extra.paymentFlow` (warning; V2 §6.1 says it must, the upto SVM scheme text says it may be omitted)
 
-**Your resource server, under fault injection (`x402conf-svm probe`, R0-R11):** the probe starts a facilitator double
+**Your resource server, under fault injection (`x402conf-svm probe`, R0-R11 and R20):** the probe starts a facilitator double
 on loopback, points your server at it through `X402_FACILITATOR_URL` and pays your route with test payloads on
 **Solana devnet or Base Sepolia (`exact`; EVM via EIP-3009)**. Your server must:
 - **R0** answer an unpaid request with a 402 offering one of those networks. If it offers neither, the result is
@@ -115,6 +115,10 @@ on loopback, points your server at it through `X402_FACILITATOR_URL` and pays yo
   (R11b), a payment for the cheaper method (R11c) or query (R11d) is refused on the dearer one, an encoded separator
   or dot segment in a parameter never reaches a paid handler unpaid (R11e), and sign-in-with-x access is recorded for
   the route that was priced and settled, not the client's `resource.url` (R11f)
+- **R20** with `--retry`, never charge one request twice when the client times out before `/settle` answers and
+  retries: a retry with a fresh payment under the same payment-identifier id is not settled again (R20a), and a retry
+  resending the same signed payment is refused as a duplicate by `/settle`; both get the earlier result (R20b). The
+  same check grades a client's own retry (`checkClientRetry`): it must resend the payment or keep the payment id
 
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
@@ -204,6 +208,7 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 | `binding-query-urls` | empty | Two paid URLs that differ only in the query, comma-separated (R11d) |
 | `binding-param-url` | empty | A paid parameterised route with `{id}` for the parameter (R11e) |
 | `binding-siwx-urls` | empty | Two paid sign-in-with-x routes, cheap first, comma-separated, Base Sepolia (R11f) |
+| `retry` | `false` | `true` also checks R20 retry double-pay on `resource-url` (`--retry`) |
 | `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
 | `network` | `auto` | Which offered network the probe pays on: `auto`, `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` or `eip155:84532` |
 | `port` | `4402` | Loopback port for the facilitator double |

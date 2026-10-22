@@ -107,6 +107,7 @@ x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
 <tr><td>F11</td><td><code>/verify</code> commits payment state: verifying twice consumes the payment (V2 §7.1)</td></tr>
 <tr><td>R0-R10</td><td>your resource server serves paid content under any of these faults, or omits <code>PAYMENT-RESPONSE</code> (probe in <code>ts/</code>, for servers on Solana devnet or Base Sepolia; a stock <code>@x402/express</code> server passes)</td></tr>
 <tr><td>R11</td><td>a payment for one request unlocks another on your server: the cheap route's payment on the dear one (R11a), an altered <code>payTo</code>, asset or network (R11b), the cheaper method (R11c) or query (R11d), an encoded separator or dot segment reaching a paid handler unpaid (R11e), or sign-in-with-x access recorded for the client's <code>resource.url</code> instead of the settled route (R11f)</td></tr>
+<tr><td>R20</td><td>a client that times out before <code>/settle</code> answers and retries pays twice for one request: a fresh payment under the same payment-identifier id is settled again (R20a), or a resent payment loses the result it paid for (R20b). With <code>--retry</code></td></tr>
 </table>
 
 <h2 id="results">Results</h2>

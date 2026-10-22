@@ -9,8 +9,10 @@ credit rule, nonces, timeouts, `settlement_pending` and concurrent settles. Ther
 **On `main`, unreleased (1.4.0).** The fail-closed oracle, F11, P6, P7, the extended F5, R11a to R11f with their
 faulty builds, evidence v2 with the credibility gate, and the adoption items A1, A2, A3 and A5 are merged and green in
 CI. The corpus move (A6), the pytest plugin and the FastAPI example are in review in pull request #14, and R14 (a crash
-between settling and responding) is in review in pull request #17. R12, R13, R15 to R20, the implementation matrix,
-the rest of A4, A7 and A8 are not started. 1.4.0 is published once the v1.4 contract tasks are signed.
+between settling and responding) is in review in pull request #17. R20 (retry double-pay) is built on `main`
+(contract task XC-22, proposed, unsigned): the probe's `--retry` flag, the Action's `retry` input and `checkClientRetry`
+for clients; its corpus case waits until `corpus/` is in a signed scope. R12, R13, R15 to R19, the implementation
+matrix, the rest of A4, A7 and A8 are not started. 1.4.0 is published once the v1.4 contract tasks are signed.
 
 **Where it's going.** Having many checks is not the same as covering the security boundary that matters. The question
 a seller actually needs answered is: *does this payment authorise this request, is what was bought actually
