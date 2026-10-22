@@ -13,17 +13,24 @@ no results JSON."""
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
+import http.server
 import json
 import os
+import platform
 import sys
+import threading
 import time
+import urllib.error
+import urllib.request
 from typing import Any
 from xml.sax.saxutils import quoteattr
 
 from . import __version__
 from . import harness as H
 from . import mock as M
+from . import spec as S
 
 DOCS = "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/"
 
@@ -56,13 +63,14 @@ def collect(d: str) -> list[dict[str, Any]]:
     rsv = load("resource-server.json")
     if rsv is not None:
         if rsv.get("error"):
-            row(rsv.get("resource", "resource server"), "RX the probe ran to completion", False, "error",
+            row(rsv.get("resource") or "resource server", "RX the probe ran to completion", False, "error",
                 {"error": rsv["error"]}, "resource-server.json")
         for c in rsv.get("results", []):
             detail = c.get("detail")
             if c.get("status") == "unsupported":
                 detail = {"status": "unsupported", "detail": detail}
-            row(rsv["resource"], c["check"], c["pass"], "error", detail, "resource-server.json")
+            row(rsv.get("resource") or "resource server (binding)", c["check"], c["pass"], "error", detail,
+                "resource-server.json")
     off = load("offline.json")
     if off is not None:
         res = off["results"]
@@ -156,6 +164,10 @@ def report(a: argparse.Namespace) -> int:
         with open(a.junit, "w") as f:
             f.write(junit(rows))
     bad = [r for r in rows if not r["pass"] and r["severity"] == "error"]
+    if a.badge:
+        with open(a.badge, "w") as f:
+            json.dump(badge(rows), f, indent=1)
+            f.write("\n")
     print(json.dumps({"checks": len(rows), "failed": len(bad), "failed_ids": sorted({r["id"] for r in bad})}))
     return 1 if bad and a.fail_on_error else 0
 
@@ -170,7 +182,19 @@ def parser() -> argparse.ArgumentParser:
                                         "resource and report with --fail-on-error); 2 usage or configuration error. "
                                         "Docs: https://github.com/atsp-protocol/x402-conformance")
     ap.add_argument("--version", action="version", version=f"x402conf {__version__}")
-    sub = ap.add_subparsers(dest="mode", required=True, metavar="{live,resource,offline,report,devnet}")
+    sub = ap.add_subparsers(dest="mode", required=True, metavar="{demo,live,resource,offline,report,pr-comment,devnet}")
+    dm = sub.add_parser("demo", help="run S0-S4, P1-P7 and F1-F11 against a bundled mock on loopback, no wallet",
+                        description="A first run with nothing to set up: a bundled mock facilitator and paid route on "
+                                    "127.0.0.1, then the offline self-test. No wallet, no chain, well under a minute. "
+                                    "--fault shows a failing run and its fix links.")
+    dm.add_argument("--fault", choices=DEMO_FAULTS, help="serve a faulty mock to see what a failure looks like")
+    dm.add_argument("--dir", help="also write the results JSON here (then x402conf report --dir works on it)")
+    pc = sub.add_parser("pr-comment", help="create or update one sticky pull request comment from a markdown file",
+                        description="Posts FILE as a comment on the pull request in GITHUB_EVENT_PATH, or updates the "
+                                    "comment this tool posted before. Needs GITHUB_TOKEN with pull-requests: write. "
+                                    "Outside a pull request, or when the token can't comment (a fork), it warns and "
+                                    "exits 0.")
+    pc.add_argument("file")
     fe = "exit 1 when an error-severity check fails (default: exit 0 and read the pass fields)"
     lv = sub.add_parser("live", help="S0-S4 over a facilitator's GET /supported; never signs, pays or POSTs",
                         description="S0-S4 over GET /supported. Optional credentials come from the environment only: "
@@ -192,10 +216,162 @@ def parser() -> argparse.ArgumentParser:
     rp.add_argument("--dir", default="x402-conformance", help="directory holding the results JSON files")
     rp.add_argument("--sarif", help="write SARIF 2.1.0 here (for GitHub code scanning)")
     rp.add_argument("--junit", help="write JUnit XML here (for test-report viewers)")
+    rp.add_argument("--badge", help="write a shields.io endpoint badge (JSON) here")
     rp.add_argument("--fail-on-error", action="store_true", help=fe)
     sub.add_parser("devnet", help="F1-F6 over real /verify and /settle on Solana devnet (self-hosted reference)",
                    add_help=False)
     return ap
+
+
+COMMENT_MARKER = "<!-- x402-conformance:sticky -->"
+
+
+def badge(rows: list[dict[str, Any]], result: str | None = None) -> dict[str, Any]:
+    """A shields.io endpoint badge: https://img.shields.io/endpoint?url=<where badge.json is served>."""
+    failed = sum(1 for r in rows if not r["pass"] and r["severity"] == "error")
+    res = result or ("pass" if rows and not failed else "fail")
+    if res == "pass":
+        msg, color = f"pass {len(rows)}/{len(rows)}", "brightgreen"
+    elif res == "unsupported":
+        msg, color = "unsupported", "lightgrey"
+    else:
+        msg, color = (f"{failed} failing" if failed else "fail"), "red"
+    return {"schemaVersion": 1, "label": "x402 conformance", "message": msg, "color": color}
+
+
+def _gh(method: str, url: str, token: str, body: Any = None) -> Any:
+    req = urllib.request.Request(url, method=method, data=None if body is None else json.dumps(body).encode(),
+                                 headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json",
+                                          "Content-Type": "application/json", "User-Agent": "x402-conformance"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.loads(r.read() or b"null")
+
+
+def pr_comment(path: str, env: dict[str, str] | None = None) -> int:
+    """Create or update the one comment carrying COMMENT_MARKER. Never fails the job over a comment."""
+    e = dict(os.environ if env is None else env)
+    try:
+        with open(e.get("GITHUB_EVENT_PATH", "")) as f:
+            number = (json.load(f).get("pull_request") or {}).get("number")
+    except (OSError, ValueError):
+        number = None
+    token, repo = e.get("GITHUB_TOKEN", ""), e.get("GITHUB_REPOSITORY", "")
+    if not number or not token or not repo:
+        print("::warning title=x402 Conformance::pr-comment: not a pull request run, or no token; no comment posted")
+        return 0
+    with open(path) as f:
+        body = f.read()
+    if COMMENT_MARKER not in body:
+        body = COMMENT_MARKER + "\n" + body
+    api = e.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
+    try:
+        mine = None
+        for page in range(1, 11):
+            batch = _gh("GET", f"{api}/repos/{repo}/issues/{number}/comments?per_page=100&page={page}", token)
+            mine = next((c for c in batch if COMMENT_MARKER in (c.get("body") or "")), None)
+            if mine or len(batch) < 100:
+                break
+        if mine:
+            _gh("PATCH", f"{api}/repos/{repo}/issues/comments/{mine['id']}", token, {"body": body})
+        else:
+            _gh("POST", f"{api}/repos/{repo}/issues/{number}/comments", token, {"body": body})
+    except (urllib.error.URLError, OSError, ValueError) as err:
+        print(f"::warning title=x402 Conformance::pr-comment: could not post the comment ({err}); a fork's token "
+              "is read-only, and the caller needs permissions: pull-requests: write")
+        return 0
+    print(f"pr-comment: {'updated' if mine else 'posted'} on {repo}#{number}")
+    return 0
+
+
+DEMO_FAULTS = ["no_fee_payer", "no_402"]
+DEMO_FEE_PAYER = "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin"
+
+
+def _demo_server(fault: str | None) -> tuple[http.server.ThreadingHTTPServer, str]:
+    """A bundled mock facilitator (GET /supported) and paid route (GET /paid) on 127.0.0.1, read-only like the
+    checks that read them. Nothing here signs, pays or reaches the network."""
+    fee = None if fault == "no_fee_payer" else DEMO_FEE_PAYER
+    supported = {"kinds": [{"x402Version": 2, "scheme": "exact", "network": S.SOLANA_DEVNET,
+                            "extra": {"feePayer": fee} if fee else {}}],
+                 "extensions": [], "signers": {"solana:*": [DEMO_FEE_PAYER]}}
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *_: Any) -> None:
+            pass
+
+        def do_GET(self) -> None:  # noqa: N802
+            host = self.headers.get("Host", "127.0.0.1")
+            if self.path == "/supported":
+                return self._send(200, {}, supported)
+            if self.path == "/paid" and fault == "no_402":
+                return self._send(200, {}, {"content": "served without payment"})
+            if self.path == "/paid":
+                pr = {"x402Version": 2, "error": "payment required",
+                      "resource": {"url": f"http://{host}/paid", "description": "x402-conformance demo",
+                                   "mimeType": "application/json"},
+                      "accepts": [{"scheme": "exact", "network": S.SOLANA_DEVNET, "amount": "10000",
+                                   "asset": "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", "payTo": DEMO_FEE_PAYER,
+                                   "maxTimeoutSeconds": 60, "extra": {"feePayer": fee} if fee else {}}]}
+                hdr = base64.b64encode(json.dumps(pr).encode()).decode()
+                return self._send(402, {"PAYMENT-REQUIRED": hdr}, {})
+            return self._send(404, {}, {"error": "not found"})
+
+        def _send(self, status: int, headers: dict[str, str], body: Any) -> None:
+            raw = json.dumps(body).encode()
+            self.send_response(status)
+            for k, v in {"Content-Type": "application/json", "Content-Length": str(len(raw)), **headers}.items():
+                self.send_header(k, v)
+            self.end_headers()
+            self.wfile.write(raw)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv, f"http://127.0.0.1:{srv.server_address[1]}"
+
+
+def demo(a: argparse.Namespace) -> int:
+    t0 = time.monotonic()
+    srv, base = _demo_server(a.fault)
+    try:
+        live = H.run_live(base)
+        live.pop("raw", None)
+        res402 = H.run_resource(base + "/paid")
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    off = {k: H.check_safety(f(), M.vectors()) for k, f in M.FAULTS.items()}
+    off.update({k: H.check_safety(M.Reference(), M.vectors(), guard=g) for k, g in H.GUARD_FAULTS.items()})
+    secs = time.monotonic() - t0
+    rows = [(c, "mock facilitator") for c in live.get("checks", [])] + \
+        [(c, "mock paid route") for c in res402.get("checks", [])] + \
+        [(c, "suite self-test") for c in off["reference"]]
+    print(f"x402conf {__version__} demo: a bundled mock facilitator and paid route on loopback"
+          + (f" (fault: {a.fault})" if a.fault else "") + ", then the offline self-test. No wallet, no chain.\n")
+    bad = 0
+    for c, where in rows:
+        failing = not c["pass"] and c.get("severity", "error") == "error"
+        bad += failing
+        mark = "pass" if c["pass"] else ("FAIL" if failing else "warn")
+        print(f"  {mark}  [{where}] {c['check']}")
+        if not c["pass"]:
+            print(f"        fix: {anchor(c['check'].split()[0])}")
+    caught = all(any(not r["pass"] for r in v) for k, v in off.items() if k != "reference")
+    print(f"\n{len(rows) - bad}/{len(rows)} checks pass; the self-test caught "
+          f"{'every' if caught else 'NOT every'} faulty build ({len(off) - 1}) in {secs:.1f} s\n")
+    print("Next, check your own endpoints (read-only, nothing is paid):\n"
+          "  x402conf resource https://your.api/paid\n  x402conf live https://your.facilitator\n"
+          "and your server under fault injection: npx x402-conformance-svm demo, then probe --resource ...")
+    if a.dir:
+        os.makedirs(a.dir, exist_ok=True)
+        stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        head = {"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp, "demo": True}
+        for name, doc in (("live.json", {**head, "mode": "live-GET-only", "results": [live]}),
+                          ("resource-402.json", {**head, "mode": "resource-GET-only", "results": [res402]}),
+                          ("offline.json", {**head, "mode": "offline", "results": off})):
+            with open(os.path.join(a.dir, name), "w") as f:
+                json.dump(doc, f, indent=1)
+                f.write("\n")
+    return 0 if not bad and caught else 1
 
 
 def action_summary(env: dict[str, str] | None = None) -> int:
@@ -227,8 +403,9 @@ def action_summary(env: dict[str, str] | None = None) -> int:
     if want["resource-server.json"] and os.path.exists(rsv):
         with open(rsv) as f:
             doc = json.load(f)
-        n = len(doc.get("results", []))
-        if not doc.get("error") and not unsupported and n < 11 and all(c["pass"] for c in doc.get("results", [])):
+        core = [c for c in doc.get("results", []) if not c["check"].startswith("R11")]
+        n = len(core)
+        if doc.get("resource") and not doc.get("error") and not unsupported and n < 11 and all(c["pass"] for c in core):
             bad.append(f"{doc.get('resource')}: the probe stopped after {n} checks")
     if not any(want.values()):
         bad.append("nothing to check: set facilitators, resources, resource-url or offline")
@@ -245,12 +422,34 @@ def action_summary(env: dict[str, str] | None = None) -> int:
     if e.get("GITHUB_STEP_SUMMARY"):
         with open(e["GITHUB_STEP_SUMMARY"], "a") as f:
             f.write("\n".join(out) + "\n")
+    if os.path.isdir(d):
+        failed = [r for r in rows if not r["pass"] and r["severity"] == "error"]
+        comment = [COMMENT_MARKER] + out[:1] + [""]
+        comment += ([f"{len(rows) - len(failed)}/{len(rows)} checks pass."] if rows else [])
+        if failed:
+            comment += ["", "| target | failed check | how to fix |", "|---|---|---|"]
+            comment += [f"| {r['target']} | {r['check']} | [FIXES.md#{r['id'].lower()}]({anchor(r['id'])}) |"
+                        for r in failed[:50]]
+        comment += [f"- {b}" for b in bad if b.endswith("see the step log") or b.startswith("nothing")]
+        comment += ["", "<sub>x402-conformance " + __version__ + ". Checks map to spec text; they are not a "
+                        "certification. Full table in the job summary.</sub>"]
+        with open(os.path.join(d, "pr-comment.md"), "w") as f:
+            f.write("\n".join(comment) + "\n")
+        with open(os.path.join(d, "badge.json"), "w") as f:
+            json.dump(badge(rows, result), f, indent=1)
+            f.write("\n")
     if e.get("GITHUB_OUTPUT"):
         with open(e["GITHUB_OUTPUT"], "a") as f:
             f.write(f"result={result}\n")
     for b in bad:
         print(f"::error title=x402 Conformance::{b}")
     return 1 if bad and e.get("X402C_FAIL", "true") == "true" else 0
+
+
+def _evidence() -> dict[str, Any]:
+    """Evidence v2: the format, and the versions a rerun needs to reproduce the result."""
+    return {"evidence": S.EVIDENCE_FORMAT,
+            "versions": {"x402-conformance": __version__, "python": platform.python_version()}}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -265,10 +464,14 @@ def main(argv: list[str] | None = None) -> int:
     stamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     if a.mode == "report":
         return report(a)
+    if a.mode == "demo":
+        return demo(a)
+    if a.mode == "pr-comment":
+        return pr_comment(a.file)
     if a.mode == "resource":
         rruns = [H.run_resource(t) for t in a.targets]
-        print(json.dumps({"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "resource-GET-only",
-                          "results": rruns}, indent=1, sort_keys=True))
+        print(json.dumps({"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp,
+                          "mode": "resource-GET-only", "results": rruns}, indent=1, sort_keys=True))
         return 1 if a.fail_on_error and failed_errors(rruns) else 0
     if a.mode == "live":
         try:
@@ -287,7 +490,8 @@ def main(argv: list[str] | None = None) -> int:
                     with open(os.path.join(a.evidence, name), "wb") as fb:
                         fb.write(raw)
                     sums.append(f"{r['body_sha256']}  {name}")
-        out = {"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "live-GET-only", "results": runs}
+        out = {"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp, "mode": "live-GET-only",
+               "results": runs}
         text = json.dumps(out, indent=1, sort_keys=True)
         if a.evidence:
             os.makedirs(a.evidence, exist_ok=True)
@@ -300,7 +504,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if a.fail_on_error and failed_errors(runs) else 0
     res = {k: H.check_safety(f(), M.vectors()) for k, f in M.FAULTS.items()}
     res.update({k: H.check_safety(M.Reference(), M.vectors(), guard=g) for k, g in H.GUARD_FAULTS.items()})
-    print(json.dumps({"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "offline", "results": res},
+    print(json.dumps({"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp, "mode": "offline",
+                      "results": res},
                      indent=1))
     ref_ok = all(r["pass"] for r in res["reference"])
     caught = all(any(not r["pass"] for r in v) for k, v in res.items() if k != "reference")

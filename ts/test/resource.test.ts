@@ -1,4 +1,4 @@
-// P1-P5 in TypeScript must agree with the Python CLI on every answer: the same check passes or fails in both. The
+// P1-P7 in TypeScript must agree with the Python CLI on every answer: the same check passes or fails in both. The
 // answers are served from loopback; nothing leaves the machine.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -54,6 +54,9 @@ const FIXTURES: Record<string, Fixture> = {
   "evm unknown method": [402, { "payment-required": b64(v2([{ ...evm, extra: { assetTransferMethod: "magic" } }])) }, "{}"],
   "v1 missing description": [402, {}, JSON.stringify({ ...v1, accepts: [{ ...v1.accepts[0], description: undefined }] })],
   "upto scheme ignored by P5": [402, { "payment-required": b64(v2([{ ...svm, scheme: "upto", extra: {} }])) }, "{}"],
+  "upto with paymentFlow": [402, { "payment-required": b64(v2([{ ...svm, scheme: "upto", extra: { paymentFlow: "escrow" } }])) }, "{}"],
+  "valid paymentFlow empty": [402, { "payment-required": b64(v2([{ ...svm, extra: { ...svm.extra, paymentFlow: "" } }])) }, "{}"],
+  "valid header over 8 KB": [402, { "payment-required": b64(v2([svm], { extensions: { pad: { info: "x".repeat(7000) } } })) }, "{}"],
 };
 
 let base = "";
@@ -70,10 +73,11 @@ before(() => new Promise<void>((ok) => server.listen(0, "127.0.0.1", () => {
 })));
 after(() => new Promise<void>((ok) => server.close(() => ok())));
 
-const verdicts = (checks: { check: string; pass: boolean }[]) => checks.map((c) => `${c.check.split(" ")[0]}=${c.pass}`).join(" ");
+const verdicts = (checks: { check: string; pass: boolean; severity?: string }[]) =>
+  checks.map((c) => `${c.check.split(" ")[0]}=${c.pass}/${c.severity ?? "error"}`).join(" ");
 
 // Async on purpose: the fixture server runs in this process, so a blocking spawn would deadlock it.
-function python(url: string): Promise<{ check: string; pass: boolean }[]> {
+function python(url: string): Promise<{ check: string; pass: boolean; severity?: string }[]> {
   return new Promise((ok, fail) => {
     const p = spawn("python3", ["-m", "x402conf", "resource", url], { env: { ...process.env, PYTHONPATH: SRC } });
     let out = "", err = "";
@@ -84,7 +88,7 @@ function python(url: string): Promise<{ check: string; pass: boolean }[]> {
   });
 }
 
-describe("P1-P5 parity with the Python CLI", () => {
+describe("P1-P7 parity with the Python CLI", () => {
   for (const name of Object.keys(FIXTURES)) {
     test(name, async () => {
       const url = base + encodeURIComponent(name);
@@ -94,9 +98,27 @@ describe("P1-P5 parity with the Python CLI", () => {
   }
   test("the valid answers pass and every broken one fails somewhere", async () => {
     for (const [name, f] of Object.entries(FIXTURES)) {
-      const ok = check402({ status: f[0], headers: f[1], body: f[2] }).every((c) => c.pass);
+      const ok = check402({ status: f[0], headers: f[1], body: f[2] }).every((c) => c.pass || c.severity === "warning");
       assert.equal(ok, name.startsWith("valid") || name.startsWith("upto") || name === "evm permit2", name);
     }
+  });
+});
+
+describe("P6 and P7 in TypeScript", () => {
+  const hdr = (n: number) => b64(v2([svm], { extensions: { pad: { info: "x".repeat(n) } } }));
+  const p6 = (h: string) => check402({ status: 402, headers: { "payment-required": h }, body: "{}" }).find((c) => c.check.startsWith("P6 "))!;
+  test("P6 passes a small header, warns above 8 KB and errors above 16 KB", () => {
+    assert.deepEqual([p6(hdr(10)).pass, p6(hdr(10)).severity], [true, "warning"]);
+    assert.deepEqual([p6(hdr(7000)).pass, p6(hdr(7000)).severity], [false, "warning"]);
+    assert.deepEqual([p6(hdr(13000)).pass, p6(hdr(13000)).severity], [false, "error"]);
+  });
+  test("P7 warns on upto Solana without extra.paymentFlow, and only for V2", () => {
+    const p7 = (a: unknown) => check402({ status: 402, headers: { "payment-required": b64(v2([a])) }, body: "{}" })
+      .find((c) => c.check.startsWith("P7 "));
+    assert.deepEqual([p7({ ...svm, scheme: "upto", extra: {} })!.pass, p7({ ...svm, scheme: "upto", extra: {} })!.severity],
+      [false, "warning"]);
+    assert.equal(p7({ ...svm, scheme: "upto", extra: { paymentFlow: "escrow" } })!.pass, true);
+    assert.equal(check402({ status: 402, headers: {}, body: JSON.stringify(v1) }).some((c) => c.check.startsWith("P7 ")), false);
   });
 });
 
