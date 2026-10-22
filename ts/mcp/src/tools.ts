@@ -40,8 +40,8 @@ function fixSection(id: string): string | null {
 
 export const checkPaymentRequiredTool: ToolDef<{ url: z.ZodString }> = {
   name: "x402_check_payment_required",
-  title: "Check an x402 402 answer (P1-P5)",
-  description: "Sends ONE unpaid GET to an x402 paid URL and checks its 402 answer against the x402 spec (P1-P5): HTTP " +
+  title: "Check an x402 402 answer (P1-P7)",
+  description: "Sends ONE unpaid GET to an x402 paid URL and checks its 402 answer against the x402 spec (P1-P7): HTTP " +
     "402, a decodable PAYMENT-REQUIRED header (V2) or JSON body (V1), x402Version, resource, accepts[], amounts in " +
     "atomic units, CAIP-2 networks, and scheme fields (EVM name/version, Solana feePayer). Never pays or signs. Use " +
     "it before paying an unfamiliar x402 endpoint, or to check your own route.",
@@ -106,7 +106,7 @@ export const stopDoubleTool: ToolDef<{}> = {
 export const demoTool: ToolDef<{ fault: z.ZodOptional<z.ZodEnum<any>> }> = {
   name: "x402_demo",
   title: "Run the suite end to end on a built-in demo server",
-  description: "Runs P1-P5 and R0-R10 against a built-in demo x402 server on loopback, with no wallet, no keys and no " +
+  description: "Runs P1-P7 and R0-R10 against a built-in demo x402 server on loopback, with no wallet, no keys and no " +
     "network. fault=serve_on_any_settle shows what a failing server looks like. Use it to see what the suite checks.",
   input: { fault: z.enum(["none", "serve_on_any_settle"]).optional().describe("none (default) or serve_on_any_settle") },
   readOnly: true,
@@ -128,7 +128,7 @@ export const demoTool: ToolDef<{ fault: z.ZodOptional<z.ZodEnum<any>> }> = {
 export const explainTool: ToolDef<{ id: z.ZodString }> = {
   name: "x402_explain_check",
   title: "Explain a check and how to fix it",
-  description: "Returns what a check (S0-S4, P1-P5, F1-F10, R0-R10) tests, why it matters for the seller's money, and " +
+  description: "Returns what a check (S0-S4, P1-P7, F1-F11, R0-R11) tests, why it matters for the seller's money, and " +
     "how to fix a failure, from the suite's FIXES.md.",
   input: { id: z.string().regex(/^[A-Za-z]{1,2}[0-9X]{0,2}[a-z]?$/).describe("Check id, e.g. R3 or P5") },
   readOnly: true,

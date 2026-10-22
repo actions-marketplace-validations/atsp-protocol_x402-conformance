@@ -17,7 +17,7 @@ describe("x402 conformance in vitest", () => {
     expect(report).toPassX402Conformance();
   });
 
-  test("my 402 answer is well formed (P1-P5)", async () => {
+  test("my 402 answer is well formed (P1-P7)", async () => {
     const { startDouble } = await import("x402-conformance-svm");
     const double = await startDouble(0);
     const server = await startStockHono(double.url);

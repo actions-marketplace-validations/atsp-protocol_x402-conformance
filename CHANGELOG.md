@@ -1,5 +1,45 @@
 # Changelog
 ## Unreleased
+- A first run with nothing to set up: `npx -y x402-conformance-svm demo` runs R0-R10 against a bundled mock resource
+  server (`ts/src/mock-server.ts`, @x402/core only) behind the facilitator double, and `x402conf demo` runs S1-S4 and
+  P1-P7 against a bundled mock facilitator and paid route, then the F1-F11 self-test. No wallet, no chain, a few
+  seconds each. `--fault` shows a failing run, with a fix link under every failed check. A CI job installs both packed
+  packages the way a new user would and fails if either one-liner takes 60 s or more.
+- Action `pr-comment: "true"` (off by default) posts one sticky pull request comment with the result and a fix link
+  per failed check, updated in place on every run (`x402conf pr-comment`). On a fork's read-only token it warns.
+- Badge: the action writes `badge.json` (a shields.io endpoint: `pass n/n`, `n failing` or `unsupported`) and has a
+  `badge` output; `x402conf report --badge FILE` writes it outside the action.
+- The suite's oracle fails closed. The reference verifier parsed amounts with `int()`, so a malformed amount raised
+  instead of being rejected, and forms `int()` accepts but V2 atomic units don't (`" 10000 "`, `"+10000"`, `"10_000"`,
+  `"010000"`, non-ASCII digits) passed. Amounts are now parsed strictly (ASCII digits, no leading zeros, within
+  uint256); a malformed payload amount is `invalid_payload`, and a malformed, zero or negative requirement amount is
+  `invalid_payment_requirements`. F1 also refuses six non-canonical amounts, and a new `lenient_amounts` double is
+  caught by F1.
+- R11, payment-to-request binding on a real resource server (TypeScript, `probeBinding`): a control, R11a (a payment
+  for the cheap route presented on the expensive one), R11b (`payTo`, asset or network altered) and R11e (encoded
+  separators and dot segments in a parameterised paid route). The stock `@x402/express` 2.28.0 server passes on Solana
+  devnet and Base Sepolia, and two faulty builds in `ts/example/binding-server.ts` are each caught by the sub-check
+  they target.
+- R11c (a payment for the cheaper HTTP method presented with the dearer one), R11d (the same for a query-priced route)
+  and R11f (sign-in-with-x access recorded for the route that was priced and settled, not the client's
+  `PaymentPayload.resource.url`). The stock `@x402/express` server passes R11c and R11d and the `trust_client` build
+  fails both. For R11f, a SIWX server that records the settled path passes, and the stock `@x402/extensions` 2.28.0
+  settle hook fails (the public upstream issue x402-foundation/x402#3838, fix proposed in #3840). R11f needs
+  `@x402/extensions` and `viem` next to the probe and reports unsupported without them. A `refuse_paid` build fails
+  the R11 control.
+- `x402conf-svm probe` takes the binding routes (`--cheap`/`--expensive`, `--by-method`, `--by-query`, `--param`,
+  `--siwx-cheap`/`--siwx-expensive`), with or without `--resource`; the Action has matching `binding-*` inputs and
+  `x402conf report` reads the R11 results from `resource-server.json`.
+- F5 also requires `settlement_pending` to carry the network (V2 §9). New F11: `/verify` is read-only (V2 §7.1), with
+  a `verify_commits` double. New P6 (`PAYMENT-REQUIRED` header over 8 KB is a warning, over 16 KB an error) and P7
+  (an `upto` Solana offer without `extra.paymentFlow`, a warning: V2 §6.1 and the upto SVM scheme text disagree).
+- Faulty builds for every check that lacked one: `pending_without_tx` (F5), `verify_commits` (F11),
+  `guard_credit_on_error` (F6), and probe servers `serve_unpaid` (R0) and `no_payment_response` (R10).
+- Credibility gate: `spec.CATALOG` names, for every check, its profile, spec basis, a passing control and the faulty
+  build it catches; a test resolves every reference and runs every fault to confirm its check fails.
+- Results format `x402-conformance-evidence/2`: every result carries `profile` (`normative`, `security-profile`,
+  `resilience`) and `basis`; probe results also carry a `fix` link. Documents carry the tool and runtime versions.
+- The facilitator double reports the EVM payload's own `from` as the payer.
 - Entry points share one report: `x402-conformance.report/1` (check IDs, status, severity, detail, summary, links)
   from the Node CLI and the new test helpers, with a `via` field naming the entry point. The same `via` goes into the
   User-Agent. No telemetry.

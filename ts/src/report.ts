@@ -2,6 +2,7 @@
 // the agent tools and the Docker image. Same check IDs, same fields, so a result from any of them is comparable with
 // any other and can become a corpus case unchanged.
 import { readFileSync } from "node:fs";
+import { CATALOG } from "./catalog.js";
 
 export const VERSION: string = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 export const REPO = "https://github.com/atsp-protocol/x402-conformance";
@@ -31,7 +32,11 @@ export function userAgent(via: Via = "library"): string {
 
 export type Severity = "error" | "warning";
 export type Status = "pass" | "fail" | "unsupported";
-export interface CheckResult { check: string; pass: boolean; status: Status; severity: Severity; detail: unknown }
+export interface CheckResult {
+  check: string; pass: boolean; status: Status; severity: Severity; detail: unknown;
+  /** Evidence v2 labels from spec.CATALOG: normative, security-profile or resilience, and the spec basis. */
+  profile?: string; basis?: string;
+}
 export type Kind = "resource-402" | "resource-server" | "facilitator-supported" | "self-test";
 
 export interface Report {
@@ -54,8 +59,9 @@ export const fixUrl = (id: string): string => `${LINKS.fixes}#${id.toLowerCase()
 
 export function normalise(r: { check: string; pass: boolean; status?: Status; severity?: Severity; detail?: unknown }):
     CheckResult {
+  const e = CATALOG[checkId(r.check).replace(/:$/, "")];
   return { check: r.check, pass: r.pass, status: r.status ?? (r.pass ? "pass" : "fail"),
-    severity: r.severity ?? "error", detail: r.detail ?? null };
+    severity: r.severity ?? "error", detail: r.detail ?? null, ...(e ? { profile: e.profile, basis: e.basis } : {}) };
 }
 
 export function makeReport(kind: Kind, target: string, results: Array<Parameters<typeof normalise>[0]>,

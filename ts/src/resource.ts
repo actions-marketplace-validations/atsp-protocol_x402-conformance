@@ -1,4 +1,4 @@
-// P1-P5: the 402 answer of any paid URL, from one unpaid GET. Nothing is paid or signed. This is the TypeScript port of
+// P1-P7: the 402 answer of any paid URL, from one unpaid GET. Nothing is paid or signed. This is the TypeScript port of
 // check_402 in src/x402conf/harness.py, with the same check IDs and names; test/resource.test.ts runs both on the same
 // answers and fails if they ever disagree.
 import { makeReport, userAgent, type CheckResult, type Report, type Via } from "./report.js";
@@ -8,6 +8,11 @@ export const P2 = "P2 the PaymentRequired object is present and decodes (V2: bas
 export const P3 = "P3 PaymentRequired has x402Version, resource and a non-empty accepts[] (V2 5.1.2; V1 5.1)";
 export const P4 = "P4 every accepts[] entry has the required fields with valid types (V2 5.1.2; V1 5.1)";
 export const P5 = "P5 scheme-specific extra fields are present (EVM exact: name and version; SVM exact: feePayer)";
+export const P6 = "P6 the PAYMENT-REQUIRED header fits common client limits (warning above 8 KB, error above 16 KB)";
+export const P7 = "P7 an accepts[] entry whose payment flow is not authorization declares extra.paymentFlow (V2 6.1)";
+export const HEADER_WARN = 8 * 1024, HEADER_ERROR = 16 * 1024;
+/** Scheme and network prefixes whose default payment flow is not authorization, as in harness.py. */
+const NON_AUTHORIZATION_DEFAULTS: [string, string][] = [["upto", "solana:"]];
 
 const CAIP2 = /^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$/;
 const DIGITS = /^[0-9]+$/;
@@ -78,8 +83,8 @@ function extraProblems(a: Record<string, any>): string[] {
   return [];
 }
 
-const r = (check: string, pass: boolean, detail: unknown): CheckResult =>
-  ({ check, pass, status: pass ? "pass" : "fail", severity: "error", detail });
+const r = (check: string, pass: boolean, detail: unknown, severity: "error" | "warning" = "error"): CheckResult =>
+  ({ check, pass, status: pass ? "pass" : "fail", severity, detail });
 
 /** Grade one unpaid answer. Pure: no network. */
 export function check402(resp: Answer): CheckResult[] {
@@ -100,6 +105,11 @@ export function check402(resp: Answer): CheckResult[] {
     else err = "no PAYMENT-REQUIRED header, and the body is not a V1 PaymentRequired";
   }
   out.push(r(P2, obj(pr), { found_in: where, error: err }));
+  if (hv) {
+    const size = Buffer.byteLength(hv, "utf8");
+    out.push(r(P6, size <= HEADER_WARN, { bytes: size, warn_above: HEADER_WARN, error_above: HEADER_ERROR },
+      size > HEADER_ERROR ? "error" : "warning"));
+  }
   if (!obj(pr)) return out;
   const version = pr.x402Version;
   const accepts = pr.accepts;
@@ -121,6 +131,23 @@ export function check402(resp: Answer): CheckResult[] {
     return pp.length ? [{ index: i, network: a.network ?? null, problems: pp }] : [];
   });
   out.push(r(P5, xb.length === 0, { problems: xb.slice(0, 10) }));
+  if (version === 2) {
+    const flow: { index: number; problem: string }[] = [];
+    (accepts as unknown[]).forEach((a, i) => {
+      if (!obj(a)) return;
+      const extra = obj(a.extra) ? a.extra : {};
+      const pf = extra.paymentFlow;
+      if (pf !== undefined && pf !== null && !str(pf)) {
+        flow.push({ index: i, problem: "extra.paymentFlow is present but not a non-empty string" });
+      } else if ((pf === undefined || pf === null) &&
+          NON_AUTHORIZATION_DEFAULTS.some(([sc, net]) => a.scheme === sc && String(a.network ?? "").startsWith(net))) {
+        flow.push({ index: i, problem: `${a.scheme} on ${a.network} defaults to a non-authorization flow, so V2 6.1 ` +
+          "requires extra.paymentFlow" });
+      }
+    });
+    // A warning: the upto SVM scheme spec lets paymentFlow be omitted, while V2 6.1 says it MUST be present.
+    out.push(r(P7, flow.length === 0, { problems: flow.slice(0, 10) }, "warning"));
+  }
   return out;
 }
 
@@ -134,7 +161,7 @@ export async function fetch402(url: string, opts: { timeoutMs?: number; via?: Vi
   return { status: res.status, headers, body: buf.toString("utf8") };
 }
 
-/** P1-P5 against a URL: one unpaid GET, never a payment. */
+/** P1-P7 against a URL: one unpaid GET, never a payment. */
 export async function checkPaymentRequired(url: string, opts: { timeoutMs?: number; via?: Via } = {}): Promise<Report> {
   const via = opts.via ?? "library";
   try {

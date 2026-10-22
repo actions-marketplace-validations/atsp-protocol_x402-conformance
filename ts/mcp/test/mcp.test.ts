@@ -52,7 +52,7 @@ describe("MCP server over stdio", () => {
   test("x402_demo passes on the reference demo server, and funnels to the badge", async () => {
     const r = await client.callTool({ name: "x402_demo", arguments: {} });
     const t = text(r);
-    assert.match(t, /16 checks, 0 failed/);
+    assert.match(t, /18 checks, 0 failed/);
     assert.match(t, /Add the badge/);
     assert.match(t, /"via": "mcp"/);
   });
@@ -65,7 +65,7 @@ describe("MCP server over stdio", () => {
   });
   test("x402_check_payment_required: one unpaid GET, tagged via=mcp", async () => {
     const t = text(await client.callTool({ name: "x402_check_payment_required", arguments: { url: route } }));
-    assert.match(t, /5 checks, 0 failed/);
+    assert.match(t, /7 checks, 0 failed/);
     assert.match(lastUA, /via=mcp\)$/);
   });
   test("x402_check_payment_required refuses non-http URLs", async () => {
@@ -121,7 +121,7 @@ describe("Vercel AI SDK", () => {
     });
     const r = await generateText({ model, tools: aiTools(), prompt: "check it" });
     assert.equal(r.toolResults.length, 1);
-    assert.match(String(r.toolResults[0].output), /5 checks, 0 failed/);
+    assert.match(String(r.toolResults[0].output), /7 checks, 0 failed/);
     assert.match(lastUA, /via=ai-sdk\)$/);
   });
 });
@@ -131,7 +131,7 @@ describe("LangChain", () => {
     const tools = lcTools();
     assert.deepEqual(tools.map((t) => t.name).sort(), AGENT_TOOLS.map((t) => t.name).sort());
     const check = tools.find((t) => t.name === "x402_check_payment_required")!;
-    assert.match(String(await check.invoke({ url: route })), /5 checks, 0 failed/);
+    assert.match(String(await check.invoke({ url: route })), /7 checks, 0 failed/);
     assert.match(lastUA, /via=langchain\)$/);
     const explain = tools.find((t) => t.name === "x402_explain_check")!;
     assert.match(String(await explain.invoke({ id: "P5" })), /^## P5/);
