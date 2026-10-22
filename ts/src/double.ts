@@ -71,7 +71,9 @@ export async function startDouble(port = 0): Promise<Double> {
     let body: any;
     try { body = JSON.parse(data); } catch { return json(400, { isValid: false, invalidReason: "invalid_payload" }); }
     const network = body?.paymentRequirements?.network ?? DEVNET;
-    const payer = network.startsWith("eip155:") ? DOUBLE_EVM_SIGNER : "double-payer";
+    // The payer is the payload's own `from` when it has one (EVM exact), so per-payer records such as SIWX work.
+    const from = body?.paymentPayload?.payload?.authorization?.from;
+    const payer = network.startsWith("eip155:") ? (typeof from === "string" ? from : DOUBLE_EVM_SIGNER) : "double-payer";
     if (path === "/verify") return json(200, { isValid: true, payer });
     if (path !== "/settle") return json(404, { error: "not found" });
     const tx = txOf(body);

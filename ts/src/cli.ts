@@ -1,23 +1,34 @@
 #!/usr/bin/env node
 // x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|<CAIP-2>] [--out file]
 // Starts the facilitator double on 127.0.0.1:<port>, optionally starts your resource server with
-// X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10.
+// X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10, and with the binding options
+// R11 (payment-to-request binding). Every result carries its profile, spec basis and fix link (evidence v2).
 // Exit codes: 0 all pass; 1 a check failed; 2 usage error, or the run could not be completed (port taken, server
 // exited or never answered); 3 unsupported (the server offers no network the probe can grade).
 import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { NETWORKS, PortInUseError, startDouble, type Network } from "./double.js";
 import { probe, type Result } from "./probe.js";
+import { probeBinding, type BindingTargets } from "./binding.js";
+import { EVIDENCE_FORMAT, label } from "./catalog.js";
 
 export const VERSION: string = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
-const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R10 for x402 V2 servers (Solana devnet, Base Sepolia)
+const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11 for x402 V2 servers (Solana devnet, Base Sepolia)
 
 usage:
-  x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|${NETWORKS.join("|")}] [--out file]
+  x402conf-svm probe --resource <url> [binding options] [--port 4402] [--start "<command>"]
+                     [--network auto|${NETWORKS.join("|")}] [--out file]
+  x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file]
   x402conf-svm --help | --version
 
-  --resource  your paid route, e.g. http://127.0.0.1:4020/paid
+  --resource        your paid route, e.g. http://127.0.0.1:4020/paid (R0-R10)
+  binding options (R11; give at least --resource or one of these):
+  --cheap, --expensive  two paid routes at different prices (R11 control, R11a, R11b)
+  --by-method       a paid URL priced differently for GET and POST (R11c)
+  --by-query        two paid URLs that differ only in the query, comma-separated (R11d)
+  --param           a paid parameterised route with {id} for the parameter, e.g. http://host/items/{id}/premium (R11e)
+  --siwx-cheap, --siwx-expensive  two paid routes at different prices that declare sign-in-with-x (R11f, EVM)
   --port      loopback port for the facilitator double (default 4402)
   --start     command that starts your server; it gets X402_FACILITATOR_URL and must use it as its facilitator
   --network   which offered network to pay on (default auto: the first of ${NETWORKS.join(", ")})
@@ -26,7 +37,20 @@ usage:
 exit codes: 0 all pass, 1 a check failed, 2 usage error or the run could not complete,
             3 unsupported (the server offers no network the probe grades)`;
 
-const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network"]);
+const BINDING = ["cheap", "expensive", "by-method", "by-query", "param", "siwx-cheap", "siwx-expensive"];
+const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", ...BINDING.map((b) => `--${b}`)]);
+
+function bindingTargets(o: Record<string, string>): BindingTargets | string | null {
+  if (!BINDING.some((b) => o[b])) return null;
+  if (!!o.cheap !== !!o.expensive) return "--cheap and --expensive go together";
+  if (!!o["siwx-cheap"] !== !!o["siwx-expensive"]) return "--siwx-cheap and --siwx-expensive go together";
+  if (o.param && !o.param.includes("{id}")) return "--param needs {id} where the parameter goes";
+  const q = o["by-query"]?.split(",");
+  if (q && q.length !== 2) return "--by-query takes two URLs, comma-separated";
+  return { cheap: o.cheap, expensive: o.expensive, byMethod: o["by-method"], parameterised: o.param,
+    byQuery: q as [string, string] | undefined,
+    siwx: o["siwx-cheap"] ? { cheap: o["siwx-cheap"], expensive: o["siwx-expensive"] } : undefined };
+}
 
 class RunError extends Error {}
 
@@ -43,7 +67,9 @@ function parse(argv: string[]): Record<string, string> | number {
     }
     o[k.slice(2)] = v;
   }
-  if (!o.resource) { console.error(`x402conf-svm: --resource is required\n\n${USAGE}`); return 2; }
+  const b = bindingTargets(o);
+  if (typeof b === "string") { console.error(`x402conf-svm: ${b}`); return 2; }
+  if (!o.resource && !b) { console.error(`x402conf-svm: give --resource or a binding option\n\n${USAGE}`); return 2; }
   if (o.network && o.network !== "auto" && !(NETWORKS as readonly string[]).includes(o.network)) {
     console.error(`x402conf-svm: --network must be auto or one of ${NETWORKS.join(", ")}`);
     return 2;
@@ -64,8 +90,12 @@ function stop(child: ChildProcess | null) {
 async function main(): Promise<number> {
   const o = parse(process.argv.slice(2));
   if (typeof o === "number") return o;
-  const resource = o.resource;
-  const doc: Record<string, unknown> = { tool: `x402-conformance-svm ${VERSION}`, run_at: new Date().toISOString(), resource };
+  const binding = bindingTargets(o) as BindingTargets | null;
+  const resource = o.resource ?? binding?.cheap ?? binding?.byMethod ?? binding?.byQuery?.[0] ?? binding?.siwx?.cheap
+    ?? binding?.parameterised?.replace("{id}", "1") ?? "";
+  const doc: Record<string, unknown> = { tool: `x402-conformance-svm ${VERSION}`, evidence: EVIDENCE_FORMAT,
+    versions: { "x402-conformance-svm": VERSION, node: process.versions.node }, run_at: new Date().toISOString(),
+    resource: o.resource ?? null, ...(binding ? { binding } : {}) };
   let results: Result[] = [];
   let child: ChildProcess | null = null;
   let exited: string | null = null;
@@ -96,7 +126,12 @@ async function main(): Promise<number> {
     if (exited) throw new RunError(`${exited} before it answered at ${resource}`);
     if (!up) throw new RunError(`no answer from ${resource} within 60 s`);
     const net = o.network as Network | "auto" | undefined;
-    results = await probe(resource, double, { network: net });
+    if (o.resource) results = await probe(o.resource, double, { network: net });
+    if (binding) {
+      const offered = results.find((r) => r.check.startsWith("R0"))?.detail as any;
+      const bnet = (o.network && o.network !== "auto" ? o.network : offered?.network) as string | undefined;
+      results = results.concat(await probeBinding(binding, double, bnet));
+    }
     if (exited) throw new RunError(`${exited} during the probe; the results are not trustworthy`);
   } catch (e) {
     doc.error = e instanceof RunError ? e.message : `the probe crashed: ${e instanceof Error ? e.message : String(e)}`;
@@ -104,7 +139,7 @@ async function main(): Promise<number> {
     stop(child);
     await double?.close();
   }
-  doc.results = results;
+  doc.results = results.map(label);
   const text = JSON.stringify(doc, null, 1);
   if (o.out) writeFileSync(o.out, text + "\n");
   console.log(text);

@@ -70,8 +70,12 @@ jobs:
 - **P4** an `accepts` entry lacks a required field or has the wrong type (amount in atomic units, CAIP-2 network, timeout)
 - **P5** a scheme-specific field is missing: `extra.name` and `extra.version` for EVM `exact` (EIP-3009),
   `extra.feePayer` for Solana `exact`
+- **P6** the `PAYMENT-REQUIRED` header is over 8 KB (warning) or 16 KB (error): common proxies and servers reject
+  headers that large
+- **P7** an offer whose scheme defaults to a non-authorization flow (`upto` on Solana) doesn't declare
+  `extra.paymentFlow` (warning; V2 §6.1 says it must, the upto SVM scheme text says it may be omitted)
 
-**Your resource server, under fault injection (`x402conf-svm probe`, R0-R10):** the probe starts a facilitator double
+**Your resource server, under fault injection (`x402conf-svm probe`, R0-R11):** the probe starts a facilitator double
 on loopback, points your server at it through `X402_FACILITATOR_URL` and pays your route with test payloads on
 **Solana devnet or Base Sepolia (`exact`; EVM via EIP-3009)**. Your server must:
 - **R0** answer an unpaid request with a 402 offering one of those networks. If it offers neither, the result is
@@ -82,12 +86,21 @@ on loopback, points your server at it through `X402_FACILITATOR_URL` and pays yo
 - **R3-R9** not serve when `/settle` never answers, answers an HTML 502, a 503 with a success body, a non-JSON page, a
   truncated body, `settlement_pending` or `invalid_transaction_state`
 - **R10** send a `PAYMENT-RESPONSE` header that decodes to `success: true` with the content
+- **R11** bind each payment to the request it pays for (give the routes with the binding options): a payment for a
+  cheap route is refused on a dearer one (R11a), an altered `payTo`, asset or network is refused before `/settle`
+  (R11b), a payment for the cheaper method (R11c) or query (R11d) is refused on the dearer one, an encoded separator
+  or dot segment in a parameter never reaches a paid handler unpaid (R11e), and sign-in-with-x access is recorded for
+  the route that was priced and settled, not the client's `resource.url` (R11f)
 
-**Safety suite (`x402conf offline` and `devnet`, F1-F10):** a malformed payment accepted (F1), an underpayment accepted
-(F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation (F5), a timeout or
+Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
+leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
+`x402-conformance-evidence/2`).
+
+**Safety suite (`x402conf offline` and `devnet`, F1-F11):** a malformed payment accepted (F1), an underpayment accepted
+(F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation, or `settlement_pending` without a transaction and network (F5), a timeout or
 garbage answer credited (F6), a pending payment never finalised or credited twice (F7), a failure stuck pending (F8),
-a broken `/settle` transport credited (F9), a payment settled under one set of requirements accepted again under
-different ones (F10). `offline` runs them against built-in doubles: it's a self-test of the suite
+a broken `/settle` transport credited (F9), a payment accepted under requirements it wasn't made for (F10),
+`/verify` committing payment state (F11). `offline` runs them against built-in doubles: it's a self-test of the suite
 and doesn't test your code. `devnet` runs F1-F6 over real `/verify` and `/settle` on Solana devnet.
 
 [docs/SPEC.md](docs/SPEC.md) quotes the spec text behind every check, and [docs/FIXES.md](docs/FIXES.md) explains, for
@@ -113,7 +126,7 @@ follows the latest 1.x release.
 ```
 x402conf live https://x402.org/facilitator             # S0-S4, GET /supported only
 x402conf resource https://api.example.com/paid         # P1-P5, one unpaid GET
-x402conf offline                                       # F1-F10 self-test against the built-in doubles
+x402conf offline                                       # F1-F11 self-test against the built-in doubles
 x402conf report --dir DIR --sarif out.sarif --junit junit.xml
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out resource-server.json
@@ -142,7 +155,7 @@ a host is a usage error. CDP uses short-lived JWTs, so mint one just before the 
 | `x402conf offline` | the reference passes every check and every fault-injected double is caught | otherwise | usage error | – |
 | `x402conf report` | reports written (with `--fail-on-error`: and nothing failed) | with `--fail-on-error`, an error-severity check failed | usage error, or no results JSON in the directory | – |
 | `x402conf devnet` | the facilitator under test passes, and with `--faults` every fault-injected build is caught | otherwise (the current reference exits `1` on F4, see [Results](#results)) | usage error | – |
-| `x402conf-svm probe` | R0-R10 all pass | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
+| `x402conf-svm probe` | every requested check (R0-R10, R11) passes | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
 | `x402conf --help`, `--version`, `x402conf-svm --help`, `--version` | always | – | – | – |
 
 With `--out`, the probe writes its results file on every outcome, errors included.
@@ -155,12 +168,17 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 |---|---|---|
 | `facilitators` | empty | Space-separated facilitator base URLs, checked with `GET /supported` only (S0-S4) |
 | `facilitator-auth-host` | empty | The one host that gets `X402C_FACILITATOR_AUTHORIZATION` (set it in the step's `env` from a secret) |
-| `resources` | empty | Space-separated paid URLs, one unpaid `GET` each (P1-P5) |
+| `resources` | empty | Space-separated paid URLs, one unpaid `GET` each (P1-P7) |
 | `resource-url` | empty | Your paid route; the Action puts a facilitator double in front of it and runs R0-R10 |
+| `binding-cheap-url`, `binding-expensive-url` | empty | Two paid routes at different prices (R11, R11a, R11b) |
+| `binding-method-url` | empty | A paid URL priced differently for `GET` and `POST` (R11c) |
+| `binding-query-urls` | empty | Two paid URLs that differ only in the query, comma-separated (R11d) |
+| `binding-param-url` | empty | A paid parameterised route with `{id}` for the parameter (R11e) |
+| `binding-siwx-urls` | empty | Two paid sign-in-with-x routes, cheap first, comma-separated, Base Sepolia (R11f) |
 | `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
 | `network` | `auto` | Which offered network the probe pays on: `auto`, `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` or `eip155:84532` |
 | `port` | `4402` | Loopback port for the facilitator double |
-| `offline` | `true` | Also run the F1-F10 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
+| `offline` | `true` | Also run the F1-F11 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-402.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when a check fails, a requested run left no results, or the probe found nothing to grade |
 
