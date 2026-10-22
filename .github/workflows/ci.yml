@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install ruff==0.7.4 mypy==1.13.0
+      - run: pip install ruff==0.7.4 mypy==1.13.0 pytest==8.3.5
       - run: ruff check .
       - run: mypy
   test:
@@ -78,6 +78,23 @@ jobs:
           cd ts/mcp
           node -e "const p=require('./package.json'),s=require('./server.json');if(p.mcpName!==s.name||s.packages[0].identifier!==p.name||s.version!==p.version||s.packages[0].version!==p.version||s.description.length>100)process.exit(1)"
           grep -q "mcp-name: $(node -p "require('./server.json').name")" README.md
+  pytest-plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - name: The Node probe and the example servers
+        run: cd ts && npm ci --no-audit --no-fund && npm run build
+      - name: pytest, the stock x402 Python SDK with FastAPI, and this package
+        run: pip install pytest==8.3.5 "x402[fastapi,evm,svm]==2.25.0" uvicorn==0.38.0 && pip install .
+      - name: Installing the package registers the plugin
+        run: cd "$RUNNER_TEMP" && python -m pytest --help | grep -q -- --x402-share
+      - name: The x402 fixture, --x402-share, and the probe against the reference, a faulty server and stock FastAPI
+        run: X402CONF_REQUIRE_PROBE=1 PYTHONPATH=src python -m unittest discover -v -s tests -p check_pytest_plugin.py
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -274,7 +291,7 @@ jobs:
           results-dir: siwx-stock
       - run: test "${{ steps.siwx-stock.outputs.result }}" = fail
   vv:
-    needs: [lint, test, lean, ts, first-run, mcp, docker, action]
+    needs: [lint, test, lean, ts, first-run, mcp, pytest-plugin, docker, action]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -282,7 +299,7 @@ jobs:
         with: { fetch-depth: 0 }
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install ruff==0.7.4 mypy==1.13.0
+      - run: pip install ruff==0.7.4 mypy==1.13.0 pytest==8.3.5
       - name: Install elan
         run: |
           curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o elan-init.sh

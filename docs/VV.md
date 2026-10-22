@@ -190,4 +190,6 @@ verifies `proofline.json.sig` against `guard/owner.pub`. Anyone can repeat that 
 | XC-M6 | R-GRANT | XC-M6-AC04: Committed and pushed to main | HEAD on origin/main | CI `vv` receipt |
 
 Requirement ids: R-OPEN/R-GOV (open source, governance), R-S1..R-S4 and R-SAFE-GET (live checks, GET only), R-F1..R-F6 (safety checks),
-R-LEAN (proofs), R-DOCS, R-CI, R-EVID (evidence), R-HYG (hygiene), R-GRANT (the roadmap milestones M1-M6 in [ROADMAP.md](ROADMAP.md), my proposal).
+R-LEAN (proofs), R-DOCS, R-CI, R-EVID (evidence), R-HYG (hygiene), R-GRANT (the roadmap milestones M1-M6 in [ROADMAP.md](ROADMAP.md), my proposal), R-ADOPT (integrations that bring other
+ecosystems into the one suite; XC-11 to XC-14 are proposed in
+[the integrations addendum](proposals/contract-addendum-integrations.json) and bind only once I sign them).

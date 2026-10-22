@@ -15,7 +15,8 @@ transaction data.
    pre-filled [corpus case form](https://github.com/atsp-protocol/x402-conformance/issues/new?template=corpus-case.yml).
    Nothing is ever sent automatically.
 3. I reproduce it. A case is accepted once it reproduces against a deliberately faulty double or a pinned version of the
-   named stack, and it's committed here as `<date>-<check ids>-<stack>.json` with a regression test that catches it.
+   named stack, and it's committed in `cases/` as `<date>-<check ids>-<stack>.json` with a regression block that
+   proves the suite catches it. The format is in [TEMPLATE.md](TEMPLATE.md).
 
 ## Why it matters
 

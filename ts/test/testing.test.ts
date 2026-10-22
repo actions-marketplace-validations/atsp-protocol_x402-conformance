@@ -82,7 +82,7 @@ describe("corpus case: anonymised, opt-in, never sent", () => {
     assert.equal(c.results[0].detail, null);
   });
   test("anonymise matches the fixture the Python CLI also matches", () => {
-    const root = new URL("../../../evidence/corpus/fixtures/", import.meta.url);
+    const root = new URL("../../../corpus/fixtures/", import.meta.url);
     const input = JSON.parse(readFileSync(new URL("anonymise-input.json", root), "utf8"));
     const expected = JSON.parse(readFileSync(new URL("anonymise-expected.json", root), "utf8"));
     assert.deepEqual(anonymise(input.report, input.stack), expected);

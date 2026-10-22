@@ -2,12 +2,12 @@
 
 One suite, one set of check IDs, one report format, one corpus. Every entry point below is a thin way into the same
 checks: a result from the CLI, the Action, vitest, jest or node:test means the same thing and has the same shape
-([report schema](../evidence/corpus/report.schema.json)). None of them pays, signs or touches mainnet, and none of
+([report schema](../corpus/report.schema.json)). None of them pays, signs or touches mainnet, and none of
 them sends anything anywhere unless you ask it to.
 
 - **What the checks are:** [README](../README.md#what-it-catches), with the spec text behind each in [SPEC.md](SPEC.md).
 - **What to do when one fails:** [FIXES.md](FIXES.md). Every failure message links to its section.
-- **The corpus:** [evidence/corpus](../evidence/corpus). Failures real stacks have shown, each one a regression case.
+- **The corpus:** [corpus](../corpus). Failures real stacks have shown, each one a regression case.
 - **Contribute a case:** add `--share` (or `share: true`). You get an anonymised case file and a link to a pre-filled
   [issue form](https://github.com/atsp-protocol/x402-conformance/issues/new?template=corpus-case.yml). You review it and
   submit it yourself; nothing is sent for you.
@@ -30,6 +30,7 @@ ecosystem.
 | [MCP: Claude, Cursor and other MCP clients](#mcp-claude-cursor-and-other-mcp-clients) | `mcp` | `npx -y x402-conformance-mcp` |
 | [Vercel AI SDK](#vercel-ai-sdk) | `ai-sdk` | `npm i x402-conformance-mcp` |
 | [LangChain and LangGraph](#langchain-and-langgraph) | `langchain` | `npm i x402-conformance-mcp` |
+| [pytest (FastAPI, Flask, any Python server)](#pytest-fastapi-flask-and-any-python-server) | `pytest` | `pip install x402-conformance pytest` |
 | [Docker](#docker) | `docker` | `docker run ghcr.io/atsp-protocol/x402-conformance:1` |
 | [GitLab CI and other CI systems](#gitlab-ci-and-other-ci-systems) | `gitlab` | `include: remote: .../ts/ci/gitlab/x402-conformance.gitlab-ci.yml` |
 
@@ -44,7 +45,7 @@ npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start 
 
 `x402conf resource --share` does the same in Python: one anonymised case file per URL, and the link for each failing
 one. Both CLIs produce identical cases from the same report; CI checks both against
-[one fixture](../evidence/corpus/fixtures).
+[one fixture](../corpus/fixtures).
 
 The Node `resource` command is a port of the Python one with the same check IDs; CI runs both on 29 answers and
 fails if they ever disagree. `--share` on a failing run writes `<out>.case.json` and prints the issue link.
@@ -168,3 +169,23 @@ any CI system that runs containers (Jenkins, CircleCI, Buildkite, Bitbucket, Dro
 `X402_START`, `X402_RESOURCES`, `X402_NETWORK`, `X402_PORT`, `X402_RESULTS_DIR` and `X402_SHARE`, and
 `docker run ... help` lists them. Results land in `x402-conformance/` with `junit.xml` and SARIF. CI runs the
 template's script inside the image, as GitLab would, against a passing and a faulty server.
+
+## pytest: FastAPI, Flask and any Python server
+
+Installing `x402-conformance` registers a pytest plugin, so any suite gets the `x402` fixture:
+
+```python
+def test_my_402_answer(x402):
+    x402.assert_passed(x402.check_payment_required("http://127.0.0.1:8000/paid"))      # P1-P5, in Python
+
+def test_never_serves_before_settlement(x402):
+    report = x402.probe("http://127.0.0.1:4020/paid", start="uvicorn app:app --port 4020")  # R0-R10
+    x402.assert_passed(report)
+```
+
+`probe` runs the Node probe (`x402conf-svm` on PATH, `X402CONF_SVM`, or `npx`), which starts the facilitator double
+and your server with `X402_FACILITATOR_URL`; your app must use it as its facilitator. A failed check fails the test
+with its detail and fix link. `--x402-report-dir DIR` keeps every report, and `--x402-share` writes anonymised cases
+and lists the links to submit them in the terminal summary. Nothing is sent. CI runs the plugin against the stock
+x402 Python SDK's FastAPI middleware ([example](../examples/python/fastapi_server.py)), which passes R0-R10 on Solana
+devnet, and against a faulty server, which fails.
