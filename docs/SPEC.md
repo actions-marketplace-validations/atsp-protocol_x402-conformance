@@ -6,6 +6,11 @@ Each check below quotes the spec text it tests. Sources were read on 2026-10-20 
 `specs/schemes/exact/scheme_exact_evm.md` (EVM exact). The Solana guide is
 https://solana.com/docs/payments/agentic-payments/x402.
 
+Re-checked on 2026-10-22 against x402-foundation/x402 commit `11022577a931`, the latest change to
+`specs/x402-specification-v2.md`. It fixes a broken link to §9 and an Express API name, and changes no normative
+text, so every section number and quote below still stands. `coinbase/x402` is a fork of x402-foundation/x402;
+links here go to x402-foundation/x402.
+
 [FIXES.md](FIXES.md) explains, for each check, what a failure means and how to fix it.
 
 These checks map behaviour to spec text. Passing them is evidence about specific properties. It is not

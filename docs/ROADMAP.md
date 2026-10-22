@@ -6,6 +6,12 @@ fault-injected facilitator doubles (and F1 to F6 over real `/verify` and `/settl
 misbehaving facilitator in front of your own paid route on Solana devnet or Base Sepolia, and the Lean models cover the
 credit rule, nonces, timeouts, `settlement_pending` and concurrent settles. There are no public users yet.
 
+**On `main`, unreleased (1.4.0).** The fail-closed oracle, F11, P6, P7, the extended F5, R11a to R11f with their
+faulty builds, evidence v2 with the credibility gate, and the adoption items A1, A2, A3 and A5 are merged and green in
+CI. The corpus move (A6), the pytest plugin and the FastAPI example are in review in pull request #14, and R14 (a crash
+between settling and responding) is in review in pull request #17. R12, R13, R15 to R19, the implementation matrix,
+the rest of A4, A7 and A8 are not started. 1.4.0 is published once the v1.4 contract tasks are signed.
+
 **Where it's going.** Having many checks is not the same as covering the security boundary that matters. The question
 a seller actually needs answered is: *does this payment authorise this request, is what was bought actually
 delivered, and does my stack recover safely when the payment and the HTTP exchange disagree?* The next two releases
