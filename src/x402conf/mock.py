@@ -172,7 +172,8 @@ class Faulty(Reference):
     def __init__(self, *, open_on_malformed: bool = False, accept_dust: bool = False, no_dup_cache: bool = False,
                  no_memo_check: bool = False, success_before_final: bool = False, burn_on_pending: bool = False,
                  stuck_pending: bool = False, cross_request_replay: bool = False,
-                 lenient_amounts: bool = False) -> None:
+                 lenient_amounts: bool = False, pending_without_tx: bool = False,
+                 verify_commits: bool = False) -> None:
         super().__init__()
         self.open_on_malformed, self.accept_dust = open_on_malformed, accept_dust
         self.no_dup_cache, self.no_memo_check = no_dup_cache, no_memo_check
@@ -180,9 +181,17 @@ class Faulty(Reference):
         self.burn_on_pending, self.stuck_pending = burn_on_pending, stuck_pending
         self.cross_request_replay = cross_request_replay
         self.lenient_amounts = lenient_amounts
+        self.pending_without_tx, self.verify_commits = pending_without_tx, verify_commits
         self.burned: set[str] = set()
 
     def verify(self, p: Any, req: Json) -> Json:
+        v = self._verify(p, req)
+        if self.verify_commits and v.get("isValid") and isinstance(p, dict):
+            # the fault: /verify records the payment as settled, so the settle that follows is a "duplicate"
+            self.settled.add(p["tx"])
+        return v
+
+    def _verify(self, p: Any, req: Json) -> Json:
         if self.open_on_malformed and (not isinstance(p, dict) or not p.get("tx")):
             return {"isValid": True}
         if self.accept_dust and isinstance(p, dict) and p.get("tx"):
@@ -205,7 +214,11 @@ class Faulty(Reference):
     def settle(self, p: Any, req: Json) -> Json:
         if self.open_on_malformed and (not isinstance(p, dict) or not p.get("tx")):
             return _fail("invalid_payload", req)   # a lenient verify; settle cannot proceed without a transaction
-        return super().settle(p, req)
+        r = super().settle(p, req)
+        if self.pending_without_tx and r.get("errorReason") == S.SETTLEMENT_PENDING:
+            # the fault: settlement_pending with no broadcast hash or network to reconcile against
+            r = {"success": False, "errorReason": S.SETTLEMENT_PENDING}
+        return r
 
     def _dup(self, p: Json) -> bool:
         if self.no_dup_cache:
@@ -240,4 +253,6 @@ FAULTS: dict[str, Callable[[], Reference]] = {
     "stuck_pending": lambda: Faulty(stuck_pending=True),
     "cross_request_replay": lambda: Faulty(cross_request_replay=True),
     "lenient_amounts": lambda: Faulty(lenient_amounts=True),
+    "pending_without_tx": lambda: Faulty(pending_without_tx=True),
+    "verify_commits": lambda: Faulty(verify_commits=True),
 }

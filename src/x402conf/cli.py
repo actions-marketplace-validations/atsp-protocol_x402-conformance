@@ -16,6 +16,7 @@ import argparse
 import hashlib
 import json
 import os
+import platform
 import sys
 import time
 from typing import Any
@@ -24,6 +25,7 @@ from xml.sax.saxutils import quoteattr
 from . import __version__
 from . import harness as H
 from . import mock as M
+from . import spec as S
 
 DOCS = "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/"
 
@@ -56,13 +58,14 @@ def collect(d: str) -> list[dict[str, Any]]:
     rsv = load("resource-server.json")
     if rsv is not None:
         if rsv.get("error"):
-            row(rsv.get("resource", "resource server"), "RX the probe ran to completion", False, "error",
+            row(rsv.get("resource") or "resource server", "RX the probe ran to completion", False, "error",
                 {"error": rsv["error"]}, "resource-server.json")
         for c in rsv.get("results", []):
             detail = c.get("detail")
             if c.get("status") == "unsupported":
                 detail = {"status": "unsupported", "detail": detail}
-            row(rsv["resource"], c["check"], c["pass"], "error", detail, "resource-server.json")
+            row(rsv.get("resource") or "resource server (binding)", c["check"], c["pass"], "error", detail,
+                "resource-server.json")
     off = load("offline.json")
     if off is not None:
         res = off["results"]
@@ -227,8 +230,9 @@ def action_summary(env: dict[str, str] | None = None) -> int:
     if want["resource-server.json"] and os.path.exists(rsv):
         with open(rsv) as f:
             doc = json.load(f)
-        n = len(doc.get("results", []))
-        if not doc.get("error") and not unsupported and n < 11 and all(c["pass"] for c in doc.get("results", [])):
+        core = [c for c in doc.get("results", []) if not c["check"].startswith("R11")]
+        n = len(core)
+        if doc.get("resource") and not doc.get("error") and not unsupported and n < 11 and all(c["pass"] for c in core):
             bad.append(f"{doc.get('resource')}: the probe stopped after {n} checks")
     if not any(want.values()):
         bad.append("nothing to check: set facilitators, resources, resource-url or offline")
@@ -253,6 +257,12 @@ def action_summary(env: dict[str, str] | None = None) -> int:
     return 1 if bad and e.get("X402C_FAIL", "true") == "true" else 0
 
 
+def _evidence() -> dict[str, Any]:
+    """Evidence v2: the format, and the versions a rerun needs to reproduce the result."""
+    return {"evidence": S.EVIDENCE_FORMAT,
+            "versions": {"x402-conformance": __version__, "python": platform.python_version()}}
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     if args[:1] == ["--"]:  # `pipx run ... x402conf -- --version` passes the separator through
@@ -267,8 +277,8 @@ def main(argv: list[str] | None = None) -> int:
         return report(a)
     if a.mode == "resource":
         rruns = [H.run_resource(t) for t in a.targets]
-        print(json.dumps({"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "resource-GET-only",
-                          "results": rruns}, indent=1, sort_keys=True))
+        print(json.dumps({"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp,
+                          "mode": "resource-GET-only", "results": rruns}, indent=1, sort_keys=True))
         return 1 if a.fail_on_error and failed_errors(rruns) else 0
     if a.mode == "live":
         try:
@@ -287,7 +297,8 @@ def main(argv: list[str] | None = None) -> int:
                     with open(os.path.join(a.evidence, name), "wb") as fb:
                         fb.write(raw)
                     sums.append(f"{r['body_sha256']}  {name}")
-        out = {"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "live-GET-only", "results": runs}
+        out = {"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp, "mode": "live-GET-only",
+               "results": runs}
         text = json.dumps(out, indent=1, sort_keys=True)
         if a.evidence:
             os.makedirs(a.evidence, exist_ok=True)
@@ -300,7 +311,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if a.fail_on_error and failed_errors(runs) else 0
     res = {k: H.check_safety(f(), M.vectors()) for k, f in M.FAULTS.items()}
     res.update({k: H.check_safety(M.Reference(), M.vectors(), guard=g) for k, g in H.GUARD_FAULTS.items()})
-    print(json.dumps({"tool": f"x402-conformance {__version__}", "run_at": stamp, "mode": "offline", "results": res},
+    print(json.dumps({"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp, "mode": "offline",
+                      "results": res},
                      indent=1))
     ref_ok = all(r["pass"] for r in res["reference"])
     caught = all(any(not r["pass"] for r in v) for k, v in res.items() if k != "reference")

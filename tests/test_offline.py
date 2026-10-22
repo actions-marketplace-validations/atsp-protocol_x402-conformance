@@ -1,5 +1,7 @@
 """F1-F10: the reference double passes; each faulty double is caught by the check that targets it."""
 
+import contextlib
+import io
 import json
 import os
 import tempfile
@@ -168,6 +170,64 @@ class Offline(unittest.TestCase):
         # XC-09-AC03: a double that parses amounts with int() is caught by F1
         self.assertEqual(fails(H.check_safety(M.Faulty(lenient_amounts=True), M.vectors())), {"F1"})
 
+    def test_f5_pending_without_tx_or_network_caught(self):
+        # XC-11-AC01
+        self.assertIn("F5", fails(H.check_safety(M.Faulty(pending_without_tx=True), M.vectors())))
+
+    def test_f11_verify_commits_state_caught(self):
+        # XC-11-AC02: a /verify that commits payment state (V2 7.1) is caught by F11
+        self.assertIn("F11", fails(H.check_safety(M.Faulty(verify_commits=True), M.vectors())))
+
+    def test_f6_guard_crediting_on_error_caught(self):
+        g = H.GUARD_FAULTS["guard_credit_on_error"]
+        self.assertEqual(fails(H.check_safety(M.Reference(), M.vectors(), guard=g)), {"F6"})
+
+    def test_credibility_matrix_complete(self):
+        """XC-12-AC01: every check has a passing control and a faulty build it is proven to catch."""
+        import importlib
+        import pathlib
+        ts = "".join(p.read_text("utf-8") for p in (pathlib.Path(__file__).parent.parent / "ts" / "test").glob("*.ts"))
+        emitted = {r["check"].split()[0] for r in H.check_safety(M.Reference(), M.vectors())}
+        emitted |= {"S0", "S1", "S2", "S3", "S4", "P1", "P2", "P3", "P4", "P5", "P6", "P7"}
+        emitted |= {f"R{i}" for i in range(11)} | {"R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f"}
+        self.assertEqual(emitted - set(S.CATALOG), set(), "checks with no catalog entry")
+        for cid, e in S.CATALOG.items():
+            with self.subTest(check=cid):
+                self.assertIn(e["profile"], S.PROFILES)
+                self.assertTrue(e["basis"])
+                self.assertTrue(e["controls"], "no passing control")
+                self.assertTrue(e["faulty"], "no faulty build")
+                for ref in list(e["controls"]) + list(e["faulty"]):
+                    kind, _, name = str(ref).partition(":")
+                    if kind == "py":
+                        mod, cls, fn = name.rsplit(".", 2)
+                        self.assertTrue(hasattr(getattr(importlib.import_module(mod), cls), fn), ref)
+                    elif kind == "ts":
+                        self.assertIn(name, ts, ref)
+                    elif kind == "fault":
+                        self.assertIn(cid, fails(H.check_safety(M.FAULTS[name](), M.vectors())), ref)
+                    elif kind == "guard":
+                        self.assertIn(cid, fails(H.check_safety(M.Reference(), M.vectors(), guard=H.GUARD_FAULTS[name])),
+                                      ref)
+                    else:
+                        self.fail(f"unknown reference {ref}")
+        # and nothing is left out of the matrix the other way round
+        listed = {str(r).partition(":")[2] for e in S.CATALOG.values() for r in e["faulty"]}
+        self.assertEqual(set(M.FAULTS) - {"reference"} - listed, set(), "faulty doubles no check claims")
+        self.assertEqual(set(H.GUARD_FAULTS) - listed, set(), "faulty guards no check claims")
+
+    def test_results_carry_profile_and_versions(self):
+        """XC-12-AC02: evidence v2. Each result is labelled with its profile and spec basis, and runs name the format."""
+        for r in H.check_safety(M.Reference(), M.vectors()):
+            self.assertIn(r["profile"], S.PROFILES)
+            self.assertTrue(r["basis"])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self.assertEqual(cli.main(["offline"]), 0)
+        doc = json.loads(buf.getvalue())
+        self.assertEqual(doc["evidence"], S.EVIDENCE_FORMAT)
+        self.assertTrue(doc["versions"]["x402-conformance"])
+
     def test_same_request_retry_preserves_idempotency(self):
         fac, v = M.Reference(), M.vectors()
         p, req = v("good"), v("req")
@@ -236,6 +296,18 @@ class Report(unittest.TestCase):
         ids = ["S0", "S1", "S2", "S3", "S4", "FX"] + [f"F{i}" for i in range(1, 10)] + [f"R{i}" for i in range(10)]
         for i in ids:
             self.assertRegex(fixes, rf"(?m)^## {i}\b", i)
+
+    def test_every_catalog_check_has_a_fix_section(self):
+        fixes = open(os.path.join(os.path.dirname(__file__), "..", "docs", "FIXES.md")).read()
+        for i in S.CATALOG:
+            self.assertRegex(fixes, rf"(?m)^## {i}$", i)
+
+    def test_ts_catalog_matches_spec_catalog(self):
+        src = open(os.path.join(os.path.dirname(__file__), "..", "ts", "src", "catalog.ts")).read()
+        body = src.split("CATALOG: Record<string, { profile: string; basis: string }> = ", 1)[1].split(";\n", 1)[0]
+        want = {k: {"profile": v["profile"], "basis": v["basis"]} for k, v in S.CATALOG.items() if k.startswith("R")}
+        self.assertEqual(json.loads(body), want)
+        self.assertIn(f'EVIDENCE_FORMAT = "{S.EVIDENCE_FORMAT}"', src)
 
     def test_report_without_results_exits_2(self):
         self.assertEqual(cli.main(["report", "--dir", tempfile.mkdtemp()]), 2)

@@ -10,7 +10,27 @@
   for the cheap route presented on the expensive one), R11b (`payTo`, asset or network altered) and R11e (encoded
   separators and dot segments in a parameterised paid route). The stock `@x402/express` 2.28.0 server passes on Solana
   devnet and Base Sepolia, and two faulty builds in `ts/example/binding-server.ts` are each caught by the sub-check
-  they target. R11c, R11d and R11f, and the CLI and Action wiring, follow.
+  they target.
+- R11c (a payment for the cheaper HTTP method presented with the dearer one), R11d (the same for a query-priced route)
+  and R11f (sign-in-with-x access recorded for the route that was priced and settled, not the client's
+  `PaymentPayload.resource.url`). The stock `@x402/express` server passes R11c and R11d and the `trust_client` build
+  fails both. For R11f, a SIWX server that records the settled path passes, and the stock `@x402/extensions` 2.28.0
+  settle hook fails (the public upstream issue x402-foundation/x402#3838, fix proposed in #3840). R11f needs
+  `@x402/extensions` and `viem` next to the probe and reports unsupported without them. A `refuse_paid` build fails
+  the R11 control.
+- `x402conf-svm probe` takes the binding routes (`--cheap`/`--expensive`, `--by-method`, `--by-query`, `--param`,
+  `--siwx-cheap`/`--siwx-expensive`), with or without `--resource`; the Action has matching `binding-*` inputs and
+  `x402conf report` reads the R11 results from `resource-server.json`.
+- F5 also requires `settlement_pending` to carry the network (V2 §9). New F11: `/verify` is read-only (V2 §7.1), with
+  a `verify_commits` double. New P6 (`PAYMENT-REQUIRED` header over 8 KB is a warning, over 16 KB an error) and P7
+  (an `upto` Solana offer without `extra.paymentFlow`, a warning: V2 §6.1 and the upto SVM scheme text disagree).
+- Faulty builds for every check that lacked one: `pending_without_tx` (F5), `verify_commits` (F11),
+  `guard_credit_on_error` (F6), and probe servers `serve_unpaid` (R0) and `no_payment_response` (R10).
+- Credibility gate: `spec.CATALOG` names, for every check, its profile, spec basis, a passing control and the faulty
+  build it catches; a test resolves every reference and runs every fault to confirm its check fails.
+- Results format `x402-conformance-evidence/2`: every result carries `profile` (`normative`, `security-profile`,
+  `resilience`) and `basis`; probe results also carry a `fix` link. Documents carry the tool and runtime versions.
+- The facilitator double reports the EVM payload's own `from` as the payer.
 
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction

@@ -1,7 +1,7 @@
 """The checks.
 
 Live checks (S0-S4) read a facilitator's public GET /supported and nothing else: no signing, no payment, no POST.
-Offline checks (F1-F9) drive a facilitator implementation in-process through /verify and /settle semantics and test
+Offline checks (F1-F11) drive a facilitator implementation in-process through /verify and /settle semantics and test
 the safety properties a resource server depends on. F7 and F8 advance the double's simulated chain between retries of
 the same /settle body; F9 puts a broken transport (a 503, a non-JSON page, a truncated body) between the resource
 server and the facilitator. On devnet they run only against a facilitator its operator
@@ -40,7 +40,11 @@ class UsageError(ValueError):
 
 
 def result(check: str, ok: bool, detail: Any, severity: Severity = "error") -> CheckResult:
-    return {"check": check, "pass": bool(ok), "severity": severity, "detail": detail}
+    """One check outcome. Evidence v2 labels it with the check's profile (normative, security-profile or resilience)
+    and its spec basis from spec.CATALOG, so a reader can tell a spec violation from a hardening finding."""
+    entry = S.CATALOG.get(check.split()[0], {})
+    return {"check": check, "pass": bool(ok), "severity": severity, "detail": detail,
+            "profile": str(entry.get("profile", "normative")), "basis": str(entry.get("basis", ""))}
 
 
 # ---------------- live, GET only ----------------
@@ -161,6 +165,11 @@ P2 = "P2 the PaymentRequired object is present and decodes (V2: base64 JSON in P
 P3 = "P3 PaymentRequired has x402Version, resource and a non-empty accepts[] (V2 5.1.2; V1 5.1)"
 P4 = "P4 every accepts[] entry has the required fields with valid types (V2 5.1.2; V1 5.1)"
 P5 = "P5 scheme-specific extra fields are present (EVM exact: name and version; SVM exact: feePayer)"
+P6 = "P6 the PAYMENT-REQUIRED header fits common client limits (warning above 8 KB, error above 16 KB)"
+P7 = "P7 an accepts[] entry whose payment flow is not authorization declares extra.paymentFlow (V2 6.1)"
+HEADER_WARN, HEADER_ERROR = 8 * 1024, 16 * 1024
+# Scheme and network families whose default payment flow is not `authorization` (V2 6.1 and the scheme specs).
+NON_AUTHORIZATION_DEFAULTS: tuple[tuple[str, str], ...] = (("upto", "solana:"),)
 _DIGITS = re.compile(r"^[0-9]+$")
 
 
@@ -252,6 +261,11 @@ def check_402(resp: Json) -> list[CheckResult]:
         else:
             err = "no PAYMENT-REQUIRED header, and the body is not a V1 PaymentRequired"
     out.append(result(P2, isinstance(pr, dict), {"found_in": where, "error": err}))
+    if hv:
+        size = len(hv.encode("utf-8", "replace"))
+        sev: Severity = "error" if size > HEADER_ERROR else "warning"
+        out.append(result(P6, size <= HEADER_WARN, {"bytes": size, "warn_above": HEADER_WARN,
+                                                    "error_above": HEADER_ERROR}, severity=sev))
     if not isinstance(pr, dict):
         return out
     version = pr.get("x402Version")
@@ -276,6 +290,21 @@ def check_402(resp: Json) -> list[CheckResult]:
     xb = [{"index": i, "network": a.get("network"), "problems": pp} for i, a in enumerate(accepts)
           if isinstance(a, dict) and (pp := _extra_problems(a))]
     out.append(result(P5, not xb, {"problems": xb[:10]}))
+    if version == 2:
+        flow = []
+        for i, a in enumerate(accepts):
+            if not isinstance(a, dict):
+                continue
+            extra: Json = a["extra"] if isinstance(a.get("extra"), dict) else {}
+            pf = extra.get("paymentFlow")
+            if pf is not None and not (isinstance(pf, str) and pf):
+                flow.append({"index": i, "problem": "extra.paymentFlow is present but not a non-empty string"})
+            elif pf is None and any(a.get("scheme") == sc and str(a.get("network", "")).startswith(net)
+                                    for sc, net in NON_AUTHORIZATION_DEFAULTS):
+                flow.append({"index": i, "problem": f"{a.get('scheme')} on {a.get('network')} defaults to a "
+                             "non-authorization flow, so V2 6.1 requires extra.paymentFlow"})
+        # A warning: the upto SVM scheme spec says paymentFlow may be omitted, while V2 6.1 says it MUST be present.
+        out.append(result(P7, not flow, {"problems": flow[:10]}, severity="warning"))
     return out
 
 
@@ -330,6 +359,18 @@ def _f10(fac: Facilitator, mk: Vectors, req: Json) -> CheckResult:
     return result(F10, rejected, {"verify_against_other": v_against_other, "settle_against_other": s_against_other})
 
 
+F11 = "F11 /verify is read-only: verifying twice commits nothing, and the payment still settles once (V2 7.1)"
+
+
+def _f11(fac: Facilitator, mk: Vectors, req: Json) -> CheckResult:
+    # V2 7.1: /verify "MUST NOT commit payment state". Two verifies, then a settle: the settle must still succeed.
+    p = dict(mk("good"), tx="tx-f11", memo="m-f11")
+    v1, v2 = fac.verify(p, req), fac.verify(p, req)
+    s = fac.settle(p, req)
+    valid = all(isinstance(v, dict) and v.get("isValid") is True for v in (v1, v2))
+    return result(F11, valid and _success(s), {"verify": [v1, v2], "settle": s})
+
+
 def check_safety(fac: Facilitator, mk: Vectors,
                  guard: Callable[[Facilitator], ResourceServerGuard] | None = None) -> list[CheckResult]:
     make_guard = guard or ResourceServerGuard
@@ -363,9 +404,9 @@ def check_safety(fac: Facilitator, mk: Vectors,
     out.append(result("F4 replay of a used memo/nonce in a new transaction is rejected", not _success(c), {"got": c}))
     d = fac.settle(mk("unfinalized"), req)
     pend_ok = not _success(d) and (not isinstance(d, dict) or d.get("errorReason") != S.SETTLEMENT_PENDING
-                                   or bool(d.get("transaction")))
-    out.append(result("F5 unconfirmed settlement is not success; settlement_pending carries a transaction (V2 9)",
-                      pend_ok, {"got": d}))
+                                   or (bool(d.get("transaction")) and bool(d.get("network"))))
+    out.append(result("F5 unconfirmed settlement is not success; settlement_pending carries a transaction and a "
+                      "network (V2 9)", pend_ok, {"got": d}))
     rs = make_guard(fac)
     e = rs.settle_and_credit(mk("fresh"), req, simulate="timeout")
     f = rs.settle_and_credit(mk("fresh2"), req, simulate="garbage")
@@ -375,6 +416,7 @@ def check_safety(fac: Facilitator, mk: Vectors,
     out.append(_f8(fac, mk, req))
     out.append(_f9(fac, mk, req, make_guard))
     out.append(_f10(fac, mk, req))
+    out.append(_f11(fac, mk, req))
     return out
 
 
@@ -490,13 +532,21 @@ class ResourceServerGuard:
 
 
 class FaultyGuard(ResourceServerGuard):
-    """Resource-server faults for F9. trust_any_status credits whatever a non-200 body says; give_up_after_error
-    treats a lost answer as a failed payment and never retries it."""
+    """Resource-server faults. trust_any_status (F9) credits whatever a non-200 body says; give_up_after_error (F9)
+    treats a lost answer as a failed payment and never retries it; credit_on_error (F6) credits a timeout or an error
+    page."""
 
-    def __init__(self, fac: Facilitator, *, trust_any_status: bool = False, give_up_after_error: bool = False) -> None:
+    def __init__(self, fac: Facilitator, *, trust_any_status: bool = False, give_up_after_error: bool = False,
+                 credit_on_error: bool = False) -> None:
         super().__init__(fac)
         self.trust_any_status, self.give_up_after_error = trust_any_status, give_up_after_error
+        self.credit_on_error = credit_on_error
         self.given_up: set[str] = set()
+
+    def settle_and_credit(self, payload: Any, req: Json, simulate: str | None = None) -> bool:
+        if self.credit_on_error and simulate in ("timeout", "garbage"):
+            return True   # the F6 fault: an answer that never came, or an error page, is taken as paid
+        return super().settle_and_credit(payload, req, simulate)
 
     def _accept_status(self, status: int) -> bool:
         return self.trust_any_status or super()._accept_status(status)
@@ -512,4 +562,5 @@ class FaultyGuard(ResourceServerGuard):
 GUARD_FAULTS: dict[str, Callable[[Facilitator], ResourceServerGuard]] = {
     "guard_trust_any_status": lambda f: FaultyGuard(f, trust_any_status=True),
     "guard_give_up_after_error": lambda f: FaultyGuard(f, give_up_after_error=True),
+    "guard_credit_on_error": lambda f: FaultyGuard(f, credit_on_error=True),
 }

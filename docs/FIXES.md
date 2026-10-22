@@ -79,9 +79,10 @@ resource server that maps memos to purchases.
 
 ## F5
 **What failed.** A payment counted as settled before it was confirmed, or `settlement_pending` came back without a
-non-empty `transaction`.
+non-empty `transaction` or without the `network`.
 **How to fix it.** Return `success: true` only after the confirmation level you require. When you can't confirm in
-time, return `settlement_pending` with the transaction signature (V2 §9), so the caller can reconcile on chain.
+time, return `settlement_pending` with the transaction signature and the network it was submitted on (V2 §9), so the
+caller can reconcile on chain.
 
 ## F6
 **What failed.** A facilitator timeout or malformed response was treated as a successful settlement.
@@ -118,6 +119,14 @@ The verifier accepted a payload it had already settled under a different Payment
 
 Fix: record a requirements hash (canonical JSON of the requirements) for every transaction at first verification, and refuse the same transaction against any different hash. Fail closed when the requirements are missing or malformed. Keep the existing duplicate-settlement and memo checks: a legitimate retry of the same request keeps its idempotency contract, and a fresh payment for the new requirements settles normally.
 
+## F11
+**What failed.** Calling `/verify` changed payment state: a second `/verify` of the same payment failed as a
+duplicate, or the payment could no longer settle, or it settled at verify time.
+**Why it matters.** Resource servers call `/verify` before they run the handler and may call it again on retry. If
+verification commits anything, a payment can be burned without being settled, or counted twice.
+**How to fix it.** Keep `/verify` read-only (V2 §7.1): check signature, amount, recipient, asset and expiry, and record
+nothing. Record the transaction, nonce and requirements hash in `/settle` only.
+
 ## P1
 **What failed.** An unpaid `GET` of your paid URL wasn't answered with HTTP 402. A 200 means content is served without
 payment; a 404 or 5xx means the probe didn't reach a paid route.
@@ -147,6 +156,21 @@ V1) or `maxTimeoutSeconds`, or has the wrong type: the amount must be a string o
 **Why it matters.** Without them a client can't build a payment that verifies.
 **How to fix it.** For USDC on Base Sepolia, `"extra": {"name": "USDC", "version": "2"}`. For Solana, take the fee
 payer from your facilitator's `GET /supported`.
+
+## P6
+**What failed.** The base64 `PAYMENT-REQUIRED` header is larger than 8 KB (warning) or 16 KB (error).
+**Why it matters.** Common proxies, CDNs and servers cap header size around 8-16 KB; past the cap the 402 is dropped or
+replaced with a 4xx/5xx, and clients never see the offer.
+**How to fix it.** Offer fewer `accepts` entries per route, keep `description` and extension `info` short, and move large
+schemas (Bazaar `outputSchema` and the like) out of the header into the response body or a linked document.
+
+## P7
+**What failed.** An offer whose scheme defaults to a non-authorization flow (`upto` on Solana defaults to escrow) has no
+`extra.paymentFlow`.
+**Why it matters.** V2 §6.1 says `extra.paymentFlow` MUST be present when the flow isn't authorization, and clients and
+facilitators that read it fall back to authorization semantics when it's absent. It's a warning because the upto SVM
+scheme text allows omitting it.
+**How to fix it.** Set `extra.paymentFlow` (`"upfront"` or `"escrow"`) on every such offer.
 
 ## R0
 **What failed.** An unpaid request to your paid route didn't get a 402 with a decodable `PAYMENT-REQUIRED` header.
@@ -214,3 +238,48 @@ a settlement response with `success: true`.
 it for the transaction and payer.
 **How to fix it.** Send the settle result base64-encoded in `PAYMENT-RESPONSE` with the content. The x402 middleware
 does this for you; a hand-written server has to set it.
+
+## R11
+**What failed.** The R11 control: a correct payment for each route wasn't served, settled exactly once and answered
+with `PAYMENT-RESPONSE`. Nothing else in R11 can be graded until it passes.
+**How to fix it.** Check the binding URLs are paid routes on this server at different prices and that the server uses
+`X402_FACILITATOR_URL` as its facilitator.
+
+## R11a
+**What failed.** A payment made for the cheap route was accepted on the expensive one.
+**How to fix it.** Verify and settle against the requirements your server builds for the route being requested, never
+against `paymentPayload.accepted`; match `accepted` against them field by field and answer 402 on any difference. The
+stock `@x402/express` and `@x402/core` middleware do this.
+
+## R11b
+**What failed.** A payment with a changed `payTo`, asset or network reached `/settle` or was served.
+**How to fix it.** Same as R11a: compare the client's `accepted` with your own requirements, recipient, asset and
+network included, before calling the facilitator.
+
+## R11c
+**What failed.** On a route priced by HTTP method, a payment for the cheaper method was accepted with the dearer one.
+**How to fix it.** Price with the method of the request being served, and include the method in the route you match
+`accepted` against. Don't reuse a requirements cache keyed on path alone.
+
+## R11d
+**What failed.** On a route priced by a query parameter, a payment for the cheaper query was accepted with the dearer
+one.
+**How to fix it.** Compute the price from the request being served, after parsing its query, and compare it with the
+client's `accepted.amount`. Don't price from a value the client sends in the payment.
+
+## R11e
+**What failed.** An encoded separator (`%2F`), a dot segment or double encoding in a parameter reached a paid handler
+without payment.
+**How to fix it.** Let the payment middleware and the framework router see the same path: register the paid routes with
+the framework's own routing, or match on the raw path the router uses, and reject paths that decode to a different
+route.
+
+## R11f
+**What failed.** After paying for the cheap route with `PaymentPayload.resource.url` set to the expensive route, a
+sign-in-with-x header alone opened the expensive route.
+**Why it matters.** `resource` is optional and set by the client (V2 §5.2.2). A SIWX store keyed on it grants access to
+whatever URL the client wrote, not what was paid for.
+**How to fix it.** Record SIWX access under the path your server priced and settled (the request path in the settle
+hook's transport context), never `paymentPayload.resource.url`. Until a fixed `@x402/extensions` release, wrap
+`createSIWxResourceServerExtension` and replace its `onAfterSettle` hook (see `ts/example/binding-server.ts`).
+

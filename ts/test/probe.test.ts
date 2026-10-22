@@ -59,6 +59,14 @@ describe("example servers", { concurrency: true }, () => {
       const { failed } = await run("serve_on_any_settle", net);
       for (const c of ["R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9"]) assert.ok(failed.includes(c), `${c} not caught: ${failed}`);
     });
+    test(`a server that serves without payment is caught on ${net}`, async () => {
+      const { failed } = await run("serve_unpaid", net);
+      assert.deepEqual(failed, ["R0"]);
+    });
+    test(`a server that serves without PAYMENT-RESPONSE is caught on ${net}`, async () => {
+      const { failed } = await run("no_payment_response", net);
+      assert.deepEqual(failed, ["R10"]);
+    });
   }
   // Regression for the 1.2.1 R3 false positive: the double's "timeout" answered success after 30 s, so a stock server
   // with the upstream 90 s client timeout waited, got the success and served, and R3 failed a correct server.
@@ -158,10 +166,35 @@ describe("CLI", () => {
     assert.ok(existsSync(out));
     assert.match(JSON.parse(readFileSync(out, "utf8")).error, /exited with code 7/);
   });
+  // The CLI prints its JSON document last; a --start server may have printed lines before it.
+  const lastDoc = (out: string) => JSON.parse(out.slice(out.lastIndexOf('{\n "tool"')));
   test("the CLI passes the example server end to end and exits 0", async () => {
     const ex = join(new URL("../example/server.js", import.meta.url).pathname);
     const r = await cli(["probe", "--resource", "http://127.0.0.1:45231/paid", "--port", "0",
       "--start", `PORT=45231 node ${ex}`]);
     assert.equal(r.code, 0, r.err + r.out);
+    const doc = lastDoc(r.out);
+    assert.equal(doc.evidence, "x402-conformance-evidence/2");
+    for (const x of doc.results) assert.ok(x.profile && x.basis && x.fix.includes("FIXES.md#r"), JSON.stringify(x));
+  });
+  test("the CLI runs the R11 binding checks end to end and catches a server that trusts the client", async () => {
+    const ex = join(new URL("../example/binding-server.js", import.meta.url).pathname);
+    const b = "http://127.0.0.1:45232";
+    const args = (fault: string) => ["probe", "--port", "0", "--cheap", `${b}/cheap`, "--expensive", `${b}/expensive`,
+      "--by-method", `${b}/item`, "--by-query", `${b}/report?tier=basic,${b}/report?tier=pro`,
+      "--param", `${b}/items/{id}/premium`, "--start", `PORT=45232 BINDING_FAULT=${fault} node ${ex}`];
+    const ok = await cli(args(""));
+    assert.equal(ok.code, 0, ok.err + ok.out);
+    const ids = lastDoc(ok.out).results.map((x: any) => x.check.split(" ")[0]);
+    assert.deepEqual(ids, ["R11", "R11a", "R11b", "R11c", "R11d", "R11e"]);
+    const bad = await cli(args("trust_client"));
+    assert.equal(bad.code, 1, bad.err + bad.out);
+    const profiles = lastDoc(bad.out).results.filter((x: any) => !x.pass).map((x: any) => x.profile);
+    assert.deepEqual(profiles, ["normative", "normative", "security-profile", "security-profile"]);
+  });
+  test("binding options are checked before anything starts", async () => {
+    assert.equal((await cli(["probe", "--cheap", "http://127.0.0.1:1/a"])).code, 2);
+    assert.equal((await cli(["probe", "--param", "http://127.0.0.1:1/items/x"])).code, 2);
+    assert.equal((await cli(["probe", "--by-query", "http://127.0.0.1:1/a"])).code, 2);
   });
 });
