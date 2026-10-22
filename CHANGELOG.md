@@ -16,6 +16,9 @@
   `x402conf resource --share` writes the same anonymised case as the Node CLI. A shared fixture keeps the two equal.
 - A Docker image (`ts/docker/Dockerfile`): both CLIs and the MCP server, with `x402-conformance ci` for any CI system
   that runs containers, and a GitLab CI template (`ts/ci/gitlab`). CI builds the image and runs it.
+- A pytest plugin, registered when the package is installed: the `x402` fixture (`check_payment_required`, `probe`,
+  `assert_passed`), `--x402-report-dir` and `--x402-share`. The stock x402 Python SDK (2.25.0) FastAPI middleware
+  passes R0-R10 on Solana devnet, and CI runs it.
 
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction
