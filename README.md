@@ -166,8 +166,10 @@ directory, and `report` converts them to SARIF and JUnit, printing a one-line su
 an error-severity check fails; without it they exit 0 so existing scripts keep working. Warnings never fail a run.
 
 `devnet` runs against a self-hosted reference facilitator on loopback with throwaway keys from `--keys`, and refuses any
-other facilitator unless you pass `--operator-permission` with the operator's written permission. It needs Node 20+
-and a funded devnet fee payer; [evidence/devnet](evidence/devnet) shows a full run.
+other facilitator (`--facilitator URL`) unless you pass `--operator-permission` with the operator's written permission.
+`--rpc` picks the devnet RPC (default `https://api.devnet.solana.com`). It needs Node 20+ and a funded devnet fee payer;
+[evidence/devnet](evidence/devnet) shows a full run. `live --evidence DIR` and `devnet --evidence DIR` also write the raw
+bodies, `run.json` and `SHA256SUMS` to `DIR`.
 
 **Facilitators that need credentials** (Coinbase CDP, for example): put the full `Authorization` header value in
 `X402C_FACILITATOR_AUTHORIZATION` and the facilitator's host name in `X402C_FACILITATOR_AUTH_HOST`. The header goes to
