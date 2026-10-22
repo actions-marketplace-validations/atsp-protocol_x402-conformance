@@ -267,6 +267,18 @@ it targets. Transaction links, the full `run.json` and its hash are in [evidence
 other facilitators go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the
 operator's permission.
 
+## Roadmap
+
+Next is depth, not breadth. v1.4 tests that a payment for one route, price, recipient or method never unlocks another,
+on a real resource server rather than only on the facilitator double, and makes the suite's own oracle fail closed on
+malformed amounts. v1.5 adds parallel and multi-replica replay, a crash between settling and serving, and payment
+versus delivery (failed handlers, `HEAD`, caches, late settlement). Every check is labelled normative, security profile
+or resilience, and every check ships with a passing control and a faulty build it catches. Alongside the checks, an
+adoption track makes the suite quick to run and keep: a one-line demo against a local mock target in under 60 seconds
+with no wallet, a 3-line Action with a pull-request summary, fix hints on every failure, framework quickstarts, a
+public regression corpus anyone can add a case to, and a compatibility matrix rebuilt in CI. The plan and the release
+gate for dropping the experimental label are in [docs/ROADMAP.md](docs/ROADMAP.md).
+
 ## How this repo is verified
 
 Scope and acceptance criteria live in [`proofline.json`](proofline.json), a [Proofline](https://github.com/Optitransfer/proofline)
@@ -302,19 +314,6 @@ No public users yet. I only list a user once they've said so publicly. If you ru
 
 **Free run for your project.** Open an issue with your repo or facilitator URL and I'll run the suite against it,
 post the results, and send a tests-only pull request with the Action and badge. It's free, with no conditions.
-
-## Managed services
-
-The core is free and stays free. If you'd rather not run it yourself, or you need more than the open suite, I offer:
-- **Hosted continuous monitoring** of your live endpoints, with alerts on regressions
-- **Signed conformance reports** for each release, with a public verify link
-- **Custom checks** for your scheme, chain or extensions
-- **Priority support** with an agreed response time
-
-The first three customers get design-partner pricing. Monitoring is a monthly subscription, reports are priced per
-release, and custom checks are fixed-scope work quoted up front. Details are in [docs/MANAGED.md](docs/MANAGED.md). To get
-in touch, open a [Managed services enquiry](https://github.com/atsp-protocol/x402-conformance/issues/new?template=managed-services.yml)
-or email data@optitransfer.ch.
 
 ## Safety
 
