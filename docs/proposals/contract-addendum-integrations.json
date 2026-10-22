@@ -14,7 +14,7 @@
         "allow": [
           "ts/**",
           "docs/USING.md",
-          "evidence/corpus/**",
+          "corpus/**",
           ".github/ISSUE_TEMPLATE/corpus-case.yml"
         ]
       },
@@ -22,7 +22,7 @@
         {
           "id": "XC-11-AC01",
           "mandatory": true,
-          "statement": "The Node P1-P5 port agrees with the Python CLI on every fixture answer (pass/fail per check ID)",
+          "statement": "The Node P1-P7 port agrees with the Python CLI on every fixture answer (pass/fail and severity per check ID)",
           "verifier": {
             "type": "command",
             "cmd": "cd ts && npx tsc -p . && node --test dist/test/resource.test.js",
@@ -61,6 +61,17 @@
             "file": "ts/src/report.ts",
             "pattern": "x402-conformance/\\$\\{VERSION\\} \\(\\+\\$\\{REPO\\}; via=\\$\\{via\\}\\)",
             "must": "present"
+          }
+        },
+        {
+          "id": "XC-11-AC05",
+          "mandatory": true,
+          "statement": "The corpus lives at top-level corpus/ (both schemas and the case template); no code, doc or form still points at evidence/corpus",
+          "verifier": {
+            "type": "command",
+            "cmd": "test -f corpus/case.schema.json && test -f corpus/report.schema.json && test -f corpus/TEMPLATE.md && ! git grep -n 'evidence/corpus' -- ts src tests .github README.md docs/USING.md corpus",
+            "expect_exit": 0,
+            "timeout_s": 60
           }
         }
       ],
@@ -136,7 +147,7 @@
           "src/x402conf/cli.py",
           "src/x402conf/harness.py",
           "tests/test_live.py",
-          "evidence/corpus/fixtures/**",
+          "corpus/fixtures/**",
           "ts/docker/**",
           "ts/ci/**",
           ".github/workflows/ci.yml",
@@ -245,5 +256,5 @@
       ]
     }
   ],
-  "_scope_note": "XC-14 adds files no signed task owns (src/x402conf/pytest_plugin.py, tests/check_pytest_plugin.py, examples/**). Until the owner merges XC-14 into proofline.json and re-signs, the vv job reports them as out of scope; every other job is green."
+  "_scope_note": "XC-11 adds corpus/** and XC-14 adds files no signed task owns (src/x402conf/pytest_plugin.py, tests/check_pytest_plugin.py, examples/**). Until the owner merges these tasks into proofline.json and re-signs, the vv job reports them as out of scope; every other job is green. XC-20 in contract-addendum-v1.4-v1.5.json also lists corpus/** and examples/**; the two addenda are merged into one signing (release/SIGN-ADDENDUM-PROMPT.md)."
 }

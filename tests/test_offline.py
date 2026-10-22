@@ -172,11 +172,11 @@ class Offline(unittest.TestCase):
         self.assertEqual(fails(H.check_safety(M.Faulty(lenient_amounts=True), M.vectors())), {"F1"})
 
     def test_f5_pending_without_tx_or_network_caught(self):
-        # XC-11-AC01
+        # XC-15-AC01
         self.assertIn("F5", fails(H.check_safety(M.Faulty(pending_without_tx=True), M.vectors())))
 
     def test_f11_verify_commits_state_caught(self):
-        # XC-11-AC02: a /verify that commits payment state (V2 7.1) is caught by F11
+        # XC-15-AC02: a /verify that commits payment state (V2 7.1) is caught by F11
         self.assertIn("F11", fails(H.check_safety(M.Faulty(verify_commits=True), M.vectors())))
 
     def test_f6_guard_crediting_on_error_caught(self):
@@ -184,7 +184,7 @@ class Offline(unittest.TestCase):
         self.assertEqual(fails(H.check_safety(M.Reference(), M.vectors(), guard=g)), {"F6"})
 
     def test_credibility_matrix_complete(self):
-        """XC-12-AC01: every check has a passing control and a faulty build it is proven to catch."""
+        """XC-16-AC01: every check has a passing control and a faulty build it is proven to catch."""
         import importlib
         import pathlib
         ts = "".join(p.read_text("utf-8") for p in (pathlib.Path(__file__).parent.parent / "ts" / "test").glob("*.ts"))
@@ -218,7 +218,7 @@ class Offline(unittest.TestCase):
         self.assertEqual(set(H.GUARD_FAULTS) - listed, set(), "faulty guards no check claims")
 
     def test_results_carry_profile_and_versions(self):
-        """XC-12-AC02: evidence v2. Each result is labelled with its profile and spec basis, and runs name the format."""
+        """XC-16-AC02: evidence v2. Each result is labelled with its profile and spec basis, and runs name the format."""
         for r in H.check_safety(M.Reference(), M.vectors()):
             self.assertIn(r["profile"], S.PROFILES)
             self.assertTrue(r["basis"])
@@ -228,6 +228,56 @@ class Offline(unittest.TestCase):
         doc = json.loads(buf.getvalue())
         self.assertEqual(doc["evidence"], S.EVIDENCE_FORMAT)
         self.assertTrue(doc["versions"]["x402-conformance"])
+
+    def _corpus_case_holds(self, c, root, ts):
+        self.assertEqual(c["schema"], "x402-conformance.case/1")
+        self.assertTrue(set(c["failed_ids"]) <= set(S.CATALOG), "unknown check id")
+        reg = c["regression"]
+        self.assertTrue(reg["control"], "no passing control")
+        expect = set(reg["expect_failed"])
+        self.assertTrue(expect and expect <= set(c["failed_ids"]), "expect_failed must be some of failed_ids")
+        kind, _, name = str(reg["faulty"]).partition(":")
+        if kind == "fault":
+            if reg["control"] == "reference":
+                self.assertEqual(fails(H.check_safety(M.Reference(), M.vectors())) & expect, set(), "control fails")
+            self.assertTrue(expect <= fails(H.check_safety(M.FAULTS[name](), M.vectors())), "not caught")
+        elif kind == "guard":
+            self.assertTrue(expect <= fails(H.check_safety(M.Reference(), M.vectors(), guard=H.GUARD_FAULTS[name])),
+                            "not caught")
+        elif kind == "answer":
+            with open(root / "corpus" / "answers" / name) as f:
+                a = json.load(f)
+            resp = {"status": a["status"], "headers": a["headers"], "body": a["body"].encode(), "ms": 1}
+            self.assertTrue(expect <= fails(H.check_402(resp)), "not caught")
+        elif kind == "ts":
+            self.assertIn(name, ts, "the TypeScript regression test is missing")
+        else:
+            self.fail(f"unknown faulty build {reg['faulty']}")
+
+    def test_corpus_cases_are_complete_and_pass(self):
+        """XC-20-AC04: every accepted corpus case names a passing control, a faulty build and the checks it must fail,
+        and the suite still catches it. See corpus/TEMPLATE.md for the format."""
+        import pathlib
+        root = pathlib.Path(__file__).parent.parent
+        self.assertTrue((root / "corpus" / "TEMPLATE.md").is_file())
+        self.assertFalse((root / "evidence" / "corpus").exists(), "the corpus lives at top-level corpus/")
+        ts = "".join(p.read_text("utf-8") for p in (root / "ts" / "test").glob("*.ts"))
+        for path in sorted((root / "corpus" / "cases").glob("*.json")):
+            with self.subTest(case=path.name), open(path) as f:
+                self._corpus_case_holds(json.load(f), root, ts)
+        # The checker itself: a case the suite catches holds, and one it does not catch, or that names an unknown
+        # build or check, is refused. Without this an empty corpus would pass on nothing.
+        good = {"schema": "x402-conformance.case/1", "failed_ids": ["F11"],
+                "regression": {"control": "reference", "faulty": "fault:verify_commits", "expect_failed": ["F11"]}}
+        name = next(k for k, f in M.FAULTS.items() if "F11" in fails(H.check_safety(f(), M.vectors())))
+        good["regression"]["faulty"] = f"fault:{name}"
+        self._corpus_case_holds(good, root, ts)
+        for bad in ({"faulty": "fault:reference"}, {"faulty": "nope:x"}, {"expect_failed": []},
+                    {"expect_failed": ["F1"]}, {"faulty": "ts:no such test anywhere"}):
+            c = json.loads(json.dumps(good))
+            c["regression"].update(bad)
+            with self.subTest(bad=bad), self.assertRaises(AssertionError):
+                self._corpus_case_holds(c, root, ts)
 
     def test_same_request_retry_preserves_idempotency(self):
         fac, v = M.Reference(), M.vectors()

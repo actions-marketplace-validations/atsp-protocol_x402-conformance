@@ -55,7 +55,7 @@ jobs:
 
 **From your test suite, agent or CI system:** [docs/USING.md](docs/USING.md) covers vitest, jest, node:test, Hono,
 Express, MCP clients (Claude, Cursor), the Vercel AI SDK and LangChain, with the same checks and report everywhere. Failures you choose to share build the public
-[corpus](evidence/corpus) of real x402 failures.
+[corpus](corpus) of real x402 failures.
 
 ## Who should use this
 

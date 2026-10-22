@@ -43,11 +43,14 @@
 - Entry points share one report: `x402-conformance.report/1` (check IDs, status, severity, detail, summary, links)
   from the Node CLI and the new test helpers, with a `via` field naming the entry point. The same `via` goes into the
   User-Agent. No telemetry.
-- `x402conf-svm resource --url`: P1-P5 in Node, ported from the Python CLI and checked against it on 29 answers in CI.
+- `x402conf-svm resource --url`: P1-P7 in Node, ported from the Python CLI and checked against it (pass/fail and
+  severity) on 37 answers in CI. Two differences the port found are fixed in Python: `maxTimeoutSeconds: 60.0` is the
+  JSON number 60 and now passes P4 in both, and an amount or network with a trailing newline now fails P4 in both.
 - `x402-conformance-svm/testing`: `runConformance()`, vitest and jest matchers (`toPassX402Conformance`,
   `toBeValidX402Challenge`), `assertX402Conformance()` for node:test, and `saveReport()`.
 - `--share` (opt-in): writes an anonymised corpus case and prints a link to the new "Share a corpus case" issue form.
-  Nothing is sent. The corpus and its schemas live in `evidence/corpus`.
+  Nothing is sent. The corpus, its schemas and the case template live in top-level `corpus/`; accepted cases go in
+  `corpus/cases/` and CI re-runs every one.
 - A stock `@x402/hono` example server, tested on Solana devnet and Base Sepolia alongside `@x402/express`.
 - docs/USING.md: one page for using the suite from each stack.
 - `x402-conformance-mcp`, a new package: the suite as seven MCP tools over stdio (`npx -y x402-conformance-mcp`), with
