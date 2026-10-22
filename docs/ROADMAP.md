@@ -6,6 +6,14 @@ fault-injected facilitator doubles (and F1 to F6 over real `/verify` and `/settl
 misbehaving facilitator in front of your own paid route on Solana devnet or Base Sepolia, and the Lean models cover the
 credit rule, nonces, timeouts, `settlement_pending` and concurrent settles. There are no public users yet.
 
+**On `main`, unreleased (1.4.0).** The fail-closed oracle, F11, P6, P7, the extended F5, R11a to R11f with their
+faulty builds, evidence v2 with the credibility gate, and the adoption items A1, A2, A3 and A5 are merged and green in
+CI. The corpus move (A6), the pytest plugin and the FastAPI example are in review in pull request #14, and R14 (a crash
+between settling and responding) is in review in pull request #17. R20 (retry double-pay) is built on `main`
+(contract task XC-22, proposed, unsigned): the probe's `--retry` flag, the Action's `retry` input and `checkClientRetry`
+for clients; its corpus case waits until `corpus/` is in a signed scope. R12, R13, R15 to R19, the implementation
+matrix, the rest of A4, A7 and A8 are not started. 1.4.0 is published once the v1.4 contract tasks are signed.
+
 **Where it's going.** Having many checks is not the same as covering the security boundary that matters. The question
 a seller actually needs answered is: *does this payment authorise this request, is what was bought actually
 delivered, and does my stack recover safely when the payment and the HTTP exchange disagree?* The next two releases
@@ -137,9 +145,12 @@ hundreds of grants where the server did not record the payment identity atomical
 | R12 | the same payment sent as N parallel requests (N = 2, 8, 32) to one server | at most one 2xx; at most one successful `/settle` | security profile |
 | R13 | the same payment sent in parallel to two replicas behind a loopback round-robin, with and without a shared store | at most one grant across replicas; a server that needs a shared store says so in its result | security profile; the `payment-identifier` extension is the spec's idempotency key, and the SVM duplicate-settlement mitigation describes the same race for facilitators |
 | R14 | the server is killed after `/settle` succeeds and before the response is written, restarted, and the payment presented again | no second settlement, no second charge, and a defined outcome: delivered once via an idempotency record, or refused with the transaction surfaced for reconciliation | resilience |
+| R20 | the client times out before `/settle` answers and retries the same request. R20a: the retry carries a fresh payment and the same idempotency key (the `payment-identifier` id, or the server's documented request key). R20b: the retry reuses the same signed payment | R20a: no second charge; the server returns the earlier result or settlement reference. R20b: `/settle` refuses the duplicate and the original result comes back; a client that re-signs a fresh payment for the same request without a key is flagged | security profile. A retry after a timeout, reported publicly by a user, paid twice for one request |
 
 - **Faulty builds:** a per-process in-memory cache (fails R13), a check-then-set without atomicity (fails R12 under
-  parallel load), and a server that settles again after a restart (fails R14).
+  parallel load), a server that settles again after a restart (fails R14), a server that settles both the original and
+  a fresh retry payment or keys its record by payment instead of by request (fails R20a), and a client that re-signs on
+  timeout (fails R20b).
 - **Lean:** extend the settlement model to n replicas, and prove that a shared atomic check-and-set admits at most one
   grant while partitioned caches admit more. As with today's models, this proves the rule, not anyone's code.
 
@@ -167,7 +178,7 @@ that can't start (for example, a Go server registering a scheme for `eip155:*`, 
 [x402#3861](https://github.com/x402-foundation/x402/issues/3861)) is reported as a setup failure with the reason, not
 as a pass or a security failure.
 
-**v1.5 is done when** R12 to R19 catch their faulty builds, the stock TypeScript server passes them, and the matrix has
+**v1.5 is done when** R12 to R20 catch their faulty builds, the stock TypeScript server passes them, and the matrix has
 at least five stack-and-version rows with pinned, hashed evidence, regenerated in CI (A7), and the FastAPI, Flask and
 Go quickstarts (A4) are green.
 
@@ -205,7 +216,7 @@ v1.4 and v1.5 ship as soon as their own criteria pass, still marked experimental
 and I describe the suite as a dependable x402 safety gate, only when all six of these hold:
 
 - [ ] **Resource binding.** A real protected route rejects resource, amount, recipient and method substitution (R11).
-- [ ] **Concurrency.** Parallel replay and multi-replica tests can't double-grant single-use access (R12, R13).
+- [ ] **Concurrency.** Parallel replay, multi-replica and retry tests can't double-grant or double-charge (R12, R13, R20).
 - [ ] **Delivery recovery.** Timeout, late settlement, failed response, redirect, `HEAD` and retry scenarios have
   explicit, tested outcomes (R14 to R18).
 - [ ] **Test credibility.** Every check catches at least one faulty build and passes a legitimate control, and CI

@@ -53,6 +53,15 @@ with an error if your server exits. `--network` picks `auto` (default), `solana:
 `eip155:84532`. `--out` writes the results JSON, on errors too. Each request has a 60 s deadline; a server still holding
 a request then has served nothing.
 
+**Retry double-pay (R20).** `--retry` adds R20 on `--resource`: the double holds `/settle` past the client's 400 ms
+timeout, the probe gives up and retries once the first payment has settled. R20a retries with a fresh payment under the
+same payment-identifier id (and `Idempotency-Key`); R20b resends the same signed payment. Either way the request must be
+settled once and the retry must get the earlier result or a `PAYMENT-RESPONSE` naming the first transaction. A stock
+`@x402/express` server passes when it keeps an idempotency record keyed by the request
+([example/retry-server.ts](https://github.com/atsp-protocol/x402-conformance/blob/main/ts/example/retry-server.ts));
+with no record it pays twice. `checkClientRetry(client, url, double)` grades a client's own retry the same way: it must
+resend the payment or keep the payment id.
+
 **Exit codes.** 0 all pass; 1 a check failed; 2 usage error, or the run couldn't complete (a port in use, your server
 exited or never answered); 3 unsupported (your server offers no network the probe grades). `--help` and `--version`
 exit 0.

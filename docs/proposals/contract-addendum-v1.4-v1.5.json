@@ -1,7 +1,7 @@
 {
  "about": "PROPOSED, UNSIGNED. New Proofline tasks for the v1.4 and v1.5 milestones in docs/ROADMAP.md. Nothing here is binding and CI does not read this file. The tasks become part of the contract only when the owner merges them into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. Task IDs XC-11 to XC-14 are left to the integration tasks proposed in docs/proposals/contract-addendum-integrations.json (PRs #11 to #14), so this file uses XC-09, XC-10 and XC-15 to XC-20.",
  "schema": "proofline/1",
- "status": "proposed",
+ "status": "merged into proofline.json (signed)",
  "proposed_by": "mgillr",
  "target": "proofline.json tasks[]",
  "profiles": {

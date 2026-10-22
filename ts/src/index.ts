@@ -6,3 +6,4 @@ export { makeReport, normalise, passed, explain, userAgent, checkId, fixUrl, LIN
   type Report, type Via, type Kind, type Severity } from "./report.js";
 export { anonymise, scrub, shareUrl, funnelFooter, CASE_SCHEMA, type CorpusCase, type Stack } from "./corpus.js";
 export { probeBinding, type BindingTargets } from "./binding.js";
+export { probeRetry, checkClientRetry, type RetryOptions, type RetryingClient } from "./retry.js";

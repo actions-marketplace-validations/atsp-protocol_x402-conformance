@@ -1,5 +1,25 @@
 # Changelog
 ## Unreleased
+- R20, retry double-pay (`x402conf-svm probe --resource <url> --retry`, Action input `retry`): the client times out
+  before `/settle` answers and retries. A retry with a fresh payment under the same payment-identifier id must not be
+  settled again (R20a), and a retry resending the same signed payment must get the original result (R20b); both are
+  graded on Solana devnet and Base Sepolia against the facilitator double, which can now hold `/settle`
+  (`settleDelayMs`) and counts successful settlements. `checkClientRetry` grades a client's own retry: it must resend
+  the payment or keep the payment id. The stock `@x402/express` server with an idempotency record keyed by the request
+  and the stock `@x402/fetch` client with a payment id pass; servers with no record or a record keyed by payment, and a
+  client that re-signs on timeout, are caught (`ts/test/retry.test.ts`).
+- [docs/INTERDEPENDENCY.md](docs/INTERDEPENDENCY.md): every contract task and its dependencies, every check with its
+  spec basis, upstream refs, code, tests and docs, the entry points and the downstream drafts, with a mermaid graph.
+  It is generated from the contract, the proposed addenda and the tree. The generator (`tools/interdeps.py`), its tests
+  and the CI step that fails on a stale map or on docs-versus-code drift land with contract task XC-23, once signed.
+- Proposed (unsigned) contract addendum for the rest of the roadmap, XC-22 to XC-37
+  ([docs/proposals/contract-addendum-v1.5-full.json](docs/proposals/contract-addendum-v1.5-full.json)), including
+  R20: a client that times out and retries must never pay twice for one request.
+- Docs synced with the code on `main`: the README says which commands and Action inputs need 1.4.0 (published 1.3.1
+  and `@v1` don't have them yet) and lists the `pr-comment` and `github-token` inputs; the MCP check tool is P1-P7;
+  ARCHITECTURE lists the binding probe, test helpers, MCP server, Docker image, GitLab template and corpus; the project
+  page lists F10, F11, P6, P7 and R11; CONTRIBUTING matches CI's local checks; SPEC.md records the 2026-10-22
+  re-check of the upstream spec (no normative change).
 - Roadmap for v1.4 and v1.5 ([docs/ROADMAP.md](docs/ROADMAP.md)): payment-to-request binding on a real resource
   server (R11), a fail-closed oracle, F11, P6, P7 and a stricter F5, then concurrency and idempotency (R12-R14) and payment versus
   delivery (R15-R19). Checks are classified as normative, security profile or resilience, and an adoption track (A1 to

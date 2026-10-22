@@ -1,5 +1,5 @@
 {
-  "_status": "UNSIGNED PROPOSAL. Not part of proofline.json until the owner merges these tasks into the contract and re-signs it on his own machine. tools/vv.py does not read this file.",
+  "_status": "merged into proofline.json (signed)",
   "_why": "Integrations bring other ecosystems into the one suite. Each is a thin entry point with the same check IDs, report and corpus, so every criterion below tests that funnel, not only the code.",
   "tasks": [
     {
