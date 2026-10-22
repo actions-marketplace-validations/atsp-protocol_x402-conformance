@@ -306,6 +306,11 @@ def _chain(fac: Facilitator) -> Chain | None:
     return ch if isinstance(ch, Chain) else None
 
 
+# Amounts Python's int() turns into 10000 but that are not V2 atomic units (a string of ASCII digits, no sign,
+# whitespace, separators or leading zeros). F1 requires each to be refused.
+NONCANONICAL_AMOUNTS: tuple[str, ...] = (" 10000 ", "+10000", "10_000", "010000", "\uff11\uff10\uff10\uff10\uff10", "10000\n")
+
+
 F10 = ("F10 a payload settled against one PaymentRequirements set is rejected when re-verified or re-settled "
        "against different requirements (cross-request replay)")
 
@@ -335,7 +340,19 @@ def check_safety(fac: Facilitator, mk: Vectors,
         ok = isinstance(v, dict) and v.get("isValid") is False
     except Exception:  # noqa: BLE001  raising is closed, not open
         ok, v = True, "raised"
-    out.append(result("F1 malformed payload: /verify returns isValid=false (fails closed)", ok, {"got": v}))
+    # Non-canonical amounts that Python's int() accepts but V2 5.1.2 atomic units do not. Each must be refused.
+    noncanonical: dict[str, Any] = {}
+    for i, amt in enumerate(NONCANONICAL_AMOUNTS):
+        bad = dict(good, tx=f"tx-f1-amt-{i}", memo=f"m-f1-amt-{i}", amount=amt)
+        try:
+            r: Any = fac.verify(bad, req)
+        except Exception:  # noqa: BLE001  raising is closed, not open
+            r = "raised"
+        if not (r == "raised" or (isinstance(r, dict) and r.get("isValid") is False)):
+            ok = False
+            noncanonical[repr(amt)] = r
+    out.append(result("F1 malformed payload: /verify returns isValid=false (fails closed)", ok,
+                      {"got": v, **({"accepted_noncanonical_amounts": noncanonical} if noncanonical else {})}))
     v = fac.verify(mk("dust"), req)
     out.append(result("F2 amount below PaymentRequirements.amount is rejected (SVM exact 1.1)",
                       isinstance(v, dict) and v.get("isValid") is False, {"got": v}))

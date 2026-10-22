@@ -1,4 +1,4 @@
-"""F1-F9: the reference double passes; each faulty double is caught by the check that targets it."""
+"""F1-F10: the reference double passes; each faulty double is caught by the check that targets it."""
 
 import json
 import os
@@ -133,6 +133,40 @@ class Offline(unittest.TestCase):
         for bad in ({}, {"asset": "A"}, {"asset": "A", "payTo": "B", "network": "n"}):
             self.assertFalse(fac.verify(p, bad)["isValid"])
         self.assertFalse(fac.settle(p, {"asset": "A"})["success"])
+
+    MALFORMED_AMOUNTS = ("abc", None, "1e6", [1], {"v": 1}, 1.5, float("inf"), True, "", "-5", " 10000 ", "+10000",
+                         "10_000", "010000", "\uff11\uff10\uff10\uff10\uff10", "10000\n", "1" * 79)
+
+    def test_reference_rejects_malformed_amounts(self):
+        # XC-09-AC01: a rejection, never an exception, for every malformed or non-canonical payload amount
+        fac, v = M.Reference(), M.vectors()
+        for i, amt in enumerate(self.MALFORMED_AMOUNTS):
+            p = dict(v("good"), tx=f"tx-amt-{i}", memo=f"m-amt-{i}", amount=amt)
+            with self.subTest(amount=amt):
+                got = fac.verify(p, v("req"))
+                self.assertFalse(got["isValid"], got)
+                self.assertFalse(fac.settle(p, v("req"))["success"])
+
+    def test_reference_rejects_malformed_requirement_amounts(self):
+        # XC-09-AC02: malformed, zero and negative requirement amounts are invalid_payment_requirements
+        fac, v = M.Reference(), M.vectors()
+        for amt in self.MALFORMED_AMOUNTS + ("0", 10000):
+            with self.subTest(amount=amt):
+                got = fac.verify(v("good"), dict(v("req"), amount=amt))
+                self.assertEqual(got, {"isValid": False, "invalidReason": "invalid_payment_requirements"})
+
+    def test_strict_parser_accepts_canonical_amounts(self):
+        # the control: canonical atomic units still parse, up to uint256
+        for x, want in (("0", 0), ("10000", 10000), (str(M.UINT256_MAX), M.UINT256_MAX)):
+            self.assertEqual(M.atomic_units(x), want)
+        self.assertIsNone(M.atomic_units(str(M.UINT256_MAX + 1)))
+        self.assertEqual(M.atomic_units(10000, allow_int=True), 10000)
+        self.assertIsNone(M.atomic_units(10000))
+        self.assertTrue(M.Reference().verify(M.vectors()("good"), M.vectors()("req"))["isValid"])
+
+    def test_lenient_amounts_caught(self):
+        # XC-09-AC03: a double that parses amounts with int() is caught by F1
+        self.assertEqual(fails(H.check_safety(M.Faulty(lenient_amounts=True), M.vectors())), {"F1"})
 
     def test_same_request_retry_preserves_idempotency(self):
         fac, v = M.Reference(), M.vectors()

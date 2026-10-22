@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import re
 from collections.abc import Callable
 from importlib import resources
 from typing import Any
@@ -25,6 +26,34 @@ def requirements_hash(req: Json) -> str:
     verified against. The exact scheme binds amount, asset and payTo on chain and the memo binds nonce uniqueness;
     no scheme field binds the protected resource, so the resource binding lives at the verifier boundary."""
     return hashlib.sha256(json.dumps(req, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+_ATOMIC = re.compile(r"(?:0|[1-9][0-9]{0,77})")   # ASCII digits only, no sign, no whitespace, no leading zeros
+UINT256_MAX = 2**256 - 1
+
+
+def atomic_units(x: Any, *, allow_int: bool = False) -> int | None:
+    """Strict atomic-unit parser. V2 5.1.2 carries `amount` as a string of atomic token units; the decoded stand-in
+    payloads may also carry a plain JSON integer (allow_int). Anything else, including what Python's int() would
+    accept (" 10 ", "+10", "1_0", "010", non-ASCII digits, booleans, floats), is None, so callers fail closed instead
+    of raising or accepting a non-canonical amount."""
+    if isinstance(x, bool):
+        return None
+    if isinstance(x, int) and allow_int:
+        v = x
+    elif isinstance(x, str) and _ATOMIC.fullmatch(x):
+        v = int(x)
+    else:
+        return None
+    return v if 0 <= v <= UINT256_MAX else None
+
+
+def _lenient_units(x: Any, *, allow_int: bool = False) -> int | None:
+    """The fault the lenient_amounts double reproduces: Python's int(), with its exceptions caught."""
+    try:
+        return int(x)
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def vectors(fixture: Json | None = None) -> Vectors:
@@ -79,9 +108,18 @@ class Reference:
             return {"isValid": False, "invalidReason": "invalid_payload"}
         if p.get("mint") != req["asset"] or p.get("dest") != req["payTo"]:
             return {"isValid": False, "invalidReason": "invalid_payment_requirements"}
-        if int(p.get("amount", 0)) < int(req["amount"]):
+        required = self._units(req["amount"])
+        if required is None or required <= 0:
+            return {"isValid": False, "invalidReason": "invalid_payment_requirements"}
+        paid = self._units(p.get("amount"), allow_int=True)
+        if paid is None:
+            return {"isValid": False, "invalidReason": "invalid_payload"}
+        if paid < required:
             return {"isValid": False, "invalidReason": "insufficient_funds"}
         return None
+
+    def _units(self, x: Any, *, allow_int: bool = False) -> int | None:
+        return atomic_units(x, allow_int=allow_int)
 
     def verify(self, p: Any, req: Json) -> Json:
         mismatch = self._payment_matches(p, req)
@@ -133,13 +171,15 @@ class Faulty(Reference):
 
     def __init__(self, *, open_on_malformed: bool = False, accept_dust: bool = False, no_dup_cache: bool = False,
                  no_memo_check: bool = False, success_before_final: bool = False, burn_on_pending: bool = False,
-                 stuck_pending: bool = False, cross_request_replay: bool = False) -> None:
+                 stuck_pending: bool = False, cross_request_replay: bool = False,
+                 lenient_amounts: bool = False) -> None:
         super().__init__()
         self.open_on_malformed, self.accept_dust = open_on_malformed, accept_dust
         self.no_dup_cache, self.no_memo_check = no_dup_cache, no_memo_check
         self.success_before_final = success_before_final
         self.burn_on_pending, self.stuck_pending = burn_on_pending, stuck_pending
         self.cross_request_replay = cross_request_replay
+        self.lenient_amounts = lenient_amounts
         self.burned: set[str] = set()
 
     def verify(self, p: Any, req: Json) -> Json:
@@ -156,6 +196,11 @@ class Faulty(Reference):
         if prev is not None and prev != requirements_hash(req):
             return {"isValid": False, "invalidReason": "invalid_payment_requirements"}
         return {"isValid": True}
+
+    def _units(self, x: Any, *, allow_int: bool = False) -> int | None:
+        if self.lenient_amounts:
+            return _lenient_units(x, allow_int=allow_int)
+        return super()._units(x, allow_int=allow_int)
 
     def settle(self, p: Any, req: Json) -> Json:
         if self.open_on_malformed and (not isinstance(p, dict) or not p.get("tx")):
@@ -194,4 +239,5 @@ FAULTS: dict[str, Callable[[], Reference]] = {
     "burn_on_pending": lambda: Faulty(burn_on_pending=True),
     "stuck_pending": lambda: Faulty(stuck_pending=True),
     "cross_request_replay": lambda: Faulty(cross_request_replay=True),
+    "lenient_amounts": lambda: Faulty(lenient_amounts=True),
 }
