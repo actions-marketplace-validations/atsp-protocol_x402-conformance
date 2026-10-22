@@ -16,7 +16,8 @@ SOLANA_V1_NAMES: Final = frozenset({"solana", "solana-devnet", "solana-mainnet",
 # V1 EVM network names (V1 used names, not CAIP-2).
 EVM_V1_NAMES: Final = frozenset({"base", "base-sepolia", "avalanche", "avalanche-fuji", "polygon", "polygon-amoy",
                                  "ethereum", "sepolia", "iotex", "sei", "sei-testnet"})
-CAIP2: Final = re.compile(r"^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$")
+# \Z, not $: in Python $ also matches before a trailing newline, which the TypeScript port (and JSON) do not allow.
+CAIP2: Final = re.compile(r"^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}\Z")
 SETTLEMENT_PENDING: Final = "settlement_pending"      # V2 section 9, non-terminal
 DUPLICATE_SETTLEMENT: Final = "duplicate_settlement"  # SVM exact, Duplicate Settlement Mitigation
 INVALID_TRANSACTION_STATE: Final = "invalid_transaction_state"  # V2 section 9, the transaction failed on chain
