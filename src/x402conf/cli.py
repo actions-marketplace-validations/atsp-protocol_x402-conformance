@@ -1,7 +1,7 @@
 """Command line.
 
     x402conf live <facilitator-base-url> ... [--evidence DIR] [--fail-on-error]   S0-S4, GET /supported only
-    x402conf resource <paid-url> ... [--fail-on-error]                            P1-P7, one unpaid GET per URL
+    x402conf resource <paid-url> ... [--fail-on-error] [--share]                  P1-P7, one unpaid GET per URL
     x402conf offline                                                F1-F11 against the reference and faulty doubles
     x402conf devnet [--faults] [--evidence DIR] ...                  F1-F6 over real /verify and /settle on Solana devnet
     x402conf report [--dir DIR] [--sarif FILE] [--junit FILE] [--fail-on-error]   SARIF 2.1.0 and JUnit XML
@@ -16,13 +16,16 @@ import argparse
 import base64
 import hashlib
 import http.server
+import ipaddress
 import json
 import os
 import platform
+import re
 import sys
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any
 from xml.sax.saxutils import quoteattr
@@ -33,6 +36,131 @@ from . import mock as M
 from . import spec as S
 
 DOCS = "https://github.com/atsp-protocol/x402-conformance/blob/main/docs/"
+REPO = "https://github.com/atsp-protocol/x402-conformance"
+LINKS = {
+    "repo": REPO,
+    "fixes": f"{REPO}/blob/main/docs/FIXES.md",
+    "corpus": f"{REPO}/tree/main/evidence/corpus",
+    "contribute": f"{REPO}/issues/new?template=corpus-case.yml",
+    "using": f"{REPO}/blob/main/docs/USING.md",
+    "badge": "[![Tested with x402-conformance](https://img.shields.io/badge/tested%20with-x402--conformance-2ea44f)]"
+             f"({REPO})",
+}
+
+
+# ---------------- the shared report and the opt-in corpus case ----------------
+# The same report (x402-conformance.report/1) and case (x402-conformance.case/1) as ts/src/report.ts and
+# ts/src/corpus.ts. evidence/corpus/fixtures holds one report and the case both languages must derive from it.
+def _labels(check: str) -> dict[str, str]:
+    """Evidence v2 labels for the shared report, the same as normalise() in ts/src/report.ts."""
+    e = S.CATALOG.get(check.split(" ")[0])
+    return {"profile": str(e["profile"]), "basis": str(e["basis"])} if e else {}
+
+
+def make_report(kind: str, target: str, checks: list[dict[str, Any]], via: str | None = None,
+                error: str | None = None) -> dict[str, Any]:
+    rs = [{"check": c["check"], "pass": bool(c["pass"]), "status": c.get("status") or ("pass" if c["pass"] else "fail"),
+           "severity": c.get("severity", "error"), "detail": c.get("detail"), **_labels(c["check"])} for c in checks]
+    failed = [r for r in rs if not r["pass"] and r["status"] != "unsupported"]
+    out: dict[str, Any] = {
+        "schema": "x402-conformance.report/1", "tool": "x402-conformance", "version": __version__,
+        "via": via or H.via(), "kind": kind, "run_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "target": target, "results": rs,
+        "summary": {"checks": len(rs), "failed": len(failed), "failed_ids": [r["check"].split(" ")[0] for r in failed],
+                    "unsupported": any(r["status"] == "unsupported" for r in rs)},
+        "links": LINKS}
+    if error:
+        out["error"] = error
+    return out
+
+
+_URL = re.compile(r"\b[a-z][a-z0-9+.-]*://[^\s\"'<>]+", re.I)
+_EVM = re.compile(r"\b0x[0-9a-fA-F]{16,}\b")
+_B58 = re.compile(r"\b[1-9A-HJ-NP-Za-km-z]{32,88}\b")
+_HOST = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|xyz|ai|app|dev|co|cloud|sh|gg|so|me|tech)\b", re.I)
+_IP = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}(?::\d+)?\b")
+_KEEP = frozenset({"EtWTRABZaYq6iMfeYKouRu166VU2xqa1", "5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
+                   "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU", "0x036CbD53842c5426634e7929541eC2318f3dCF7e"})
+_SENSITIVE = frozenset({"payTo", "pay_to", "resource", "url", "payer", "from", "to", "transaction", "signature", "nonce",
+                        "facilitator", "facilitator_double", "authorization", "cookie", "host"})
+
+
+def _scrub_str(s: str) -> str:
+    s = _URL.sub("<url>", s)
+    s = _EVM.sub(lambda m: m.group(0) if m.group(0) in _KEEP else "<hex>", s)
+    s = _B58.sub(lambda m: m.group(0) if m.group(0) in _KEEP else "<base58>", s)
+    return _HOST.sub("<host>", _IP.sub("<ip>", s))
+
+
+def scrub(v: Any, depth: int = 0) -> Any:
+    if depth > 8:
+        return "<truncated>"
+    if isinstance(v, str):
+        return _scrub_str(v)[:300]
+    if isinstance(v, list):
+        return [scrub(x, depth + 1) for x in v[:10]]
+    if isinstance(v, dict):
+        return {k: "<redacted>" if k in _SENSITIVE else scrub(x, depth + 1) for k, x in v.items()}
+    return v
+
+
+def _loopback(target: str) -> bool:
+    host = urllib.parse.urlsplit(target).hostname or ""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host) in (ipaddress.ip_address("127.0.0.1"), ipaddress.ip_address("::1"))
+    except ValueError:
+        return False
+
+
+def anonymise(report: dict[str, Any], stack: dict[str, str] | None = None) -> dict[str, Any]:
+    """An anonymised corpus case: no URLs, hosts, IPs, addresses or transaction data. Sends nothing."""
+    clean = {k: _scrub_str(v)[:80] for k, v in (stack or {}).items() if isinstance(v, str) and v}
+    return {"schema": "x402-conformance.case/1", "tool_version": report.get("version") or __version__,
+            "via": report["via"], "kind": report["kind"], "target": "loopback" if _loopback(report["target"]) else "redacted",
+            "stack": clean, "failed_ids": report["summary"]["failed_ids"],
+            "results": [{"id": r["check"].split(" ")[0], "check": r["check"], "status": r["status"],
+                         "severity": r["severity"], "detail": None if r["pass"] else scrub(r["detail"])}
+                        for r in report["results"]]}
+
+
+def share_url(case: dict[str, Any]) -> str | None:
+    """A link to the pre-filled corpus case issue form, or None when nothing failed. A person submits it, or not."""
+    if not case["failed_ids"]:
+        return None
+    text = json.dumps(case, indent=1)
+    if len(text) > 5000:
+        text = text[:5000] + "\n... (cut; attach the full case file)"
+    fw = case["stack"].get("framework")
+    q = {"template": "corpus-case.yml",
+         "title": f"[corpus] {', '.join(case['failed_ids'])} via {case['via']}" + (f" on {fw}" if fw else ""),
+         "labels": "corpus-case", "via": case["via"], "checks": ", ".join(case["failed_ids"]),
+         "stack": "\n".join(f"{k}: {v}" for k, v in case["stack"].items()), "case": text}
+    return f"{REPO}/issues/new?" + urllib.parse.urlencode(q)
+
+
+def funnel_footer(report: dict[str, Any]) -> str:
+    lines = [f"x402-conformance {report['version']} via {report['via']}. Corpus of known x402 failures: {LINKS['corpus']}"]
+    if report["summary"]["failed"]:
+        lines.append("Share this failure as an anonymised corpus case (opt-in, reviewed by you first): re-run with "
+                     f"--share, or {LINKS['contribute']}")
+    else:
+        lines.append(f"All checks passed. Add the badge to your README: {LINKS['badge']}")
+    lines.append(f"Using it from other stacks: {LINKS['using']}")
+    return "\n".join(lines)
+
+
+def write_cases(reports: list[dict[str, Any]], directory: str = ".") -> list[tuple[str, str | None]]:
+    """--share: one anonymised case file per report, and the link to submit each failing one. Nothing is sent."""
+    out = []
+    for i, rep in enumerate(reports):
+        case = anonymise(rep)
+        path = os.path.join(directory, f"x402-conformance-case-{rep['kind']}-{i + 1}.json")
+        with open(path, "w") as f:
+            f.write(json.dumps(case, indent=1) + "\n")
+        out.append((path, share_url(case)))
+    return out
 
 
 def collect(d: str) -> list[dict[str, Any]]:
@@ -207,6 +335,9 @@ def parser() -> argparse.ArgumentParser:
                         description="P1-P7: one unpaid GET per URL, any network, V1 or V2. Never pays or POSTs.")
     rs.add_argument("targets", nargs="+", metavar="PAID_URL")
     rs.add_argument("--fail-on-error", action="store_true", help=fe)
+    rs.add_argument("--share", action="store_true",
+                    help="opt-in: write an anonymised corpus case per URL and print the link to submit a failing one; "
+                         "nothing is sent")
     sub.add_parser("offline", help="F1-F11 against the built-in reference and fault-injected facilitator doubles",
                    description="Self-test of the suite: F1-F11 against in-process doubles. Exits 1 unless the reference "
                                "passes and every fault-injected double is caught. It does not test your code.")
@@ -470,8 +601,17 @@ def main(argv: list[str] | None = None) -> int:
         return pr_comment(a.file)
     if a.mode == "resource":
         rruns = [H.run_resource(t) for t in a.targets]
+        reports = [make_report("resource-402", r["target"], r["checks"]) for r in rruns]
         print(json.dumps({"tool": f"x402-conformance {__version__}", **_evidence(), "run_at": stamp,
-                          "mode": "resource-GET-only", "results": rruns}, indent=1, sort_keys=True))
+                          "mode": "resource-GET-only", "via": H.via(), "links": LINKS, "results": rruns},
+                         indent=1, sort_keys=True))
+        if a.share:
+            for path, link in write_cases(reports):
+                print(f"x402conf: anonymised case written to {path}. " + (
+                    f"Review it, then submit it here (nothing was sent):\n{link}" if link else
+                    "Nothing failed, so there is no case to share."), file=sys.stderr)
+        for rep in reports:
+            print(funnel_footer(rep), file=sys.stderr)
         return 1 if a.fail_on_error and failed_errors(rruns) else 0
     if a.mode == "live":
         try:

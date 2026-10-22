@@ -115,6 +115,65 @@
           }
         }
       ]
+    },
+    {
+      "id": "XC-13",
+      "title": "Python entry-point tag and corpus case, Docker image and GitLab CI template",
+      "phase": "implement",
+      "owner": "mgillr",
+      "depends_on": [
+        "XC-11",
+        "XC-12"
+      ],
+      "scope": {
+        "allow": [
+          "src/x402conf/cli.py",
+          "src/x402conf/harness.py",
+          "tests/test_live.py",
+          "evidence/corpus/fixtures/**",
+          "ts/docker/**",
+          "ts/ci/**",
+          ".github/workflows/ci.yml",
+          "docs/USING.md"
+        ]
+      },
+      "criteria": [
+        {
+          "id": "XC-13-AC01",
+          "mandatory": true,
+          "statement": "Python and TypeScript derive the identical anonymised case from the shared fixture",
+          "verifier": {
+            "type": "command",
+            "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Funnel",
+            "expect_exit": 0,
+            "min_tests": 4,
+            "max_skipped": 0,
+            "timeout_s": 120
+          }
+        },
+        {
+          "id": "XC-13-AC02",
+          "mandatory": true,
+          "statement": "The image builds, carries the MCP registry name, answers MCP initialize on stdio with no arguments, and its ci command passes the reference server and fails a faulty one with an anonymised case under X402_SHARE",
+          "verifier": {
+            "type": "grep",
+            "file": ".github/workflows/ci.yml",
+            "pattern": "docker build -f ts/docker/Dockerfile",
+            "must": "present"
+          }
+        },
+        {
+          "id": "XC-13-AC03",
+          "mandatory": true,
+          "statement": "The GitLab template runs exactly x402-conformance ci with X402CONF_VIA=gitlab",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/ci/gitlab/x402-conformance.gitlab-ci.yml",
+            "pattern": "X402CONF_VIA: gitlab",
+            "must": "present"
+          }
+        }
+      ]
     }
   ]
 }

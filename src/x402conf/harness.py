@@ -28,6 +28,20 @@ from .types import CheckResult, Facilitator, Json, Severity
 
 MAX_BYTES = 1 << 20
 UA = f"x402-conformance/{__version__} (+https://github.com/atsp-protocol/x402-conformance)"
+# Which entry point is running (the CLI, the Action, pytest, Docker ...). It goes into the User-Agent and the report and
+# nowhere else: no machine or user id, no telemetry. Unknown values fall back to "cli-py".
+VIA_ENV = "X402CONF_VIA"
+VIAS = ("cli-ts", "cli-py", "action", "testing", "vitest", "jest", "node-test", "mcp", "ai-sdk", "langchain", "pytest",
+        "docker", "gitlab", "library")
+
+
+def via(env: Mapping[str, str] | None = None) -> str:
+    v = (os.environ if env is None else env).get(VIA_ENV, "")
+    return v if v in VIAS else "cli-py"
+
+
+def user_agent(env: Mapping[str, str] | None = None) -> str:
+    return f"x402-conformance/{__version__} (+https://github.com/atsp-protocol/x402-conformance; via={via(env)})"
 Opener = Callable[..., Any]
 # Optional facilitator credentials, from the environment only. The value is sent as the Authorization header to targets
 # whose host is exactly AUTH_HOST_ENV, never to any other host, and is never written to output, evidence or errors.
@@ -69,7 +83,7 @@ def _redact(text: str, env: Mapping[str, str] | None = None) -> str:
 def fetch_supported(base: str, timeout: float = 10, opener: Opener | None = None,
                     env: Mapping[str, str] | None = None) -> Json:
     url = base.rstrip("/") + "/supported"
-    headers = {"accept": "application/json", "user-agent": UA, **auth_header(url, env)}
+    headers = {"accept": "application/json", "user-agent": user_agent(env), **auth_header(url, env)}
     req = urllib.request.Request(url, method="GET", headers=headers)
     t0 = time.time()
     with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:
@@ -175,7 +189,8 @@ _DIGITS = re.compile(r"^[0-9]+\Z")  # \Z: "1000\n" is not an amount (in Python $
 
 def fetch_402(url: str, timeout: float = 15, opener: Opener | None = None) -> Json:
     """One unpaid GET. A 402 arrives as an HTTPError from urllib; its status, headers and body are the result."""
-    req = urllib.request.Request(url, method="GET", headers={"accept": "application/json", "user-agent": UA})
+    req = urllib.request.Request(url, method="GET", headers={"accept": "application/json",
+                                                                       "user-agent": user_agent()})
     t0 = time.time()
     try:
         with (opener or urllib.request.urlopen)(req, timeout=timeout) as r:

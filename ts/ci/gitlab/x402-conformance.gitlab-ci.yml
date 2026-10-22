@@ -1,0 +1,37 @@
+# x402 conformance for GitLab CI. In your .gitlab-ci.yml:
+#
+#   include:
+#     - remote: https://raw.githubusercontent.com/atsp-protocol/x402-conformance/v1/ts/ci/gitlab/x402-conformance.gitlab-ci.yml
+#   x402-conformance:
+#     variables:
+#       X402_RESOURCE_URL: http://127.0.0.1:4020/paid   # your paid route
+#       X402_START: node server.js                      # must use X402_FACILITATOR_URL as its facilitator
+#
+# The job probes R0-R10 through the facilitator double (never pays, never touches mainnet), checks the 402 answer of
+# any X402_RESOURCES, and publishes JUnit to the merge request. X402_SHARE: "true" writes anonymised corpus cases for
+# failures and prints the links to submit them; nothing is sent. The image has Node 22 and Python 3; for a server that
+# needs more, use the image as a base or run the same commands with npx and pipx in your own image.
+# Docs: https://github.com/atsp-protocol/x402-conformance/blob/main/docs/USING.md#gitlab-ci-and-other-ci-systems
+
+variables:
+  X402_CONFORMANCE_IMAGE: ghcr.io/atsp-protocol/x402-conformance:1
+
+.x402-conformance:
+  image:
+    name: $X402_CONFORMANCE_IMAGE
+    entrypoint: [""]
+  variables:
+    X402CONF_VIA: gitlab
+    X402_RESULTS_DIR: x402-conformance
+  script:
+    - x402-conformance ci
+  artifacts:
+    when: always
+    paths:
+      - x402-conformance/
+    reports:
+      junit: x402-conformance/junit.xml
+
+x402-conformance:
+  extends: .x402-conformance
+  stage: test

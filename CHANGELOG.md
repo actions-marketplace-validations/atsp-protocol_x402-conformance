@@ -60,6 +60,10 @@
 - docs/USING.md: one page for using the suite from each stack.
 - `x402-conformance-mcp`, a new package: the suite as seven MCP tools over stdio (`npx -y x402-conformance-mcp`), with
   MCP registry metadata, plus the four read-only tools for the Vercel AI SDK (`/ai-sdk`) and LangChain (`/langchain`).
+- The Python CLI names its entry point too (`X402CONF_VIA`, default `cli-py`, in the User-Agent and the output), and
+  `x402conf resource --share` writes the same anonymised case as the Node CLI. A shared fixture keeps the two equal.
+- A Docker image (`ts/docker/Dockerfile`): both CLIs and the MCP server, with `x402-conformance ci` for any CI system
+  that runs containers, and a GitLab CI template (`ts/ci/gitlab`). CI builds the image and runs it.
 
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction

@@ -30,6 +30,8 @@ ecosystem.
 | [MCP: Claude, Cursor and other MCP clients](#mcp-claude-cursor-and-other-mcp-clients) | `mcp` | `npx -y x402-conformance-mcp` |
 | [Vercel AI SDK](#vercel-ai-sdk) | `ai-sdk` | `npm i x402-conformance-mcp` |
 | [LangChain and LangGraph](#langchain-and-langgraph) | `langchain` | `npm i x402-conformance-mcp` |
+| [Docker](#docker) | `docker` | `docker run ghcr.io/atsp-protocol/x402-conformance:1` |
+| [GitLab CI and other CI systems](#gitlab-ci-and-other-ci-systems) | `gitlab` | `include: remote: .../ts/ci/gitlab/x402-conformance.gitlab-ci.yml` |
 
 ## Command line
 
@@ -38,6 +40,10 @@ x402conf resource https://your.api/paid                              # P1-P7, on
 npx -y x402-conformance-svm resource --url https://your.api/paid      # the same P1-P7, in Node
 npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --share
 ```
+
+`x402conf resource --share` does the same in Python: one anonymised case file per URL, and the link for each failing
+one. Both CLIs produce identical cases from the same report; CI checks both against
+[one fixture](../evidence/corpus/fixtures).
 
 The Node `resource` command is a port of the Python one with the same check IDs; CI runs both on 29 answers and
 fails if they ever disagree. `--share` on a failing run writes `<out>.case.json` and prints the issue link.
@@ -129,3 +135,35 @@ const agent = createReactAgent({ llm, tools: x402ConformanceTools() });
 ```
 
 The same four tools as LangChain `StructuredTool`s, which also work in LangGraph agents.
+
+## Docker
+
+One image with the Python CLI, the Node probe and the MCP server (Node 22, Python 3):
+
+```
+docker run --rm ghcr.io/atsp-protocol/x402-conformance:1 x402conf resource https://your.api/paid
+docker run --rm -v "$PWD:/work" ghcr.io/atsp-protocol/x402-conformance:1 \
+  x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js"
+docker run -i --rm ghcr.io/atsp-protocol/x402-conformance:1            # no arguments: the MCP server on stdio
+docker run --rm ghcr.io/atsp-protocol/x402-conformance:1 help
+```
+
+The image sets `X402CONF_VIA=docker`. It's built from [ts/docker/Dockerfile](../ts/docker/Dockerfile), and CI builds
+it and runs every one of these against the reference and a faulty server.
+
+## GitLab CI and other CI systems
+
+```yaml
+include:
+  - remote: https://raw.githubusercontent.com/atsp-protocol/x402-conformance/v1/ts/ci/gitlab/x402-conformance.gitlab-ci.yml
+x402-conformance:
+  variables:
+    X402_RESOURCE_URL: http://127.0.0.1:4020/paid   # your paid route
+    X402_START: node server.js                      # must use X402_FACILITATOR_URL as its facilitator
+```
+
+The job runs `x402-conformance ci` in the image and publishes JUnit to the merge request. The same command works in
+any CI system that runs containers (Jenkins, CircleCI, Buildkite, Bitbucket, Drone); it reads `X402_RESOURCE_URL`,
+`X402_START`, `X402_RESOURCES`, `X402_NETWORK`, `X402_PORT`, `X402_RESULTS_DIR` and `X402_SHARE`, and
+`docker run ... help` lists them. Results land in `x402-conformance/` with `junit.xml` and SARIF. CI runs the
+template's script inside the image, as GitLab would, against a passing and a faulty server.

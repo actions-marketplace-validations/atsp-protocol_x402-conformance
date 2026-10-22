@@ -300,5 +300,75 @@ class Live(unittest.TestCase):
             self.assertEqual(self._summary(d, X402C_WANT_PROBE=1), (0, "result=pass"))
 
 
+class Funnel(unittest.TestCase):
+    """The shared report, the via tag and the opt-in corpus case, as in ts/src/report.ts and ts/src/corpus.ts."""
+
+    def test_anonymise_matches_the_typescript_fixture(self):
+        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-input.json")) as f:
+            i = json.load(f)
+        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-expected.json")) as f:
+            expected = json.load(f)
+        case = C.anonymise(i["report"], i["stack"])
+        self.assertEqual(case, expected)
+        text = json.dumps(case)
+        for leak in ("seller", "9xQeWvG8", "0x209693", "10.1.2.3", "key=abc", "https://"):
+            self.assertNotIn(leak, text)
+
+    def test_via_and_user_agent(self):
+        self.assertEqual(H.via({}), "cli-py")
+        self.assertEqual(H.via({"X402CONF_VIA": "pytest"}), "pytest")
+        self.assertEqual(H.via({"X402CONF_VIA": "evil; rm -rf"}), "cli-py")
+        self.assertEqual(H.user_agent({"X402CONF_VIA": "docker"}),
+                         f"x402-conformance/{__version__} (+https://github.com/atsp-protocol/x402-conformance; via=docker)")
+
+    def test_report_and_share_url(self):
+        ok = C.make_report("resource-402", "http://127.0.0.1:1/paid", [{"check": "P1 x", "pass": True}], via="pytest")
+        self.assertEqual(ok["schema"], "x402-conformance.report/1")
+        self.assertEqual(ok["summary"], {"checks": 1, "failed": 0, "failed_ids": [], "unsupported": False})
+        self.assertIsNone(C.share_url(C.anonymise(ok)))
+        self.assertIn("Add the badge", C.funnel_footer(ok))
+        bad = C.make_report("resource-402", "https://x.example.com/p", [{"check": "P5 x", "pass": False, "detail": {}}])
+        link = C.share_url(C.anonymise(bad, {"framework": "fastapi"}))
+        assert link is not None
+        self.assertTrue(link.startswith("https://github.com/atsp-protocol/x402-conformance/issues/new?template=corpus-case.yml"))
+        self.assertIn("checks=P5", link)
+        self.assertIn("--share", C.funnel_footer(bad))
+
+    def test_resource_share_writes_the_case_and_sends_nothing(self):
+        def opener(req, timeout):
+            self.assertIn("via=cli-py", req.get_header("User-agent"))
+            raise urllib.error.HTTPError(req.full_url, 402, "Payment Required", {}, io.BytesIO(b"not json"))  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as d:
+            cwd = os.getcwd()
+            os.chdir(d)
+            out, err = io.StringIO(), io.StringIO()
+            try:
+                with mock_opener(opener), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    rc = C.main(["resource", "http://127.0.0.1:9/paid", "--share"])
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(out.getvalue())["via"], "cli-py")
+            with open(os.path.join(d, "x402-conformance-case-resource-402-1.json")) as f:
+                case = json.load(f)
+            self.assertEqual(case["failed_ids"], ["P2"])
+            self.assertEqual(case["target"], "loopback")
+            self.assertIn("nothing was sent", err.getvalue())
+            self.assertIn("issues/new?template=corpus-case.yml", err.getvalue())
+
+
+@contextlib.contextmanager
+def mock_opener(opener):
+    import urllib.request
+
+    real = urllib.request.urlopen
+    urllib.request.urlopen = opener  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        urllib.request.urlopen = real  # type: ignore[assignment]
+
+
 if __name__ == "__main__":
     unittest.main()
