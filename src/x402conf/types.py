@@ -9,7 +9,8 @@ Severity = Literal["error", "warning", "info"]
 
 
 # "pass" is a Python keyword, so the functional TypedDict form is used.
-CheckResult = TypedDict("CheckResult", {"check": str, "pass": bool, "severity": Severity, "detail": Any})
+CheckResult = TypedDict("CheckResult", {"check": str, "pass": bool, "severity": Severity, "detail": Any,
+                                        "profile": str, "basis": str})
 
 
 class Facilitator(Protocol):

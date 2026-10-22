@@ -20,7 +20,7 @@ inputs:
     default: ""
   resources:
     description: >-
-      Space-separated paid URLs to check with one unpaid GET each (P1-P5): the 402 answer and its PaymentRequired, on
+      Space-separated paid URLs to check with one unpaid GET each (P1-P7): the 402 answer and its PaymentRequired, on
       any network, V1 or V2. Nothing is paid.
     required: false
     default: ""
@@ -29,6 +29,34 @@ inputs:
       Your paid route, for example http://127.0.0.1:4020/paid. The action points your server at a facilitator double
       and checks R0-R10 on Solana devnet or Base Sepolia: no content on a /settle timeout, broken answer,
       settlement_pending, failure or duplicate.
+    required: false
+    default: ""
+  binding-cheap-url:
+    description: >-
+      R11 payment-to-request binding: a paid route cheaper than binding-expensive-url. The probe checks that a payment
+      for one is never accepted on the other, and that payTo, asset and network can't be swapped (R11, R11a, R11b).
+    required: false
+    default: ""
+  binding-expensive-url:
+    description: A paid route dearer than binding-cheap-url (R11).
+    required: false
+    default: ""
+  binding-method-url:
+    description: A paid URL priced differently for GET and POST (R11c).
+    required: false
+    default: ""
+  binding-query-urls:
+    description: Two paid URLs that differ only in their query string and are priced differently, comma-separated (R11d).
+    required: false
+    default: ""
+  binding-param-url:
+    description: A paid parameterised route with {id} where the parameter goes, e.g. http://127.0.0.1:4020/items/{id}/premium (R11e).
+    required: false
+    default: ""
+  binding-siwx-urls:
+    description: >-
+      Two paid routes at different prices that declare sign-in-with-x, comma-separated, cheap first, on Base Sepolia
+      (R11f). Needs @x402/extensions in your project; nothing is signed with a funded key.
     required: false
     default: ""
   start:
@@ -48,7 +76,7 @@ inputs:
     default: "4402"
   offline:
     description: >-
-      Also run the F1-F9 self-test of the suite against its reference and fault-injected doubles. It checks the suite,
+      Also run the F1-F11 self-test of the suite against its reference and fault-injected doubles. It checks the suite,
       not your code. On by default in 1.x for compatibility; set "false" to skip it.
     required: false
     default: "true"
@@ -62,6 +90,17 @@ inputs:
       nothing it could grade.
     required: false
     default: "true"
+  pr-comment:
+    description: >-
+      "true" posts the result as one sticky pull request comment, updated in place on every run, with a fix link for
+      each failed check. Off by default. The calling job needs `permissions: pull-requests: write`; on a fork's pull
+      request the token is read-only and the action only warns.
+    required: false
+    default: "false"
+  github-token:
+    description: Token for pr-comment. The default job token is enough.
+    required: false
+    default: ${{ github.token }}
 outputs:
   result:
     description: '"pass" when every requested check passed, "unsupported" when the probe found nothing it could grade, otherwise "fail".'
@@ -69,6 +108,14 @@ outputs:
   results-dir:
     description: Directory holding live.json, resource-402.json, resource-server.json and offline.json.
     value: ${{ inputs.results-dir }}
+  badge:
+    description: >-
+      <results-dir>/badge.json, a shields.io endpoint badge (label "x402 conformance", pass n/n or n failing). Publish
+      it anywhere public and use https://img.shields.io/endpoint?url=<its URL>.
+    value: ${{ inputs.results-dir }}/badge.json
+  pr-comment:
+    description: <results-dir>/pr-comment.md, the markdown posted by pr-comment (written on every run).
+    value: ${{ inputs.results-dir }}/pr-comment.md
   sarif:
     description: SARIF 2.1.0 file of failed checks, for github/codeql-action/upload-sarif (GitHub code scanning).
     value: ${{ inputs.results-dir }}/x402-conformance.sarif
@@ -99,7 +146,7 @@ runs:
         # shellcheck disable=SC2086
         python3 -m x402conf live $X402C_TARGETS --evidence "$X402C_DIR/evidence" > "$X402C_DIR/live.json" \
           || rm -f "$X402C_DIR/live.json"
-    - name: Resource 402 checks P1-P5 (one unpaid GET per URL)
+    - name: Resource 402 checks P1-P7 (one unpaid GET per URL)
       if: inputs.resources != ''
       shell: bash
       env:
@@ -111,7 +158,7 @@ runs:
         # shellcheck disable=SC2086
         python3 -m x402conf resource $X402C_TARGETS > "$X402C_DIR/resource-402.json" || rm -f "$X402C_DIR/resource-402.json"
     - name: Pinned Node for the probe (not added to PATH)
-      if: inputs.resource-url != ''
+      if: inputs.resource-url != '' || inputs.binding-cheap-url != '' || inputs.binding-method-url != '' || inputs.binding-query-urls != '' || inputs.binding-param-url != '' || inputs.binding-siwx-urls != ''
       shell: bash
       run: |
         set -euo pipefail
@@ -129,11 +176,17 @@ runs:
         echo "$sum  $dir/node.tgz" | (sha256sum -c - 2>/dev/null || shasum -a 256 -c -)
         tar -xzf "$dir/node.tgz" -C "$dir" --strip-components=1
         rm "$dir/node.tgz"
-    - name: Resource-server checks R0-R10 (facilitator double on loopback)
-      if: inputs.resource-url != ''
+    - name: Resource-server checks R0-R11 (facilitator double on loopback)
+      if: inputs.resource-url != '' || inputs.binding-cheap-url != '' || inputs.binding-method-url != '' || inputs.binding-query-urls != '' || inputs.binding-param-url != '' || inputs.binding-siwx-urls != ''
       shell: bash
       env:
         X402C_RESOURCE: ${{ inputs.resource-url }}
+        X402C_B_CHEAP: ${{ inputs.binding-cheap-url }}
+        X402C_B_DEAR: ${{ inputs.binding-expensive-url }}
+        X402C_B_METHOD: ${{ inputs.binding-method-url }}
+        X402C_B_QUERY: ${{ inputs.binding-query-urls }}
+        X402C_B_PARAM: ${{ inputs.binding-param-url }}
+        X402C_B_SIWX: ${{ inputs.binding-siwx-urls }}
         X402C_START: ${{ inputs.start }}
         X402C_PORT: ${{ inputs.port }}
         X402C_NETWORK: ${{ inputs.network }}
@@ -145,12 +198,17 @@ runs:
         (cd "$GITHUB_ACTION_PATH/ts" && PATH="$node_dir/bin:$PATH" npm ci --no-audit --no-fund --silent \
           && PATH="$node_dir/bin:$PATH" npm run --silent build) \
           || { echo "::error title=x402 Conformance::building the probe failed"; exit 0; }
-        args=(probe --resource "$X402C_RESOURCE" --port "$X402C_PORT" --network "$X402C_NETWORK"
-              --out "$X402C_DIR/resource-server.json")
+        args=(probe --port "$X402C_PORT" --network "$X402C_NETWORK" --out "$X402C_DIR/resource-server.json")
+        if [ -n "$X402C_RESOURCE" ]; then args+=(--resource "$X402C_RESOURCE"); fi
+        if [ -n "$X402C_B_CHEAP" ]; then args+=(--cheap "$X402C_B_CHEAP" --expensive "$X402C_B_DEAR"); fi
+        if [ -n "$X402C_B_METHOD" ]; then args+=(--by-method "$X402C_B_METHOD"); fi
+        if [ -n "$X402C_B_QUERY" ]; then args+=(--by-query "$X402C_B_QUERY"); fi
+        if [ -n "$X402C_B_PARAM" ]; then args+=(--param "$X402C_B_PARAM"); fi
+        if [ -n "$X402C_B_SIWX" ]; then args+=(--siwx-cheap "${X402C_B_SIWX%%,*}" --siwx-expensive "${X402C_B_SIWX#*,}"); fi
         if [ -n "$X402C_START" ]; then args+=(--start "$X402C_START"); fi
         # The exit code is read from the results file by the summary step; a missing file is a failure there.
         "$node_dir/bin/node" "$GITHUB_ACTION_PATH/ts/dist/src/cli.js" "${args[@]}" > /dev/null || true
-    - name: Offline self-test F1-F9
+    - name: Offline self-test F1-F11
       if: inputs.offline == 'true'
       shell: bash
       env:
@@ -177,7 +235,16 @@ runs:
         X402C_FAIL: ${{ inputs.fail-on-error }}
         X402C_WANT_LIVE: ${{ inputs.facilitators != '' }}
         X402C_WANT_402: ${{ inputs.resources != '' }}
-        X402C_WANT_PROBE: ${{ inputs.resource-url != '' }}
+        X402C_WANT_PROBE: ${{ inputs.resource-url != '' || inputs.binding-cheap-url != '' || inputs.binding-method-url != '' || inputs.binding-query-urls != '' || inputs.binding-param-url != '' || inputs.binding-siwx-urls != '' }}
         X402C_WANT_OFFLINE: ${{ inputs.offline == 'true' }}
         X402C_RESOURCE: ${{ inputs.resource-url }}
       run: python3 -c 'import sys; from x402conf import cli; sys.exit(cli.action_summary())'
+    - name: Sticky pull request comment (opt-in)
+      if: always() && inputs.pr-comment == 'true' && github.event_name == 'pull_request'
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        X402C_DIR: ${{ inputs.results-dir }}
+      run: |
+        if [ -f "$X402C_DIR/pr-comment.md" ]; then python3 -m x402conf pr-comment "$X402C_DIR/pr-comment.md" || true; fi

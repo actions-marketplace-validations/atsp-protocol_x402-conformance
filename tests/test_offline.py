@@ -1,8 +1,11 @@
-"""F1-F9: the reference double passes; each faulty double is caught by the check that targets it."""
+"""F1-F11: the reference double passes; each faulty double is caught by the check that targets it."""
 
+import contextlib
+import io
 import json
 import os
 import tempfile
+import time
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -134,6 +137,98 @@ class Offline(unittest.TestCase):
             self.assertFalse(fac.verify(p, bad)["isValid"])
         self.assertFalse(fac.settle(p, {"asset": "A"})["success"])
 
+    MALFORMED_AMOUNTS = ("abc", None, "1e6", [1], {"v": 1}, 1.5, float("inf"), True, "", "-5", " 10000 ", "+10000",
+                         "10_000", "010000", "\uff11\uff10\uff10\uff10\uff10", "10000\n", "1" * 79)
+
+    def test_reference_rejects_malformed_amounts(self):
+        # XC-09-AC01: a rejection, never an exception, for every malformed or non-canonical payload amount
+        fac, v = M.Reference(), M.vectors()
+        for i, amt in enumerate(self.MALFORMED_AMOUNTS):
+            p = dict(v("good"), tx=f"tx-amt-{i}", memo=f"m-amt-{i}", amount=amt)
+            with self.subTest(amount=amt):
+                got = fac.verify(p, v("req"))
+                self.assertFalse(got["isValid"], got)
+                self.assertFalse(fac.settle(p, v("req"))["success"])
+
+    def test_reference_rejects_malformed_requirement_amounts(self):
+        # XC-09-AC02: malformed, zero and negative requirement amounts are invalid_payment_requirements
+        fac, v = M.Reference(), M.vectors()
+        for amt in self.MALFORMED_AMOUNTS + ("0", 10000):
+            with self.subTest(amount=amt):
+                got = fac.verify(v("good"), dict(v("req"), amount=amt))
+                self.assertEqual(got, {"isValid": False, "invalidReason": "invalid_payment_requirements"})
+
+    def test_strict_parser_accepts_canonical_amounts(self):
+        # the control: canonical atomic units still parse, up to uint256
+        for x, want in (("0", 0), ("10000", 10000), (str(M.UINT256_MAX), M.UINT256_MAX)):
+            self.assertEqual(M.atomic_units(x), want)
+        self.assertIsNone(M.atomic_units(str(M.UINT256_MAX + 1)))
+        self.assertEqual(M.atomic_units(10000, allow_int=True), 10000)
+        self.assertIsNone(M.atomic_units(10000))
+        self.assertTrue(M.Reference().verify(M.vectors()("good"), M.vectors()("req"))["isValid"])
+
+    def test_lenient_amounts_caught(self):
+        # XC-09-AC03: a double that parses amounts with int() is caught by F1
+        self.assertEqual(fails(H.check_safety(M.Faulty(lenient_amounts=True), M.vectors())), {"F1"})
+
+    def test_f5_pending_without_tx_or_network_caught(self):
+        # XC-11-AC01
+        self.assertIn("F5", fails(H.check_safety(M.Faulty(pending_without_tx=True), M.vectors())))
+
+    def test_f11_verify_commits_state_caught(self):
+        # XC-11-AC02: a /verify that commits payment state (V2 7.1) is caught by F11
+        self.assertIn("F11", fails(H.check_safety(M.Faulty(verify_commits=True), M.vectors())))
+
+    def test_f6_guard_crediting_on_error_caught(self):
+        g = H.GUARD_FAULTS["guard_credit_on_error"]
+        self.assertEqual(fails(H.check_safety(M.Reference(), M.vectors(), guard=g)), {"F6"})
+
+    def test_credibility_matrix_complete(self):
+        """XC-12-AC01: every check has a passing control and a faulty build it is proven to catch."""
+        import importlib
+        import pathlib
+        ts = "".join(p.read_text("utf-8") for p in (pathlib.Path(__file__).parent.parent / "ts" / "test").glob("*.ts"))
+        emitted = {r["check"].split()[0] for r in H.check_safety(M.Reference(), M.vectors())}
+        emitted |= {"S0", "S1", "S2", "S3", "S4", "P1", "P2", "P3", "P4", "P5", "P6", "P7"}
+        emitted |= {f"R{i}" for i in range(11)} | {"R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f"}
+        self.assertEqual(emitted - set(S.CATALOG), set(), "checks with no catalog entry")
+        for cid, e in S.CATALOG.items():
+            with self.subTest(check=cid):
+                self.assertIn(e["profile"], S.PROFILES)
+                self.assertTrue(e["basis"])
+                self.assertTrue(e["controls"], "no passing control")
+                self.assertTrue(e["faulty"], "no faulty build")
+                for ref in list(e["controls"]) + list(e["faulty"]):
+                    kind, _, name = str(ref).partition(":")
+                    if kind == "py":
+                        mod, cls, fn = name.rsplit(".", 2)
+                        self.assertTrue(hasattr(getattr(importlib.import_module(mod), cls), fn), ref)
+                    elif kind == "ts":
+                        self.assertIn(name, ts, ref)
+                    elif kind == "fault":
+                        self.assertIn(cid, fails(H.check_safety(M.FAULTS[name](), M.vectors())), ref)
+                    elif kind == "guard":
+                        self.assertIn(cid, fails(H.check_safety(M.Reference(), M.vectors(), guard=H.GUARD_FAULTS[name])),
+                                      ref)
+                    else:
+                        self.fail(f"unknown reference {ref}")
+        # and nothing is left out of the matrix the other way round
+        listed = {str(r).partition(":")[2] for e in S.CATALOG.values() for r in e["faulty"]}
+        self.assertEqual(set(M.FAULTS) - {"reference"} - listed, set(), "faulty doubles no check claims")
+        self.assertEqual(set(H.GUARD_FAULTS) - listed, set(), "faulty guards no check claims")
+
+    def test_results_carry_profile_and_versions(self):
+        """XC-12-AC02: evidence v2. Each result is labelled with its profile and spec basis, and runs name the format."""
+        for r in H.check_safety(M.Reference(), M.vectors()):
+            self.assertIn(r["profile"], S.PROFILES)
+            self.assertTrue(r["basis"])
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            self.assertEqual(cli.main(["offline"]), 0)
+        doc = json.loads(buf.getvalue())
+        self.assertEqual(doc["evidence"], S.EVIDENCE_FORMAT)
+        self.assertTrue(doc["versions"]["x402-conformance"])
+
     def test_same_request_retry_preserves_idempotency(self):
         fac, v = M.Reference(), M.vectors()
         p, req = v("good"), v("req")
@@ -202,6 +297,123 @@ class Report(unittest.TestCase):
         ids = ["S0", "S1", "S2", "S3", "S4", "FX"] + [f"F{i}" for i in range(1, 10)] + [f"R{i}" for i in range(10)]
         for i in ids:
             self.assertRegex(fixes, rf"(?m)^## {i}\b", i)
+
+    def test_every_catalog_check_has_a_fix_section(self):
+        fixes = open(os.path.join(os.path.dirname(__file__), "..", "docs", "FIXES.md")).read()
+        for i in S.CATALOG:
+            self.assertRegex(fixes, rf"(?m)^## {i}$", i)
+
+    def test_ts_catalog_matches_spec_catalog(self):
+        src = open(os.path.join(os.path.dirname(__file__), "..", "ts", "src", "catalog.ts")).read()
+        body = src.split("CATALOG: Record<string, { profile: string; basis: string }> = ", 1)[1].split(";\n", 1)[0]
+        want = {k: {"profile": v["profile"], "basis": v["basis"]} for k, v in S.CATALOG.items()}
+        self.assertEqual(json.loads(body), want)
+        self.assertIn(f'EVIDENCE_FORMAT = "{S.EVIDENCE_FORMAT}"', src)
+
+    def test_demo_passes_in_under_60_seconds_with_no_wallet(self):
+        d = tempfile.mkdtemp()
+        out = io.StringIO()
+        t0 = time.monotonic()
+        with contextlib.redirect_stdout(out):
+            code = cli.main(["demo", "--dir", d])
+        self.assertEqual(code, 0, out.getvalue())
+        self.assertLess(time.monotonic() - t0, 60)
+        self.assertRegex(out.getvalue(), r"(\d+)/\1 checks pass")
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(cli.main(["report", "--dir", d, "--fail-on-error"]), 0)
+
+    def test_demo_faults_fail_with_a_fix_link_under_every_failure(self):
+        for fault in cli.DEMO_FAULTS:
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cli.main(["demo", "--fault", fault]), 1, fault)
+            lines = out.getvalue().splitlines()
+            fails = [x for x in lines if x.strip().startswith("FAIL")]
+            fixes = [x for x in lines if x.strip().startswith("fix: https://")]
+            self.assertTrue(fails, fault)
+            self.assertEqual(len(fails), len(fixes), fault)
+
+    def test_badge_is_a_shields_endpoint(self):
+        ok = [{"pass": True, "severity": "error"}] * 3
+        self.assertEqual(cli.badge(ok), {"schemaVersion": 1, "label": "x402 conformance", "message": "pass 3/3",
+                                         "color": "brightgreen"})
+        bad = cli.badge(ok + [{"pass": False, "severity": "error"}, {"pass": False, "severity": "warning"}])
+        self.assertEqual((bad["message"], bad["color"]), ("1 failing", "red"))
+        self.assertEqual(cli.badge([], "unsupported")["message"], "unsupported")
+        d = tempfile.mkdtemp()
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["demo", "--dir", d])
+            cli.main(["report", "--dir", d, "--badge", os.path.join(d, "b.json")])
+        self.assertEqual(json.load(open(os.path.join(d, "b.json")))["color"], "brightgreen")
+
+    def test_action_summary_writes_the_sticky_comment_and_badge(self):
+        d = tempfile.mkdtemp()
+        with contextlib.redirect_stdout(io.StringIO()):
+            cli.main(["demo", "--fault", "no_402", "--dir", d])
+            cli.action_summary({"X402C_DIR": d, "X402C_WANT_402": "true", "X402C_FAIL": "false"})
+        body = open(os.path.join(d, "pr-comment.md")).read()
+        self.assertTrue(body.startswith(cli.COMMENT_MARKER))
+        self.assertIn("FIXES.md#p1", body)
+        self.assertEqual(json.load(open(os.path.join(d, "badge.json")))["color"], "red")
+
+    def test_pr_comment_posts_once_then_updates_in_place(self):
+        import http.server
+        import threading
+        comments: list[dict] = []
+        calls: list[str] = []
+
+        class Fake(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *_):
+                pass
+
+            def _json(self, code, body):
+                raw = json.dumps(body).encode()
+                self.send_response(code)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
+            def do_GET(self):
+                calls.append("GET")
+                assert self.headers["Authorization"] == "Bearer t0ken"
+                self._json(200, comments)
+
+            def do_POST(self):
+                calls.append("POST")
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                comments.append({"id": 7, "body": body["body"]})
+                self._json(201, comments[-1])
+
+            def do_PATCH(self):
+                calls.append("PATCH " + self.path)
+                body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                comments[0]["body"] = body["body"]
+                self._json(200, comments[0])
+
+        srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Fake)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        d = tempfile.mkdtemp()
+        ev = os.path.join(d, "event.json")
+        json.dump({"pull_request": {"number": 3}}, open(ev, "w"))
+        md = os.path.join(d, "c.md")
+        env = {"GITHUB_EVENT_PATH": ev, "GITHUB_TOKEN": "t0ken", "GITHUB_REPOSITORY": "o/r",
+               "GITHUB_API_URL": f"http://127.0.0.1:{srv.server_address[1]}"}
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                open(md, "w").write("first")
+                self.assertEqual(cli.pr_comment(md, env), 0)
+                open(md, "w").write("second")
+                self.assertEqual(cli.pr_comment(md, env), 0)
+                out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                self.assertEqual(cli.pr_comment(md, {**env, "GITHUB_EVENT_PATH": "/nonexistent"}), 0)
+        finally:
+            srv.shutdown()
+            srv.server_close()
+        self.assertEqual(calls, ["GET", "POST", "GET", "PATCH /repos/o/r/issues/comments/7"])
+        self.assertEqual(len(comments), 1)
+        self.assertTrue(comments[0]["body"].startswith(cli.COMMENT_MARKER) and comments[0]["body"].endswith("second"))
+        self.assertIn("no comment posted", out.getvalue())
 
     def test_report_without_results_exits_2(self):
         self.assertEqual(cli.main(["report", "--dir", tempfile.mkdtemp()]), 2)

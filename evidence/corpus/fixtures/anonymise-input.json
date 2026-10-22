@@ -1,0 +1,20 @@
+{
+ "stack": { "framework": "hono at https://api.seller.example.com", "sdk": "@x402/hono", "sdk_version": "2.28.0", "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1" },
+ "report": {
+  "schema": "x402-conformance.report/1", "tool": "x402-conformance-svm", "version": "1.4.0", "via": "pytest",
+  "kind": "resource-402", "run_at": "2026-10-22T13:00:00.000Z", "target": "https://api.seller.example.com/paid?key=abc",
+  "results": [
+   { "check": "P1 an unpaid GET answers HTTP 402 (V2 HTTP transport)", "pass": true, "status": "pass", "severity": "error", "detail": { "http": 402 } },
+   { "check": "P4 every accepts[] entry has the required fields with valid types (V2 5.1.2; V1 5.1)", "pass": false, "status": "fail", "severity": "error",
+     "detail": { "accepts": 2, "problems": [ { "index": 0, "scheme": "exact", "network": "eip155:84532", "problems": ["amount must be a string of atomic units greater than 0"] } ] } },
+   { "check": "P5 scheme-specific extra fields are present (EVM exact: name and version; SVM exact: feePayer)", "pass": false, "status": "fail", "severity": "error",
+     "detail": { "problems": [ { "index": 1, "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1", "payTo": "9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin",
+       "note": "seen at https://api.seller.example.com/x from 10.1.2.3:8080 paying 0x209693Bc6afc0C5328bA36FaF03C514EF312287C on seller.io with 4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
+       "deep": { "a": { "b": { "c": { "d": { "e": { "f": { "g": { "h": { "i": "too deep" } } } } } } } } },
+       "list": [1,2,3,4,5,6,7,8,9,10,11,12] } ] } },
+   { "check": "R0 unpaid request: 402 with a PAYMENT-REQUIRED header offering a network the probe grades", "pass": false, "status": "unsupported", "severity": "error", "detail": { "accepts": [["exact", "eip155:1"]] } }
+  ],
+  "summary": { "checks": 4, "failed": 2, "failed_ids": ["P4", "P5"], "unsupported": true },
+  "links": {}
+ }
+}

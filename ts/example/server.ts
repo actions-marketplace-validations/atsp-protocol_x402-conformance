@@ -4,6 +4,8 @@
 // EXAMPLE_FAULT shows what the probe catches:
 //   serve_after_verify   serves once /verify passes and settles afterwards, ignoring the outcome
 //   serve_on_any_settle  calls /settle but serves whatever it answers or throws
+//   serve_unpaid         serves the paid route with no payment at all (R0)
+//   no_payment_response  settles correctly but drops the PAYMENT-RESPONSE header (R10)
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { HTTPFacilitatorClient, x402HTTPResourceServer, x402ResourceServer } from "@x402/core/server";
@@ -48,6 +50,7 @@ export async function startExample(facilitatorUrl: string, fault = "", port = 0,
     };
     try {
       const paymentHeader = adapter.getHeader("payment-signature") ?? adapter.getHeader("x-payment");
+      if (fault === "serve_unpaid" && !paymentHeader) return send(200, {}, { content: "paid content" });
       const r = await app.processHTTPRequest({ adapter, path: url.pathname, method: adapter.getMethod(), paymentHeader });
       if (r.type === "no-payment-required") return send(200, {}, { free: true });
       if (r.type === "payment-error") return send(r.response.status, r.response.headers, r.response.body);
@@ -63,6 +66,7 @@ export async function startExample(facilitatorUrl: string, fault = "", port = 0,
         if (fault === "serve_on_any_settle") return send(200, {}, { content: "paid content" });
         return send(402, {}, { error: "settlement failed" });
       }
+      if (s.success && fault === "no_payment_response") return send(200, {}, { content: "paid content" });
       if (s.success || fault === "serve_on_any_settle") return send(200, s.headers, { content: "paid content" });
       return send(s.response.status, s.response.headers, s.response.body);
     } catch (e) {

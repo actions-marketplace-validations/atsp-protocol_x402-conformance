@@ -161,6 +161,47 @@ class Live(unittest.TestCase):
     def test_p_all_pass_on_spec_example(self):
         self.assertEqual(fails(H.check_402(self._resp(pr=self.V2_EVM))), set())
 
+    def test_p6_header_budget(self):
+        # XC-11-AC03: P6 warns above 8 KB and fails as an error above 16 KB; a normal challenge passes
+        def with_extension(n):
+            return dict(self.V2_EVM, extensions={"bazaar": {"info": {"example": "x" * n}, "schema": {}}})
+        ok = [r for r in H.check_402(self._resp(pr=self.V2_EVM)) if r["check"].startswith("P6")]
+        self.assertTrue(ok and ok[0]["pass"])
+        warn = [r for r in H.check_402(self._resp(pr=with_extension(7000))) if r["check"].startswith("P6")][0]
+        self.assertEqual((warn["pass"], warn["severity"]), (False, "warning"))
+        err = [r for r in H.check_402(self._resp(pr=with_extension(13000))) if r["check"].startswith("P6")][0]
+        self.assertEqual((err["pass"], err["severity"]), (False, "error"))
+        self.assertEqual(fails(H.check_402(self._resp(pr=with_extension(13000)))), {"P6"})
+
+    def test_p7_payment_flow_declared(self):
+        # XC-11-AC04: an upto entry on Solana (escrow by default) must declare extra.paymentFlow (V2 6.1)
+        upto = {"x402Version": 2, "resource": {"url": "https://api.example/x"},
+                "accepts": [{"scheme": "upto", "network": S.SOLANA_DEVNET, "amount": "10000",
+                             "asset": S.SOLANA_DEVNET_USDC, "payTo": FP, "maxTimeoutSeconds": 60,
+                             "extra": {"feePayer": FP}}]}
+        p7 = [r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]
+        self.assertEqual((p7["pass"], p7["severity"]), (False, "warning"))
+        upto["accepts"][0]["extra"]["paymentFlow"] = "escrow"
+        self.assertTrue([r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]["pass"])
+        upto["accepts"][0]["extra"]["paymentFlow"] = ""
+        self.assertFalse([r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]["pass"])
+
+    def test_p4_json_number_and_trailing_newline_parity(self):
+        # Same verdicts as ts/src/resource.ts: 60.0 is the JSON number 60 (JSON.parse cannot tell them apart), and a
+        # trailing newline makes an amount or a network invalid (Python's $ would have matched before it).
+        def entry(**kw):
+            return dict(self.V2_EVM, accepts=[dict(self.V2_EVM["accepts"][0], **kw)])
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=60.0)))), set())
+        wire = json.dumps(self.V2_EVM).replace('"maxTimeoutSeconds": 60', '"maxTimeoutSeconds": 60.0')
+        self.assertIn("60.0", wire)
+        raw = {"payment-required": base64.b64encode(wire.encode()).decode()}
+        self.assertEqual(fails(H.check_402(self._resp(headers=raw))), set())
+        for bad in (60.5, 0.0, -60.0, float("nan"), float("inf"), True, "60"):
+            self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=bad)))), {"P4"}, bad)
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(amount="10000\n")))), {"P4"})
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(network="eip155:84532\n")))), {"P4"})
+        self.assertIsNone(S.CAIP2.match("eip155:84532\n"))
+
     def test_p1_served_without_payment(self):
         self.assertEqual(fails(H.check_402(self._resp(status=200))), {"P1"})
 
@@ -257,6 +298,76 @@ class Live(unittest.TestCase):
                 json.dump({"resource": "http://x/paid", "results": [
                     {"check": f"R{i} ok", "pass": True, "status": "pass", "detail": {}} for i in range(11)]}, f)
             self.assertEqual(self._summary(d, X402C_WANT_PROBE=1), (0, "result=pass"))
+
+
+class Funnel(unittest.TestCase):
+    """The shared report, the via tag and the opt-in corpus case, as in ts/src/report.ts and ts/src/corpus.ts."""
+
+    def test_anonymise_matches_the_typescript_fixture(self):
+        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-input.json")) as f:
+            i = json.load(f)
+        with open(os.path.join(ROOT, "evidence/corpus/fixtures/anonymise-expected.json")) as f:
+            expected = json.load(f)
+        case = C.anonymise(i["report"], i["stack"])
+        self.assertEqual(case, expected)
+        text = json.dumps(case)
+        for leak in ("seller", "9xQeWvG8", "0x209693", "10.1.2.3", "key=abc", "https://"):
+            self.assertNotIn(leak, text)
+
+    def test_via_and_user_agent(self):
+        self.assertEqual(H.via({}), "cli-py")
+        self.assertEqual(H.via({"X402CONF_VIA": "pytest"}), "pytest")
+        self.assertEqual(H.via({"X402CONF_VIA": "evil; rm -rf"}), "cli-py")
+        self.assertEqual(H.user_agent({"X402CONF_VIA": "docker"}),
+                         f"x402-conformance/{__version__} (+https://github.com/atsp-protocol/x402-conformance; via=docker)")
+
+    def test_report_and_share_url(self):
+        ok = C.make_report("resource-402", "http://127.0.0.1:1/paid", [{"check": "P1 x", "pass": True}], via="pytest")
+        self.assertEqual(ok["schema"], "x402-conformance.report/1")
+        self.assertEqual(ok["summary"], {"checks": 1, "failed": 0, "failed_ids": [], "unsupported": False})
+        self.assertIsNone(C.share_url(C.anonymise(ok)))
+        self.assertIn("Add the badge", C.funnel_footer(ok))
+        bad = C.make_report("resource-402", "https://x.example.com/p", [{"check": "P5 x", "pass": False, "detail": {}}])
+        link = C.share_url(C.anonymise(bad, {"framework": "fastapi"}))
+        assert link is not None
+        self.assertTrue(link.startswith("https://github.com/atsp-protocol/x402-conformance/issues/new?template=corpus-case.yml"))
+        self.assertIn("checks=P5", link)
+        self.assertIn("--share", C.funnel_footer(bad))
+
+    def test_resource_share_writes_the_case_and_sends_nothing(self):
+        def opener(req, timeout):
+            self.assertIn("via=cli-py", req.get_header("User-agent"))
+            raise urllib.error.HTTPError(req.full_url, 402, "Payment Required", {}, io.BytesIO(b"not json"))  # type: ignore[arg-type]
+
+        with tempfile.TemporaryDirectory() as d:
+            cwd = os.getcwd()
+            os.chdir(d)
+            out, err = io.StringIO(), io.StringIO()
+            try:
+                with mock_opener(opener), contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                    rc = C.main(["resource", "http://127.0.0.1:9/paid", "--share"])
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(rc, 0)
+            self.assertEqual(json.loads(out.getvalue())["via"], "cli-py")
+            with open(os.path.join(d, "x402-conformance-case-resource-402-1.json")) as f:
+                case = json.load(f)
+            self.assertEqual(case["failed_ids"], ["P2"])
+            self.assertEqual(case["target"], "loopback")
+            self.assertIn("nothing was sent", err.getvalue())
+            self.assertIn("issues/new?template=corpus-case.yml", err.getvalue())
+
+
+@contextlib.contextmanager
+def mock_opener(opener):
+    import urllib.request
+
+    real = urllib.request.urlopen
+    urllib.request.urlopen = opener  # type: ignore[assignment]
+    try:
+        yield
+    finally:
+        urllib.request.urlopen = real  # type: ignore[assignment]
 
 
 if __name__ == "__main__":

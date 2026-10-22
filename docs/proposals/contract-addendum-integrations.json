@@ -1,0 +1,179 @@
+{
+  "_status": "UNSIGNED PROPOSAL. Not part of proofline.json until the owner merges these tasks into the contract and re-signs it on his own machine. tools/vv.py does not read this file.",
+  "_why": "Integrations bring other ecosystems into the one suite. Each is a thin entry point with the same check IDs, report and corpus, so every criterion below tests that funnel, not only the code.",
+  "tasks": [
+    {
+      "id": "XC-11",
+      "title": "One report, test-framework entry points and opt-in corpus sharing",
+      "phase": "implement",
+      "owner": "mgillr",
+      "depends_on": [
+        "XC-M4"
+      ],
+      "scope": {
+        "allow": [
+          "ts/**",
+          "docs/USING.md",
+          "evidence/corpus/**",
+          ".github/ISSUE_TEMPLATE/corpus-case.yml"
+        ]
+      },
+      "criteria": [
+        {
+          "id": "XC-11-AC01",
+          "mandatory": true,
+          "statement": "The Node P1-P5 port agrees with the Python CLI on every fixture answer (pass/fail per check ID)",
+          "verifier": {
+            "type": "command",
+            "cmd": "cd ts && npx tsc -p . && node --test dist/test/resource.test.js",
+            "expect_exit": 0,
+            "timeout_s": 300
+          }
+        },
+        {
+          "id": "XC-11-AC02",
+          "mandatory": true,
+          "statement": "runConformance and the matchers pass stock @x402/hono and @x402/express on Solana devnet and Base Sepolia, catch a server that serves on any /settle answer, and every failure message links to its fix, the corpus and the share form",
+          "verifier": {
+            "type": "command",
+            "cmd": "cd ts && npx tsc -p . && node --test dist/test/testing.test.js && npx vitest run --config vitest.config.mjs",
+            "expect_exit": 0,
+            "timeout_s": 600
+          }
+        },
+        {
+          "id": "XC-11-AC03",
+          "mandatory": true,
+          "statement": "An anonymised case contains no URL, host, IP, address or transaction data, and nothing is sent without the user opening the link",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/src/corpus.ts",
+            "pattern": "fetch\\(",
+            "must": "absent"
+          }
+        },
+        {
+          "id": "XC-11-AC04",
+          "mandatory": true,
+          "statement": "Every report carries schema x402-conformance.report/1 and a via from the fixed list; the User-Agent names via and nothing else",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/src/report.ts",
+            "pattern": "x402-conformance/\\$\\{VERSION\\} \\(\\+\\$\\{REPO\\}; via=\\$\\{via\\}\\)",
+            "must": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "XC-12",
+      "title": "MCP server and agent-framework tools (Vercel AI SDK, LangChain)",
+      "phase": "implement",
+      "owner": "mgillr",
+      "depends_on": [
+        "XC-11"
+      ],
+      "scope": {
+        "allow": [
+          "ts/mcp/**",
+          "docs/USING.md",
+          ".github/workflows/ci.yml"
+        ]
+      },
+      "criteria": [
+        {
+          "id": "XC-12-AC01",
+          "mandatory": true,
+          "statement": "The MCP server lists seven tools over real stdio; the demo passes on the reference demo server and catches serve_on_any_settle; every result names via=mcp and links to the fix, the corpus and the share form",
+          "verifier": {
+            "type": "command",
+            "cmd": "cd ts && npm run build && cd mcp && npm test",
+            "expect_exit": 0,
+            "timeout_s": 600
+          }
+        },
+        {
+          "id": "XC-12-AC02",
+          "mandatory": true,
+          "statement": "The probe tool refuses any non-loopback URL, and the AI SDK and LangChain adapters expose only the four read-only tools",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/mcp/src/tools.ts",
+            "pattern": "AGENT_TOOLS: ToolDef<any>\\[\\] = \\[checkPaymentRequiredTool, demoTool, explainTool, shareTool\\]",
+            "must": "present"
+          }
+        },
+        {
+          "id": "XC-12-AC03",
+          "mandatory": true,
+          "statement": "MCP registry metadata (server.json name, package and version) matches package.json mcpName and the README mcp-name marker",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/mcp/README.md",
+            "pattern": "mcp-name: io.github.atsp-protocol/x402-conformance",
+            "must": "present"
+          }
+        }
+      ]
+    },
+    {
+      "id": "XC-13",
+      "title": "Python entry-point tag and corpus case, Docker image and GitLab CI template",
+      "phase": "implement",
+      "owner": "mgillr",
+      "depends_on": [
+        "XC-11",
+        "XC-12"
+      ],
+      "scope": {
+        "allow": [
+          "src/x402conf/cli.py",
+          "src/x402conf/harness.py",
+          "tests/test_live.py",
+          "evidence/corpus/fixtures/**",
+          "ts/docker/**",
+          "ts/ci/**",
+          ".github/workflows/ci.yml",
+          "docs/USING.md"
+        ]
+      },
+      "criteria": [
+        {
+          "id": "XC-13-AC01",
+          "mandatory": true,
+          "statement": "Python and TypeScript derive the identical anonymised case from the shared fixture",
+          "verifier": {
+            "type": "command",
+            "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_live.Funnel",
+            "expect_exit": 0,
+            "min_tests": 4,
+            "max_skipped": 0,
+            "timeout_s": 120
+          }
+        },
+        {
+          "id": "XC-13-AC02",
+          "mandatory": true,
+          "statement": "The image builds, carries the MCP registry name, answers MCP initialize on stdio with no arguments, and its ci command passes the reference server and fails a faulty one with an anonymised case under X402_SHARE",
+          "verifier": {
+            "type": "grep",
+            "file": ".github/workflows/ci.yml",
+            "pattern": "docker build -f ts/docker/Dockerfile",
+            "must": "present"
+          }
+        },
+        {
+          "id": "XC-13-AC03",
+          "mandatory": true,
+          "statement": "The GitLab template runs exactly x402-conformance ci with X402CONF_VIA=gitlab",
+          "verifier": {
+            "type": "grep",
+            "file": "ts/ci/gitlab/x402-conformance.gitlab-ci.yml",
+            "pattern": "X402CONF_VIA: gitlab",
+            "must": "present"
+          }
+        }
+      ]
+    }
+  ]
+}
