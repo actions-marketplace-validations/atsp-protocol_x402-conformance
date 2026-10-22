@@ -138,7 +138,7 @@
      "statement": "R11a: a payment for the cheap route presented on the expensive route gets 402 and no /settle",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11a' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11a' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -150,7 +150,7 @@
      "statement": "R11b: an altered payTo, asset or network gets 402 before any /settle",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11b' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -162,7 +162,7 @@
      "statement": "R11c and R11d: method and query substitution are priced for the request actually made",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11c|R11d' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11c|R11d' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -174,7 +174,7 @@
      "statement": "R11e: encoded separators and dot segments on a parameterised paid route get 402 unpaid",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11e' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11e' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -186,7 +186,7 @@
      "statement": "R11f: a SIWX access record is keyed by the settled route, not the client's resource.url",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11f' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11f' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -198,7 +198,7 @@
      "statement": "The stock @x402/express server passes R11 and each faulty build fails the sub-check it targets",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R11 control' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R11 control' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/binding.test.ts"
@@ -440,7 +440,7 @@
      "statement": "R12 catches a non-atomic check-then-set under parallel load",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R12' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R12' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -452,7 +452,7 @@
      "statement": "R13 catches a per-process in-memory cache across two replicas",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R13' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R13' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -464,7 +464,7 @@
      "statement": "R14 catches a server that settles again after a restart",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R14' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R14' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -527,7 +527,7 @@
      "statement": "R15: no /settle when the handler returns 3xx or 5xx or throws",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R15' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R15' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -539,7 +539,7 @@
      "statement": "R16: a HEAD carrying a payment is refused with zero /settle calls",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R16' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R16' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -551,7 +551,7 @@
      "statement": "R17: an unpaid request through a caching proxy after a paid one gets 402",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R17' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R17' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -563,7 +563,7 @@
      "statement": "R18: pending, then success, is served once, never twice",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R18' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R18' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"
@@ -575,7 +575,7 @@
      "statement": "R19: an upfront or escrow route never executes before a check",
      "verifier": {
       "type": "command",
-      "cmd": "cd ts && npm ci --silent && npx tsc -p . && node --test --test-name-pattern='R19' dist/test/*.test.js",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R19' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass [1-9]' \"$o\"",
       "expect_exit": 0,
       "timeout_s": 900,
       "test_file": "ts/test/delivery.test.ts"

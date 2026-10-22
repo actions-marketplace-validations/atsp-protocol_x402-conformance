@@ -125,7 +125,7 @@
           "statement": "The MCP server lists seven tools over real stdio; the demo passes on the reference demo server and catches serve_on_any_settle; every result names via=mcp and links to the fix, the corpus and the share form",
           "verifier": {
             "type": "command",
-            "cmd": "cd ts && npm run build && cd mcp && npm test",
+            "cmd": "cd ts && npm ci --silent && npm run build && cd mcp && npm ci --silent && npm test",
             "expect_exit": 0,
             "timeout_s": 600
           }
