@@ -144,7 +144,7 @@
   "expect_failed": [
    "R14"
   ],
-  "issue": "",
+  "issue": "https://github.com/atsp-protocol/x402-conformance/pull/17",
   "reproduced_on": "ts/example/crash-server.ts on @x402/core 2.28.0 and @x402/svm 2.28.0 with CRASH_FAULT=memory_record"
  }
 }
