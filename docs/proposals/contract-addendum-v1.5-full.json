@@ -1,0 +1,1555 @@
+{
+ "about": "PROPOSED, UNSIGNED. Every docs/ROADMAP.md item that no earlier task (XC-01 to XC-21) covers, decomposed into Proofline tasks XC-22 to XC-37 with verifiers that fail until the work is built. Nothing here is binding and CI does not read this file. Apply after the v1.4 addenda (XC-09 to XC-20) and the R14 addendum (XC-21) are signed.",
+ "schema": "proofline/1",
+ "status": "proposed",
+ "proposed_by": "mgillr",
+ "target": "proofline.json tasks[]",
+ "applies_after": [
+  {
+   "file": "docs/proposals/contract-addendum-v1.4-v1.5.json",
+   "sha256": "8be166554fa5a6b5a1ed4af8486d72b21aef662d648db59eced62e88f6e9059b",
+   "at": "feat/pytest-plugin e1ea168"
+  },
+  {
+   "file": "docs/proposals/contract-addendum-integrations.json",
+   "sha256": "ec937f9a794f22c3b44fbaa519056bfa1266c0d8ae00210741b3f4f30e575263",
+   "at": "feat/pytest-plugin e1ea168"
+  },
+  {
+   "file": "docs/proposals/contract-addendum-r14.json",
+   "sha256": "28386afc54c9ef7f037e8608df24401a287a457f042f1a2dfaaeeb9cd2ce7009",
+   "at": "r14-crash-between-settle-and-response 1842ba9"
+  }
+ ],
+ "node_test_guard": "Every node --test criterion uses the guard from feat/pytest-plugin e1ea168: it passes only if at least N tests whose own name matches the check ID pass, with no not-ok line; suites, skips and todos don't count.",
+ "requirements_added": [
+  "R-RELEASE",
+  "R-GATE",
+  "R-MCP",
+  "R-PREEMPT",
+  "R-SCHEMES",
+  "R-DISCOVERY",
+  "R-SIWX"
+ ],
+ "not_contract_tasks": {
+  "publishing": "Tagging, PyPI, npm, MCP registry, GHCR, Marketplace and moving v1 happen on the owner's machine (XC-30 and XC-31 only check the tags afterwards).",
+  "third_parties": "M2 operator permission (XC-M2), external adoption (XC-M6), public validation (XC-32 AC02), the adoption measures table, and every upstream fix the roadmap cites."
+ },
+ "tasks": [
+  {
+   "id": "XC-22",
+   "title": "R20: a client retry never pays twice for one request",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-17",
+    "XC-21"
+   ],
+   "requirements": [
+    "R-CONC"
+   ],
+   "description": "A client times out before /settle answers and retries. R20a (server): a retry of the same request carrying a fresh payment and the same client idempotency key (payment-identifier id, or Idempotency-Key when the server documents it) is not charged again; the server returns the earlier result or settlement reference, and the facilitator double sees at most one successful /settle for the request. R20b (client): a retry that reuses the same signed payment (same nonce or transaction) is refused as a duplicate by /settle and the original result is returned; the bundled client harness flags a client that re-signs a fresh payment for the same request without an idempotency key. Control: a stock @x402/express server with a durable idempotency record and the stock @x402/fetch client. Faulty builds: a server that settles both payments (settle_both), one that keys the record by payment instead of request (key_by_payment), and a client that re-signs on timeout (resign_on_timeout). Solana devnet and Base Sepolia, facilitator double on loopback, as R14. Probe flag --retry and Action input retry. A corpus case records the scenario as reported publicly.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "tests/test_live.py",
+     "action.yml",
+     ".github/workflows/ci.yml",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-22-AC01",
+     "mandatory": true,
+     "statement": "R20a: the control passes and settle_both and key_by_payment each fail, on both networks",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R20a' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R20a' 6",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/retry.test.ts"
+     }
+    },
+    {
+     "id": "XC-22-AC02",
+     "mandatory": true,
+     "statement": "R20b: a same-payment retry is refused as a duplicate with the original result; resign_on_timeout is flagged, on both networks",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R20b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" 'R20b' 4",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/retry.test.ts"
+     }
+    },
+    {
+     "id": "XC-22-AC03",
+     "mandatory": true,
+     "statement": "R20, R20a and R20b are in the check catalog with profile, basis, control, faulty build and a FIXES section, and the TypeScript catalog matches",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"R20\", \"R20a\", \"R20b\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-22-AC04",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps R20 to the spec text it rests on",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| R20 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-22-AC05",
+     "mandatory": true,
+     "statement": "The Action takes the retry input",
+     "verifier": {
+      "type": "grep",
+      "file": "action.yml",
+      "pattern": "^  retry:$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-22-AC06",
+     "mandatory": true,
+     "statement": "The R20 corpus case is committed and parses",
+     "verifier": {
+      "type": "command",
+      "cmd": "ls corpus/cases/*-R20-*.json >/dev/null && python3 -c 'import glob,json; [json.load(open(f)) for f in glob.glob(\"corpus/cases/*-R20-*.json\")]'",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-22-AC07",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-22-AC08",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-23",
+   "title": "Docs in sync with the build, and a generated interdependency map",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-04",
+    "XC-05"
+   ],
+   "requirements": [
+    "R-DOCS"
+   ],
+   "description": "docs/INTERDEPENDENCY.md is generated by tools/interdeps.py from proofline.json, the proposed addenda and the tree: every XC task, its dependencies, requirements, scope and status; every check id with its profile, spec basis, upstream references, code, tests, docs and entry points; a mermaid graph. tools/interdeps.py --check fails when the committed file is stale. tools/interdeps.py --drift fails when a doc names a check id, CLI flag or Action input the code doesn't have, or the code has one the docs don't name, or package versions disagree. CI runs both.",
+   "scope": {
+    "allow": [
+     "README.md",
+     "CHANGELOG.md",
+     "CONTRIBUTING.md",
+     "docs/**",
+     "ts/README.md",
+     "ts/mcp/README.md",
+     "tools/interdeps.py",
+     "tests/test_interdeps.py",
+     ".github/workflows/ci.yml"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-23-AC01",
+     "mandatory": true,
+     "statement": "docs/INTERDEPENDENCY.md matches what tools/interdeps.py builds from the tree",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/interdeps.py --check",
+      "expect_exit": 0,
+      "timeout_s": 120
+     }
+    },
+    {
+     "id": "XC-23-AC02",
+     "mandatory": true,
+     "statement": "No drift between docs and code: check ids, CLI flags, Action inputs and versions",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/interdeps.py --drift",
+      "expect_exit": 0,
+      "timeout_s": 120
+     }
+    },
+    {
+     "id": "XC-23-AC03",
+     "mandatory": true,
+     "statement": "A stale map and each kind of drift are detected (the checker can fail)",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_interdeps",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-23-AC04",
+     "mandatory": true,
+     "statement": "The map has a mermaid graph",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/INTERDEPENDENCY.md",
+      "pattern": "^```mermaid$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-23-AC05",
+     "mandatory": true,
+     "statement": "CI fails on a stale map",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/workflows/ci.yml",
+      "pattern": "python3 tools/interdeps\\.py --check",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-23-AC06",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-23-AC07",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-24",
+   "title": "Lean: n replicas, shared atomic check-and-set versus partitioned caches",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-03",
+    "XC-M3"
+   ],
+   "requirements": [
+    "R-LEAN"
+   ],
+   "description": "Extends the settlement model to n replicas: a shared atomic check-and-set admits at most one grant per payment, while per-replica caches admit more than one. Models the rule, not anyone's code.",
+   "scope": {
+    "allow": [
+     "lean/X402Conformance/Replicas.lean",
+     "lean/X402Conformance.lean",
+     "lean/Axioms.lean",
+     "docs/SPEC.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-24-AC01",
+     "mandatory": true,
+     "statement": "Both replica theorems build and use only standard axioms",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd lean && lake build && cd .. && python3 tools/lean_axioms.py | python3 -c 'import json,sys; d=json.load(sys.stdin); need=[\"shared_cas_at_most_one_grant\", \"partitioned_caches_admit_double_grant\"]; miss=[x for x in need if not any(n==x or n.endswith(\".\"+x) for n in d[\"names\"])]; print(\"missing:\", miss, \"unexpected:\", d[\"unexpected_axioms\"]); sys.exit(1 if miss or d[\"unexpected_axioms\"] else 0)'",
+      "expect_exit": 0,
+      "timeout_s": 1800
+     }
+    },
+    {
+     "id": "XC-24-AC02",
+     "mandatory": true,
+     "statement": "No sorry in the replica model",
+     "verifier": {
+      "type": "command",
+      "cmd": "! grep -n -w sorry lean/X402Conformance/Replicas.lean",
+      "expect_exit": 0,
+      "timeout_s": 30
+     }
+    },
+    {
+     "id": "XC-24-AC03",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-24-AC04",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-25",
+   "title": "A2 and A5: the PR summary comment and the results badge",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-M4",
+    "XC-16"
+   ],
+   "requirements": [
+    "R-ADOPT"
+   ],
+   "description": "A2: pr-comment posts one sticky comment, updated in place, with a fix link per failure. A5: the Action and x402conf report --badge write a shields.io endpoint that says tested with, never certified.",
+   "scope": {
+    "allow": [
+     "action.yml",
+     "src/x402conf/cli.py",
+     "src/x402conf/harness.py",
+     "tests/test_offline.py",
+     "README.md",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-25-AC01",
+     "mandatory": true,
+     "statement": "A2: one comment, updated in place",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Report.test_pr_comment_posts_once_then_updates_in_place",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-25-AC02",
+     "mandatory": true,
+     "statement": "A2 and A5: the Action summary writes the comment body and the badge",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Report.test_action_summary_writes_the_sticky_comment_and_badge",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-25-AC03",
+     "mandatory": true,
+     "statement": "A5: the badge is a valid shields.io endpoint",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Report.test_badge_is_a_shields_endpoint",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-25-AC04",
+     "mandatory": true,
+     "statement": "The README says the badge means tested with, not certified",
+     "verifier": {
+      "type": "grep",
+      "file": "README.md",
+      "pattern": "certified",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-25-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-25-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-26",
+   "title": "A4: framework quickstarts, clone to first result, run in CI",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-20",
+    "XC-14"
+   ],
+   "requirements": [
+    "R-ADOPT"
+   ],
+   "description": "One minimal paid route plus its workflow per framework under examples/<framework>/: Express, Hono and Next (v1.4), FastAPI, Flask and Go gin (v1.5). tools/quickstart.sh <framework> goes from a clean checkout to a first result and fails unless the probe ran and passed in under 300 s. CI runs every quickstart.",
+   "scope": {
+    "allow": [
+     "examples/**",
+     "tools/quickstart.sh",
+     ".github/workflows/ci.yml",
+     "docs/USING.md",
+     "README.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-26-AC01",
+     "mandatory": true,
+     "statement": "The express quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh express",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC02",
+     "mandatory": true,
+     "statement": "The hono quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh hono",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC03",
+     "mandatory": true,
+     "statement": "The next quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh next",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC04",
+     "mandatory": true,
+     "statement": "The fastapi quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh fastapi",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC05",
+     "mandatory": true,
+     "statement": "The flask quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh flask",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC06",
+     "mandatory": true,
+     "statement": "The go quickstart reaches a passing first result in under 300 s",
+     "verifier": {
+      "type": "command",
+      "cmd": "timeout 300 sh tools/quickstart.sh go",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-26-AC07",
+     "mandatory": true,
+     "statement": "CI runs every quickstart",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/workflows/ci.yml",
+      "pattern": "quickstart\\.sh \\$\\{\\{ matrix\\.framework \\}\\}",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-26-AC08",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-26-AC09",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-27",
+   "title": "A8: every docs example is run by CI",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-23"
+   ],
+   "requirements": [
+    "R-ADOPT"
+   ],
+   "description": "tools/doc_examples.py extracts every fenced example marked as runnable in README.md, docs/USING.md and the examples READMEs (CLI, GitHub Actions via act-free YAML validation, GitLab CI, make) and runs it against the bundled mock target. A broken example fails the build.",
+   "scope": {
+    "allow": [
+     "tools/doc_examples.py",
+     "tests/test_doc_examples.py",
+     ".github/workflows/ci.yml",
+     "README.md",
+     "docs/**",
+     "examples/**",
+     "Makefile.example"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-27-AC01",
+     "mandatory": true,
+     "statement": "Every runnable docs example runs and exits as documented",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/doc_examples.py --run",
+      "expect_exit": 0,
+      "timeout_s": 1200
+     }
+    },
+    {
+     "id": "XC-27-AC02",
+     "mandatory": true,
+     "statement": "A deliberately broken example is detected",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_doc_examples",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-27-AC03",
+     "mandatory": true,
+     "statement": "CI runs the docs examples",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/workflows/ci.yml",
+      "pattern": "tools/doc_examples\\.py --run",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-27-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-27-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-28",
+   "title": "A7: the compatibility matrix is generated from runs, on a schedule",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-19"
+   ],
+   "requirements": [
+    "R-MATRIX"
+   ],
+   "description": "tools/compat_matrix.py rebuilds docs/compat-matrix.json and the generated table in docs/MATRIX.md from evidence/impl-matrix/*/run.json; --check fails when either is stale or a row has no run link or hashes. A scheduled workflow and every release regenerate it. Failing stock-server rows go to maintainers privately first (SECURITY.md).",
+   "scope": {
+    "allow": [
+     "tools/compat_matrix.py",
+     "tests/test_compat_matrix.py",
+     "docs/compat-matrix.json",
+     "docs/MATRIX.md",
+     ".github/workflows/compat-matrix.yml",
+     "evidence/impl-matrix/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-28-AC01",
+     "mandatory": true,
+     "statement": "The matrix JSON and table match the committed runs, and every row links its run and hashes",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/compat_matrix.py --check",
+      "expect_exit": 0,
+      "timeout_s": 120
+     }
+    },
+    {
+     "id": "XC-28-AC02",
+     "mandatory": true,
+     "statement": "A hand-edited row and a row without hashes are both detected",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_compat_matrix",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-28-AC03",
+     "mandatory": true,
+     "statement": "The matrix is regenerated on a schedule",
+     "verifier": {
+      "type": "grep",
+      "file": ".github/workflows/compat-matrix.yml",
+      "pattern": "^\\s+schedule:",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-28-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-28-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-29",
+   "title": "Credibility: the mutation matrix and false-positive handling, published",
+   "phase": "verify",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-16"
+   ],
+   "requirements": [
+    "R-CRED"
+   ],
+   "description": "tools/mutation_matrix.py writes docs/site/mutation-matrix.json (check x faulty build, caught or not) from spec.CATALOG by running every fault; --check fails when it is stale or any check has no caught fault. docs/FALSE-POSITIVES.md lists every false-positive report with its issue, the fix or documented exception and its regression test.",
+   "scope": {
+    "allow": [
+     "tools/mutation_matrix.py",
+     "tests/test_mutation_matrix.py",
+     "docs/site/**",
+     "docs/FALSE-POSITIVES.md",
+     ".github/workflows/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-29-AC01",
+     "mandatory": true,
+     "statement": "The published mutation matrix is current and every check catches at least one faulty build",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/mutation_matrix.py --check",
+      "expect_exit": 0,
+      "timeout_s": 900
+     }
+    },
+    {
+     "id": "XC-29-AC02",
+     "mandatory": true,
+     "statement": "A check with no caught fault fails the matrix check",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_mutation_matrix",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-29-AC03",
+     "mandatory": true,
+     "statement": "The false-positive register exists with its columns",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/FALSE-POSITIVES.md",
+      "pattern": "^\\| issue \\| check \\| outcome \\| regression test \\|$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-29-AC04",
+     "mandatory": true,
+     "statement": "The project page shows the mutation matrix",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/site/index.html",
+      "pattern": "mutation-matrix\\.json",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-29-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-29-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-30",
+   "title": "Release 1.4.0: versions, changelog and the corpus tag",
+   "phase": "release",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-09",
+    "XC-10",
+    "XC-11",
+    "XC-12",
+    "XC-13",
+    "XC-14",
+    "XC-15",
+    "XC-16",
+    "XC-20",
+    "XC-23",
+    "XC-25"
+   ],
+   "requirements": [
+    "R-RELEASE"
+   ],
+   "description": "Code-side release prep. Every version string agrees (pyproject, __init__, both package.json files, server.json, the MCP package's dependency on x402-conformance-svm), CHANGELOG has a 1.4.0 section, and the README note about unreleased features is gone. Tagging, publishing to PyPI, npm and the MCP registry, moving v1 and the corpus-v1.4 tag are done by the owner on his own machine (release/PUBLISH-1.4.0.md); AC04 checks the tag once pushed.",
+   "scope": {
+    "allow": [
+     "pyproject.toml",
+     "src/x402conf/__init__.py",
+     "ts/package.json",
+     "ts/package-lock.json",
+     "ts/mcp/package.json",
+     "ts/mcp/package-lock.json",
+     "ts/mcp/server.json",
+     "CHANGELOG.md",
+     "README.md",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-30-AC01",
+     "mandatory": true,
+     "statement": "Every version string is 1.4.0 and the MCP package depends on x402-conformance-svm ^1.4.0",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/interdeps.py --versions 1.4.0",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-30-AC02",
+     "mandatory": true,
+     "statement": "CHANGELOG has a 1.4.0 section",
+     "verifier": {
+      "type": "grep",
+      "file": "CHANGELOG.md",
+      "pattern": "^## 1\\.4\\.0 ",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-30-AC03",
+     "mandatory": true,
+     "statement": "The pre-release README note is removed",
+     "verifier": {
+      "type": "grep",
+      "file": "README.md",
+      "pattern": "Before 1\\.4\\.0 is published",
+      "must": "absent"
+     }
+    },
+    {
+     "id": "XC-30-AC04",
+     "mandatory": true,
+     "statement": "Tags v1.4.0 and corpus-v1.4 are on origin (pushed by the owner)",
+     "verifier": {
+      "type": "command",
+      "cmd": "git ls-remote --exit-code --tags origin refs/tags/v1.4.0 refs/tags/corpus-v1.4 | test $(wc -l) -eq 2",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-30-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-30-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-31",
+   "title": "Release 1.5.0",
+   "phase": "release",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-17",
+    "XC-18",
+    "XC-19",
+    "XC-21",
+    "XC-22",
+    "XC-24",
+    "XC-26",
+    "XC-27",
+    "XC-28",
+    "XC-29",
+    "XC-30"
+   ],
+   "requirements": [
+    "R-RELEASE"
+   ],
+   "description": "As XC-30, for 1.5.0: versions, changelog, corpus-v1.5. Publishing stays with the owner.",
+   "scope": {
+    "allow": [
+     "pyproject.toml",
+     "src/x402conf/__init__.py",
+     "ts/package.json",
+     "ts/package-lock.json",
+     "ts/mcp/package.json",
+     "ts/mcp/package-lock.json",
+     "ts/mcp/server.json",
+     "CHANGELOG.md",
+     "README.md",
+     "docs/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-31-AC01",
+     "mandatory": true,
+     "statement": "Every version string is 1.5.0",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/interdeps.py --versions 1.5.0",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-31-AC02",
+     "mandatory": true,
+     "statement": "CHANGELOG has a 1.5.0 section",
+     "verifier": {
+      "type": "grep",
+      "file": "CHANGELOG.md",
+      "pattern": "^## 1\\.5\\.0 ",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-31-AC03",
+     "mandatory": true,
+     "statement": "Tags v1.5.0 and corpus-v1.5 are on origin (pushed by the owner)",
+     "verifier": {
+      "type": "command",
+      "cmd": "git ls-remote --exit-code --tags origin refs/tags/v1.5.0 refs/tags/corpus-v1.5 | test $(wc -l) -eq 2",
+      "expect_exit": 0,
+      "timeout_s": 60
+     }
+    },
+    {
+     "id": "XC-31-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-31-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-32",
+   "title": "The release gate: dropping the experimental label",
+   "phase": "monitor",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-31",
+    "XC-M6"
+   ],
+   "requirements": [
+    "R-GATE"
+   ],
+   "description": "All six gate items in docs/ROADMAP.md are ticked, each with evidence: resource binding, concurrency, delivery recovery, test credibility, reproducible evidence and public validation (at least three independent teams that published results or actionable issues, listed with links in docs/ADOPTION.md). Public validation depends on people outside this repo and cannot be forced.",
+   "scope": {
+    "allow": [
+     "docs/ROADMAP.md",
+     "docs/ADOPTION.md",
+     "README.md",
+     "docs/site/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-32-AC01",
+     "mandatory": true,
+     "statement": "No release-gate item is unticked",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/ROADMAP.md",
+      "pattern": "^- \\[ \\] \\*\\*",
+      "must": "absent"
+     }
+    },
+    {
+     "id": "XC-32-AC02",
+     "mandatory": true,
+     "statement": "At least three independent teams are listed with links",
+     "verifier": {
+      "type": "command",
+      "cmd": "test $(grep -cE '^\\| \\[[^]]+\\]\\(https://' docs/ADOPTION.md) -ge 3",
+      "expect_exit": 0,
+      "timeout_s": 30
+     }
+    },
+    {
+     "id": "XC-32-AC03",
+     "mandatory": true,
+     "statement": "The README no longer carries the experimental label",
+     "verifier": {
+      "type": "grep",
+      "file": "README.md",
+      "pattern": "^\\*\\*Experimental\\.\\*\\*",
+      "must": "absent"
+     }
+    },
+    {
+     "id": "XC-32-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-32-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-33",
+   "title": "MCP transport: X1 and X2 for paid MCP tools",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-12",
+    "XC-16"
+   ],
+   "requirements": [
+    "R-MCP"
+   ],
+   "description": "X1: a paid tool's payment-required answer has the shape specs/transports-v2/mcp.md gives it (read-only). X2: fault injection on paid tool calls, as R0-R10 for HTTP: no tool result on a /settle timeout, broken answer, pending or duplicate. Later breadth, after v1.5.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "action.yml",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-33-AC01",
+     "mandatory": true,
+     "statement": "X1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^X1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^X1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/mcp-transport.test.ts"
+     }
+    },
+    {
+     "id": "XC-33-AC02",
+     "mandatory": true,
+     "statement": "X2: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^X2\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^X2\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/mcp-transport.test.ts"
+     }
+    },
+    {
+     "id": "XC-33-AC03",
+     "mandatory": true,
+     "statement": "X1, X2 are in the catalog with controls, faulty builds and FIXES sections",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"X1\", \"X2\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-33-AC04",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps X1 to its spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| X1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-33-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-33-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-34",
+   "title": "R21: settlement preemption for caller-unbound settlement (Permit2 on EVM)",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-17"
+   ],
+   "requirements": [
+    "R-PREEMPT"
+   ],
+   "description": "A third party submits the signed Permit2 transfer before the server settles; the server must not grant on a settlement it did not make and must not double-grant. Base Sepolia doubles only. Later breadth, after v1.5.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "action.yml",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-34-AC01",
+     "mandatory": true,
+     "statement": "R21: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^R21\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^R21\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/preempt.test.ts"
+     }
+    },
+    {
+     "id": "XC-34-AC02",
+     "mandatory": true,
+     "statement": "R21 are in the catalog with controls, faulty builds and FIXES sections",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"R21\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-34-AC03",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps R21 to its spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| R21 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-34-AC04",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-34-AC05",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-35",
+   "title": "Schemes: upto (U1-U3) and batch-settlement (B1-B3)",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-16"
+   ],
+   "requirements": [
+    "R-SCHEMES"
+   ],
+   "description": "upto: the settled amount never exceeds the authorised maximum, is reported, and P7's paymentFlow rule is graded. batch-settlement: one batch settles each authorisation once and partial failure is reported per item. Each from the scheme specs, with doubles on both networks. Later breadth, after v1.5.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "action.yml",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-35-AC01",
+     "mandatory": true,
+     "statement": "U1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^U1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^U1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC02",
+     "mandatory": true,
+     "statement": "U2: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^U2\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^U2\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC03",
+     "mandatory": true,
+     "statement": "U3: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^U3\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^U3\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC04",
+     "mandatory": true,
+     "statement": "B1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^B1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^B1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC05",
+     "mandatory": true,
+     "statement": "B2: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^B2\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^B2\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC06",
+     "mandatory": true,
+     "statement": "B3: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^B3\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^B3\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/schemes.test.ts"
+     }
+    },
+    {
+     "id": "XC-35-AC07",
+     "mandatory": true,
+     "statement": "U1, U2, U3, B1, B2, B3 are in the catalog with controls, faulty builds and FIXES sections",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"U1\", \"B3\", \"B2\", \"U2\", \"B1\", \"U3\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-35-AC08",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps U1 to its spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| U1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-35-AC09",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-35-AC10",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-36",
+   "title": "Discovery and A2A: D1 (Bazaar) and G1 (A2A)",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-16"
+   ],
+   "requirements": [
+    "R-DISCOVERY"
+   ],
+   "description": "D1: /discovery/resources and /discovery/search answers follow V2 section 8 (read-only). G1: an A2A payment-required exchange carries the same requirements as the HTTP 402 it mirrors. Later breadth, after v1.5.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "action.yml",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-36-AC01",
+     "mandatory": true,
+     "statement": "D1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^D1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^D1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/discovery.test.ts"
+     }
+    },
+    {
+     "id": "XC-36-AC02",
+     "mandatory": true,
+     "statement": "G1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^G1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^G1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/discovery.test.ts"
+     }
+    },
+    {
+     "id": "XC-36-AC03",
+     "mandatory": true,
+     "statement": "D1, G1 are in the catalog with controls, faulty builds and FIXES sections",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"D1\", \"G1\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-36-AC04",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps D1 to its spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| D1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-36-AC05",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-36-AC06",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-37",
+   "title": "SIWX normative: W1-W3",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10"
+   ],
+   "requirements": [
+    "R-SIWX"
+   ],
+   "description": "W1: domain and uri come from the server's configuration, never from Host. W2: nonces are single-use. W3: issuedAt and expiry windows are enforced. From the sign-in-with-x extension text. Later breadth, after v1.5.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "tests/test_offline.py",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "action.yml",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-37-AC01",
+     "mandatory": true,
+     "statement": "W1: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^W1\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^W1\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/siwx.test.ts"
+     }
+    },
+    {
+     "id": "XC-37-AC02",
+     "mandatory": true,
+     "statement": "W2: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^W2\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^W2\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/siwx.test.ts"
+     }
+    },
+    {
+     "id": "XC-37-AC03",
+     "mandatory": true,
+     "statement": "W3: the stock control passes and its faulty build fails",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='^W3\\b' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && node -e 'const[f,p,k]=process.argv.slice(1),re=new RegExp(p),min=+(k||1);let n=0,bad=0,cur=0;const fin=()=>{n+=cur;cur=0};for(const l of require(\"fs\").readFileSync(f,\"utf8\").split(\"\\n\")){const m=/^ *(not )?ok \\d+ - (.*)$/.exec(l);if(m){fin();if(m[1])bad++;else if(!/ # (SKIP|TODO)\\b/.test(m[2])&&re.test(m[2]))cur=1;continue}if(/^ *type: .suite.$/.test(l))cur=0}fin();console.log(\"guard: \"+n+\" passing test(s) named /\"+p+\"/ (need \"+min+\"), \"+bad+\" not ok\");process.exit(n>=min&&!bad?0:1)' \"$o\" '^W3\\b' 2",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/siwx.test.ts"
+     }
+    },
+    {
+     "id": "XC-37-AC04",
+     "mandatory": true,
+     "statement": "W1, W2, W3 are in the catalog with controls, faulty builds and FIXES sections",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"W1\", \"W2\", \"W3\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-37-AC05",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps W1 to its spec text",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| W1 \\|",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-37-AC06",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-37-AC07",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  }
+ ]
+}

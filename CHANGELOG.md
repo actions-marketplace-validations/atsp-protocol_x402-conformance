@@ -1,5 +1,12 @@
 # Changelog
 ## Unreleased
+- [docs/INTERDEPENDENCY.md](docs/INTERDEPENDENCY.md): every contract task and its dependencies, every check with its
+  spec basis, upstream refs, code, tests and docs, the entry points and the downstream drafts, with a mermaid graph.
+  It is generated from the contract, the proposed addenda and the tree. The generator (`tools/interdeps.py`), its tests
+  and the CI step that fails on a stale map or on docs-versus-code drift land with contract task XC-23, once signed.
+- Proposed (unsigned) contract addendum for the rest of the roadmap, XC-22 to XC-37
+  ([docs/proposals/contract-addendum-v1.5-full.json](docs/proposals/contract-addendum-v1.5-full.json)), including
+  R20: a client that times out and retries must never pay twice for one request.
 - Docs synced with the code on `main`: the README says which commands and Action inputs need 1.4.0 (published 1.3.1
   and `@v1` don't have them yet) and lists the `pr-comment` and `github-token` inputs; the MCP check tool is P1-P7;
   ARCHITECTURE lists the binding probe, test helpers, MCP server, Docker image, GitLab template and corpus; the project
