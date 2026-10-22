@@ -50,7 +50,9 @@ def run_pytest(test_src: str, *args: str, env: dict[str, str] | None = None) -> 
     d = tempfile.mkdtemp()
     with open(os.path.join(d, "test_x.py"), "w") as f:
         f.write(SERVER + textwrap.dedent(test_src))
-    e = {**os.environ, "PYTHONPATH": os.path.join(ROOT, "src"), **(env or {})}
+    # Load the plugin from src with -p and switch off entry-point autoload, so an installed copy
+    # (pip install .) is not registered twice. The CI job checks the entry point on its own.
+    e = {**os.environ, "PYTHONPATH": os.path.join(ROOT, "src"), "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1", **(env or {})}
     e.pop("X402CONF_VIA", None)
     return subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "-p", "x402conf.pytest_plugin",
                            os.path.join(d, "test_x.py"), *args], env=e, capture_output=True, text=True, timeout=900, cwd=d)
