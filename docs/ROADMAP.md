@@ -17,6 +17,10 @@ are about answering that with evidence, in three adversarial test families, in t
 3. **Payment versus delivery** (v1.5): a settled payment never ends in nothing delivered, and a failed delivery never
    ends in a settled payment, with an explicit outcome for timeouts, `HEAD`, redirects, errors and caches.
 
+This is an open-source code project: the checks, the doubles, the CLIs and the Action. The aim is a suite that
+x402 developers actually run, in every repo and on every change, so adoption is built into the code alongside the
+checks ([Adoption track](#adoption-track-built-into-the-code)).
+
 Everything on this page is my proposal. It's open for review in issues and Discussions, and dates are targets, not
 promises.
 
@@ -118,7 +122,7 @@ from the server's own matching.
 
 **v1.4 is done when** R11a to R11f catch their faulty builds and the stock server passes on Solana devnet and Base
 Sepolia, the oracle survives the malformed-amount table, the extended F5, F11, P6 and P7 ship with controls and faulty builds, and
-the credibility gate is green.
+the credibility gate is green, and A1, A2, A3, A5, A6 (seeded) and the v1.4 parts of A4, A7 and A8 ship with it.
 
 ## v1.5: concurrency, delivery and an implementation matrix (target: December 2026)
 
@@ -164,7 +168,8 @@ that can't start (for example, a Go server registering a scheme for `eip155:*`, 
 as a pass or a security failure.
 
 **v1.5 is done when** R12 to R19 catch their faulty builds, the stock TypeScript server passes them, and the matrix has
-at least five stack-and-version rows with pinned, hashed evidence.
+at least five stack-and-version rows with pinned, hashed evidence, regenerated in CI (A7), and the FastAPI, Flask and
+Go quickstarts (A4) are green.
 
 ## Later: breadth, once the depth is there
 
@@ -177,6 +182,22 @@ Each of these lands only when it can be tested as thoroughly as `exact` is today
 - **The `upto` and `batch-settlement` schemes**, then A2A and discovery (Bazaar) checks.
 - **SIWX normative checks**: domain and `uri` origin from the server's configuration, never from `Host`; nonce
   uniqueness; `issuedAt` and expiry windows.
+
+## Adoption track: built into the code
+
+A check only protects anyone if it gets run. These items make the suite fast to try, easy to keep in CI and easy to
+contribute to. The v1.4 items ship with v1.4, because they decide whether anyone runs R11.
+
+| id | what | done when | release |
+|---|---|---|---|
+| A1 | **Zero-config one-liners.** `npx -y x402-conformance-svm demo` and `pipx run --spec x402-conformance x402conf demo` start a local mock target (a stock `@x402/express` server and the facilitator double on loopback), run the checks and print the results | under 60 s on a laptop or a GitHub-hosted runner, with no wallet, keys, funds or network beyond the package download; tested in CI | v1.4 |
+| A2 | **A 3-line GitHub Action**, with a PR summary comment and SARIF | `uses:` plus `resource-url` and `start` is a complete job; an opt-in sticky comment on the pull request lists what failed, with the fix hint for each; SARIF lands in code scanning as it does today | v1.4 |
+| A3 | **Friendly failure messages.** Every failed check prints one line saying what failed, the likely cause and the fix, with a link to its [FIXES.md](FIXES.md) entry | a test fails the build if any check id has no fix hint | v1.4 |
+| A4 | **Framework adapters and quickstarts.** A minimal paid route plus the workflow file, per framework, each run in CI: Express, Hono and Next first; FastAPI, Flask and Go next | each quickstart goes from clone to a first result in under 5 minutes, and its CI job is green | Express, Hono, Next in v1.4; FastAPI, Flask, Go in v1.5 |
+| A5 | **Copy-paste badge.** `x402conf report --badge` writes a shields.io endpoint file from your results, next to the static "tested with" badge | the badge reflects the last run and still says "tested with", never "certified" | v1.4 |
+| A6 | **A public, versioned regression corpus.** One directory per case under `corpus/`: the scenario, the check, the profile, the spec basis or upstream issue, a passing control, a faulty build and the expected outcome, at pinned versions | a case template and an issue form let anyone propose a case; each release tags the corpus (`corpus-v1.4`); a contributed case lands with its control and faulty build, like any check | seeded in v1.4 (F1, F10, F11, R11); open to contributions from v1.4 |
+| A7 | **A compatibility matrix regenerated in CI.** The stock servers, at pinned SDK versions, run on a schedule and on every release; the matrix in [MATRIX.md](MATRIX.md) and a JSON copy are rebuilt from those runs, never edited by hand | each row links to the run that produced it; failing rows on stock servers go to maintainers privately first under [SECURITY.md](../SECURITY.md) | TypeScript rows in v1.4; Python and Go rows in v1.5 |
+| A8 | **Docs examples.** Copy-paste examples for each framework and for GitHub Actions, GitLab CI and a plain `make` target | every example is run by CI, so none of them can rot | v1.4 for the A4 frameworks; v1.5 for the rest |
 
 ## The release gate
 
@@ -196,38 +217,36 @@ and I describe the suite as a dependable x402 safety gate, only when all six of 
 Before that point the test definitions are frozen for one release, run against independent implementations, and the
 evidence is published.
 
-## What stays free, and what doesn't
+## Scope
 
-**Free and open source, Apache-2.0, permanently:** every check and its spec mapping, the faulty builds, the facilitator
-double, the CLI, the GitHub Action, the evidence format, the Lean models, the implementation matrix and every result I
-publish. No check will ever move behind a paywall, and the free core will always be enough to gate your own CI.
-
-**Paid, later, for teams that would rather not run it themselves** ([MANAGED.md](MANAGED.md)): hosted continuous
-monitoring of live endpoints (read-only), signed per-release reports with a public verify link, custom checks for
-a scheme, chain or extension, and priority support. Anything a paid engagement produces that is a general check comes
-back into the free core.
+**In scope:** open-source code under Apache-2.0: every check and its spec mapping, the faulty builds, the facilitator
+double, the Python and TypeScript CLIs, the GitHub Action, the evidence format, the regression corpus, the
+compatibility matrix, the Lean models and every result I publish. All of it runs on your machine or your CI.
 
 **Not on the roadmap:**
 - **Certification.** A pass is evidence about one property on one day. The badge says "tested with", and I won't
   offer a certification scheme without agreed criteria and independent governance.
-- **A hosted dashboard**, until developers are regularly running the free suite.
+- **Hosted services or dashboards.** The suite is code you run; results stay in your repo and your CI.
 - **Shallow checks** added to raise the count. Each check has to meet the bar above.
 - **Mainnet probes** or anything else that submits a real payment or creates financial risk.
 - **Every chain, SDK and extension at once.** Depth on payment-to-resource safety comes first.
 
 ## How I'll measure it
 
+Adoption is the goal, so the first four measures are about use. The last three keep the checks trustworthy while it
+grows.
+
 | measure | v1.4 | v1.5 | release gate |
 |---|---|---|---|
+| external public repos using the Action (GitHub code search for `atsp-protocol/x402-conformance@`) | 3 | 10 | 25 |
+| package downloads per month (PyPI `x402-conformance` plus npm `x402-conformance-svm`) | 500 | 2,000 | 5,000 |
+| corpus cases contributed from outside this repo | 1 | 5 | 15 |
+| upstream fixes that cite a check or a corpus case | 2 | 4 | 6 |
 | checks with a passing control and a caught faulty build | 100% | 100% | 100% |
-| stack-and-version rows in the matrix | 2 | 5 | 8 |
-| external repos running the Action in CI (public) | 1 | 3 | 5 |
-| independent teams with published runs or issues | – | 1 | 3 |
-| upstream issues reproduced by a check, with a fix validated | 2 | 4 | 6 |
+| time from the A1 one-liner to a first result | under 60 s | under 60 s | under 60 s |
 | median time from a false-positive report to a fix or a documented exception | 7 days | 7 days | 7 days |
-| time from `pipx run` to a first result | under 60 s | under 60 s | under 60 s |
 
-I count a user or a team only when they've said so publicly.
+I count a user, a team or a repo only when it's public or they've said so publicly.
 
 ## Programme milestones
 

@@ -19,7 +19,8 @@
   "R-CRED",
   "R-CONC",
   "R-DELIV",
-  "R-MATRIX"
+  "R-MATRIX",
+  "R-ADOPT"
  ],
  "tasks": [
   {
@@ -536,6 +537,102 @@
       "type": "command",
       "cmd": "test $(ls evidence/impl-matrix/*/SHA256SUMS 2>/dev/null | wc -l) -ge 5",
       "expect_exit": 0
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  },
+  {
+   "id": "XC-16",
+   "title": "Adoption track A1-A8, built into the code",
+   "phase": "integrate",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-10",
+    "XC-12"
+   ],
+   "requirements": [
+    "R-ADOPT"
+   ],
+   "description": "A1 zero-config demo one-liners against a local mock target (no wallet, under 60 s); A2 a 3-line Action with an opt-in PR summary comment and SARIF; A3 a fix hint on every failure; A4 framework quickstarts run in CI; A5 a results badge; A6 a public, versioned regression corpus with a case template; A7 a compatibility matrix regenerated in CI; A8 docs examples run in CI. New paths corpus/** and examples/** need this task's scope.",
+   "scope": {
+    "allow": [
+     "corpus/**",
+     "examples/**",
+     "ts/**",
+     "src/x402conf/**",
+     "tests/**",
+     "action.yml",
+     ".github/**",
+     "docs/**",
+     "README.md"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-16-AC01",
+     "mandatory": true,
+     "statement": "A1: the demo one-liner finishes with results in under 60 s, offline apart from the package",
+     "verifier": {
+      "type": "command",
+      "cmd": "cd ts && npm ci --silent && npx tsc -p . && timeout 60 node dist/src/cli.js demo",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-16-AC02",
+     "mandatory": true,
+     "statement": "A1: the Python demo runs with no wallet and exits 0",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src timeout 60 python3 -m x402conf demo",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-16-AC03",
+     "mandatory": true,
+     "statement": "A3: every check id in spec.CATALOG has a fix hint",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_every_check_has_a_fix_hint",
+      "expect_exit": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-16-AC04",
+     "mandatory": true,
+     "statement": "A6: every corpus case has a control, a faulty build and an expected outcome, and passes",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_corpus_cases_are_complete_and_pass",
+      "expect_exit": 0,
+      "timeout_s": 600
+     }
+    },
+    {
+     "id": "XC-16-AC05",
+     "mandatory": true,
+     "statement": "A6: the corpus case template exists",
+     "verifier": {
+      "type": "file_exists",
+      "path": "corpus/TEMPLATE.md"
+     }
+    },
+    {
+     "id": "XC-16-AC06",
+     "mandatory": true,
+     "statement": "A7: the compatibility matrix is generated, not hand-edited",
+     "verifier": {
+      "type": "command",
+      "cmd": "python3 tools/vv.py hygiene >/dev/null && test -f docs/compat-matrix.json",
+      "expect_exit": 0,
+      "timeout_s": 60
      }
     }
    ],

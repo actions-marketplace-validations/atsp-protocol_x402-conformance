@@ -255,8 +255,11 @@ Next is depth, not breadth. v1.4 tests that a payment for one route, price, reci
 on a real resource server rather than only on the facilitator double, and makes the suite's own oracle fail closed on
 malformed amounts. v1.5 adds parallel and multi-replica replay, a crash between settling and serving, and payment
 versus delivery (failed handlers, `HEAD`, caches, late settlement). Every check is labelled normative, security profile
-or resilience, and every check ships with a passing control and a faulty build it catches. The plan, the release gate
-for dropping the experimental label, and what stays free are in [docs/ROADMAP.md](docs/ROADMAP.md).
+or resilience, and every check ships with a passing control and a faulty build it catches. Alongside the checks, an
+adoption track makes the suite quick to run and keep: a one-line demo against a local mock target in under 60 seconds
+with no wallet, a 3-line Action with a pull-request summary, fix hints on every failure, framework quickstarts, a
+public regression corpus anyone can add a case to, and a compatibility matrix rebuilt in CI. The plan and the release
+gate for dropping the experimental label are in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How this repo is verified
 

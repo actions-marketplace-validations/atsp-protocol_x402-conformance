@@ -2,8 +2,10 @@
 ## Unreleased
 - Roadmap for v1.4 and v1.5 ([docs/ROADMAP.md](docs/ROADMAP.md)): payment-to-request binding on a real resource
   server (R11), a fail-closed oracle, F11, P6, P7 and a stricter F5, then concurrency and idempotency (R12-R14) and payment versus
-  delivery (R15-R19). Checks are classified as normative, security profile or resilience; the release gate for dropping
-  the experimental label and the free-core boundary are written down. The new contract tasks are proposed, unsigned, in
+  delivery (R15-R19). Checks are classified as normative, security profile or resilience, and an adoption track (A1 to
+  A8: one-line demo, 3-line Action with a PR summary, fix hints, framework quickstarts, badge, regression corpus,
+  compatibility matrix rebuilt in CI, examples) is built into the code. The release gate for dropping the experimental
+  label is written down. The new contract tasks are proposed, unsigned, in
   [docs/proposals/contract-addendum-v1.4-v1.5.json](docs/proposals/contract-addendum-v1.4-v1.5.json).
 - README and the Action list F10 with the rest of the offline self-test.
 
