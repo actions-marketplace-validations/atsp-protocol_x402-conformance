@@ -1,0 +1,28 @@
+{
+  "_status": "UNSIGNED PROPOSAL. Not part of proofline.json until the owner merges these tasks into the contract and re-signs it on his own machine. tools/vv.py does not read this file.",
+  "_why": "Integrations bring other ecosystems into the one suite. Each is a thin entry point with the same check IDs, report and corpus, so every criterion below tests that funnel, not only the code.",
+  "tasks": [
+    {
+      "id": "XC-11",
+      "title": "One report, test-framework entry points and opt-in corpus sharing",
+      "phase": "implement",
+      "owner": "mgillr",
+      "depends_on": ["XC-M4"],
+      "scope": { "allow": ["ts/**", "docs/USING.md", "evidence/corpus/**", ".github/ISSUE_TEMPLATE/corpus-case.yml"] },
+      "criteria": [
+        { "id": "XC-11-AC01", "mandatory": true,
+          "statement": "The Node P1-P5 port agrees with the Python CLI on every fixture answer (pass/fail per check ID)",
+          "verifier": { "type": "command", "cmd": "cd ts && npx tsc -p . && node --test dist/test/resource.test.js", "expect_exit": 0, "timeout_s": 300 } },
+        { "id": "XC-11-AC02", "mandatory": true,
+          "statement": "runConformance and the matchers pass stock @x402/hono and @x402/express on Solana devnet and Base Sepolia, catch a server that serves on any /settle answer, and every failure message links to its fix, the corpus and the share form",
+          "verifier": { "type": "command", "cmd": "cd ts && npx tsc -p . && node --test dist/test/testing.test.js && npx vitest run --config vitest.config.mjs", "expect_exit": 0, "timeout_s": 600 } },
+        { "id": "XC-11-AC03", "mandatory": true,
+          "statement": "An anonymised case contains no URL, host, IP, address or transaction data, and nothing is sent without the user opening the link",
+          "verifier": { "type": "grep", "file": "ts/src/corpus.ts", "pattern": "fetch\\(", "must": "absent" } },
+        { "id": "XC-11-AC04", "mandatory": true,
+          "statement": "Every report carries schema x402-conformance.report/1 and a via from the fixed list; the User-Agent names via and nothing else",
+          "verifier": { "type": "grep", "file": "ts/src/report.ts", "pattern": "x402-conformance/\\$\\{VERSION\\} \\(\\+\\$\\{REPO\\}; via=\\$\\{via\\}\\)", "must": "present" } }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|<CAIP-2>] [--out file]
+// x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|<CAIP-2>] [--out file] [--share]
+// x402conf-svm resource --url <url> [--out file] [--share]   (P1-P7, one unpaid GET)
 // Starts the facilitator double on 127.0.0.1:<port>, optionally starts your resource server with
 // X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10, and with the binding options
 // R11 (payment-to-request binding). Every result carries its profile, spec basis and fix link (evidence v2).
@@ -9,6 +10,9 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { NETWORKS, PortInUseError, startDouble, type Network } from "./double.js";
 import { probe, type Result } from "./probe.js";
+import { anonymise, funnelFooter, shareUrl } from "./corpus.js";
+import { makeReport, VIAS, type Kind, type Via } from "./report.js";
+import { checkPaymentRequired } from "./resource.js";
 import { probeBinding, type BindingTargets } from "./binding.js";
 import { EVIDENCE_FORMAT, label } from "./catalog.js";
 import { MOCK_FAULTS, startMockResource } from "./mock-server.js";
@@ -20,8 +24,9 @@ const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11 for x402 V
 
 usage:
   x402conf-svm probe --resource <url> [binding options] [--port 4402] [--start "<command>"]
-                     [--network auto|${NETWORKS.join("|")}] [--out file]
-  x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file]
+                     [--network auto|${NETWORKS.join("|")}] [--out file] [--share]
+  x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file] [--share]
+  x402conf-svm resource --url <url> [--out file] [--share]
   x402conf-svm demo [--fault ${MOCK_FAULTS.join("|")}] [--out file]
   x402conf-svm --help | --version
 
@@ -39,12 +44,18 @@ usage:
   --start     command that starts your server; it gets X402_FACILITATOR_URL and must use it as its facilitator
   --network   which offered network to pay on (default auto: the first of ${NETWORKS.join(", ")})
   --out       also write the results JSON here (written on errors too)
+  --url       (resource) a paid URL; one unpaid GET checks its 402 answer (P1-P7), on any network
+  --share     opt-in: also write an anonymised corpus case next to --out (or ./x402-conformance-case.json) and print
+              a link to a pre-filled GitHub issue. Nothing is sent; you review the case and submit it yourself.
 
+Every run's JSON has the same check IDs and report fields as the Python CLI, the Action, the test matchers, the MCP
+server and the Docker image. X402CONF_VIA names the entry point in the report and User-Agent (no telemetry).
 exit codes: 0 all pass, 1 a check failed, 2 usage error or the run could not complete,
             3 unsupported (the server offers no network the probe grades)`;
 
 const BINDING = ["cheap", "expensive", "by-method", "by-query", "param", "siwx-cheap", "siwx-expensive"];
-const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", ...BINDING.map((b) => `--${b}`)]);
+const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", "--url", ...BINDING.map((b) => `--${b}`)]);
+const BOOL = new Set(["--share"]);
 
 function bindingTargets(o: Record<string, string>): BindingTargets | string | null {
   if (!BINDING.some((b) => o[b])) return null;
@@ -63,16 +74,25 @@ class RunError extends Error {}
 function parse(argv: string[]): Record<string, string> | number {
   if (argv.includes("--help") || argv.includes("-h")) { console.log(USAGE); return 0; }
   if (argv.includes("--version") || argv.includes("-V")) { console.log(VERSION); return 0; }
-  if (argv[0] !== "probe") { console.error(USAGE); return 2; }
-  const o: Record<string, string> = {};
+  if (argv[0] !== "probe" && argv[0] !== "resource") { console.error(USAGE); return 2; }
+  const o: Record<string, string> = { cmd: argv[0] };
   for (let i = 1; i < argv.length; i += 2) {
     const k = argv[i], v = argv[i + 1];
+    if (BOOL.has(k)) { o[k.slice(2)] = "1"; i -= 1; continue; }
     if (!FLAGS.has(k) || v === undefined || v.startsWith("--")) {
       console.error(`x402conf-svm: unknown or incomplete option ${k}\n\n${USAGE}`);
       return 2;
     }
     o[k.slice(2)] = v;
   }
+  if (o.cmd === "resource") {
+    if (!o.url || o.resource || o.start || o.port || o.network || BINDING.some((b) => o[b])) {
+      console.error(`x402conf-svm: resource takes --url (and optionally --out, --share)\n\n${USAGE}`);
+      return 2;
+    }
+    return o;
+  }
+  if (o.url) { console.error(`x402conf-svm: probe takes --resource, not --url\n\n${USAGE}`); return 2; }
   const b = bindingTargets(o);
   if (typeof b === "string") { console.error(`x402conf-svm: ${b}`); return 2; }
   if (!o.resource && !b) { console.error(`x402conf-svm: give --resource or a binding option\n\n${USAGE}`); return 2; }
@@ -91,6 +111,38 @@ async function answers(url: string, ms: number): Promise<boolean> {
 function stop(child: ChildProcess | null) {
   if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
   try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
+}
+
+function via(): Via {
+  const v = process.env.X402CONF_VIA as Via | undefined;
+  return v && VIAS.includes(v) ? v : "cli-ts";
+}
+
+// Writes --out, and with --share the anonymised case; prints the JSON, then the funnel footer on stderr.
+function finish(o: Record<string, string>, kind: Kind, target: string, results: Result[] | ReturnType<typeof makeReport>["results"],
+    doc: Record<string, unknown>): void {
+  const report = makeReport(kind, target, results, via(), doc.error as string | undefined);
+  Object.assign(doc, { schema: report.schema, via: report.via, kind, summary: report.summary, links: report.links });
+  const text = JSON.stringify(doc, null, 1);
+  if (o.out) writeFileSync(o.out, text + "\n");
+  console.log(text);
+  if (o.share) {
+    const c = anonymise(report);
+    const path = o.out ? o.out.replace(/(\.json)?$/, ".case.json") : "x402-conformance-case.json";
+    writeFileSync(path, JSON.stringify(c, null, 1) + "\n");
+    const link = shareUrl(c);
+    console.error(link ? `x402conf-svm: anonymised case written to ${path}. Review it, then submit it here (nothing was sent):\n${link}`
+      : `x402conf-svm: nothing failed, so there is no case to share (${path} records the passing run).`);
+  }
+  console.error(funnelFooter(report));
+}
+
+async function resourceMain(o: Record<string, string>): Promise<number> {
+  const report = await checkPaymentRequired(o.url, { via: via() });
+  const doc: Record<string, unknown> = { tool: `x402-conformance-svm ${VERSION}`, run_at: report.run_at, target: o.url,
+    mode: "resource-GET-only", checks: report.results };
+  finish(o, "resource-402", o.url, report.results, doc);
+  return report.summary.failed ? 1 : 0;
 }
 
 /** One line per check, a fix link under each failure. */
@@ -143,6 +195,7 @@ async function main(): Promise<number> {
   if (process.argv[2] === "demo") return demo(process.argv.slice(3));
   const o = parse(process.argv.slice(2));
   if (typeof o === "number") return o;
+  if (o.cmd === "resource") return resourceMain(o);
   const binding = bindingTargets(o) as BindingTargets | null;
   const resource = o.resource ?? binding?.cheap ?? binding?.byMethod ?? binding?.byQuery?.[0] ?? binding?.siwx?.cheap
     ?? binding?.parameterised?.replace("{id}", "1") ?? "";
@@ -179,7 +232,7 @@ async function main(): Promise<number> {
     if (exited) throw new RunError(`${exited} before it answered at ${resource}`);
     if (!up) throw new RunError(`no answer from ${resource} within 60 s`);
     const net = o.network as Network | "auto" | undefined;
-    if (o.resource) results = await probe(o.resource, double, { network: net });
+    if (o.resource) results = await probe(o.resource, double, { network: net, via: via() });
     if (binding) {
       const offered = results.find((r) => r.check.startsWith("R0"))?.detail as any;
       const bnet = (o.network && o.network !== "auto" ? o.network : offered?.network) as string | undefined;
@@ -193,9 +246,7 @@ async function main(): Promise<number> {
     await double?.close();
   }
   doc.results = results.map(label);
-  const text = JSON.stringify(doc, null, 1);
-  if (o.out) writeFileSync(o.out, text + "\n");
-  console.log(text);
+  finish(o, "resource-server", resource, doc.results as Labelled[], doc);
   if (doc.error) { console.error(`x402conf-svm: ${doc.error}`); return 2; }
   if (results.some((r) => r.status === "unsupported")) return 3;
   return results.every((r) => r.pass) ? 0 : 1;

@@ -170,7 +170,7 @@ P7 = "P7 an accepts[] entry whose payment flow is not authorization declares ext
 HEADER_WARN, HEADER_ERROR = 8 * 1024, 16 * 1024
 # Scheme and network families whose default payment flow is not `authorization` (V2 6.1 and the scheme specs).
 NON_AUTHORIZATION_DEFAULTS: tuple[tuple[str, str], ...] = (("upto", "solana:"),)
-_DIGITS = re.compile(r"^[0-9]+$")
+_DIGITS = re.compile(r"^[0-9]+\Z")  # \Z: "1000\n" is not an amount (in Python $ would match it)
 
 
 def fetch_402(url: str, timeout: float = 15, opener: Opener | None = None) -> Json:
@@ -207,7 +207,9 @@ def _accept_problems(a: Any, version: int) -> list[str]:
     if not (isinstance(amt, str) and _DIGITS.match(amt) and int(amt) > 0):
         p.append(f"{amount_key} must be a string of atomic units greater than 0")
     mts = a.get("maxTimeoutSeconds")
-    if not (isinstance(mts, int) and not isinstance(mts, bool) and mts > 0):
+    # JSON has one number type: 60 and 60.0 are the same value, and JSON.parse in the TypeScript port cannot tell
+    # them apart. So an integral float is an integer here too; 60.5, NaN and booleans are not.
+    if not (isinstance(mts, int | float) and not isinstance(mts, bool) and float(mts).is_integer() and mts > 0):
         p.append("maxTimeoutSeconds must be a positive integer")
     if "extra" in a and a["extra"] is not None and not isinstance(a["extra"], dict):
         p.append("extra must be an object")

@@ -15,6 +15,7 @@
 import { randomBytes } from "node:crypto";
 import { decodePaymentRequiredHeader, decodePaymentResponseHeader, encodePaymentSignatureHeader } from "@x402/core/http";
 import { BASE_SEPOLIA, DEVNET, NETWORKS, type Double, type Mode, type Network } from "./double.js";
+import { userAgent, type Via } from "./report.js";
 
 export type Status = "pass" | "fail" | "unsupported";
 export interface Result { check: string; pass: boolean; status: Status; detail: unknown }
@@ -23,10 +24,13 @@ export interface ProbeOptions {
   network?: Network | "auto";
   /** How long one request may take. A server still holding the request at the deadline has served nothing. */
   deadlineMs?: number;
+  /** Which entry point runs the probe; it goes into the User-Agent only. */
+  via?: Via;
 }
 
+let UA = userAgent("library");
 async function get(url: string, headers: Record<string, string>, timeoutMs: number) {
-  const r = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+  const r = await fetch(url, { headers: { "user-agent": UA, ...headers }, signal: AbortSignal.timeout(timeoutMs) });
   const h: Record<string, string> = {};
   r.headers.forEach((v, k) => { h[k] = v; });
   return { status: r.status, body: (await r.text()).slice(0, 500), headers: h };
@@ -51,6 +55,7 @@ function payloadFor(network: string, accepted: any): Record<string, unknown> {
 
 export async function probe(resourceUrl: string, double: Double, opts: ProbeOptions = {}): Promise<Result[]> {
   const deadline = opts.deadlineMs ?? 60_000;
+  UA = userAgent(opts.via ?? "library");
   const want: readonly string[] = !opts.network || opts.network === "auto" ? NETWORKS : [opts.network];
   const out: Result[] = [];
   const unpaid = await get(resourceUrl, {}, deadline);

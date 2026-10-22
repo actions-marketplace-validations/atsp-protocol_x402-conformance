@@ -1,4 +1,4 @@
-"""F1-F10: the reference double passes; each faulty double is caught by the check that targets it."""
+"""F1-F11: the reference double passes; each faulty double is caught by the check that targets it."""
 
 import contextlib
 import io
@@ -306,7 +306,7 @@ class Report(unittest.TestCase):
     def test_ts_catalog_matches_spec_catalog(self):
         src = open(os.path.join(os.path.dirname(__file__), "..", "ts", "src", "catalog.ts")).read()
         body = src.split("CATALOG: Record<string, { profile: string; basis: string }> = ", 1)[1].split(";\n", 1)[0]
-        want = {k: {"profile": v["profile"], "basis": v["basis"]} for k, v in S.CATALOG.items() if k.startswith("R")}
+        want = {k: {"profile": v["profile"], "basis": v["basis"]} for k, v in S.CATALOG.items()}
         self.assertEqual(json.loads(body), want)
         self.assertIn(f'EVIDENCE_FORMAT = "{S.EVIDENCE_FORMAT}"', src)
 

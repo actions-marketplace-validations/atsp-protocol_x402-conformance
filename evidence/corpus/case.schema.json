@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/atsp-protocol/x402-conformance/blob/main/evidence/corpus/case.schema.json",
+  "title": "x402-conformance.case/1",
+  "description": "An anonymised corpus case: no URLs, hosts, IPs, addresses or transaction data.",
+  "type": "object",
+  "required": ["schema", "tool_version", "via", "kind", "target", "stack", "failed_ids", "results"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "x402-conformance.case/1" },
+    "tool_version": { "type": "string" },
+    "via": { "type": "string" },
+    "kind": { "enum": ["resource-402", "resource-server", "facilitator-supported", "self-test"] },
+    "target": { "enum": ["loopback", "redacted"] },
+    "stack": {
+      "type": "object", "additionalProperties": false,
+      "properties": { "framework": { "type": "string" }, "sdk": { "type": "string" }, "sdk_version": { "type": "string" },
+        "network": { "type": "string" }, "language": { "type": "string" } }
+    },
+    "failed_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "check", "status", "severity", "detail"],
+        "properties": { "id": { "type": "string" }, "check": { "type": "string" }, "status": { "type": "string" },
+          "severity": { "type": "string" }, "detail": {} }
+      }
+    }
+  }
+}
