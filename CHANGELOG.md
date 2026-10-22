@@ -1,4 +1,11 @@
 # Changelog
+## 1.3.1
+- XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction
+  was verified under and refuses the same transaction against a different requirements set (amount escalation, recipient
+  substitution, resource substitution), and fails closed on missing or malformed requirements. Check F10 with a
+  `cross_request_replay` fault, nine new tests; SPEC.md separates settlement validity, payment-requirement validity,
+  authorisation of the current resource, and replay prevention.
+
 
 ## 1.3.0 (2026-10-20)
 Fixes from an end-to-end review of 1.2.1, plus the EVM probe and 402 validation.
