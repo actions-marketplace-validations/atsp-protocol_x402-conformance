@@ -21,6 +21,15 @@ Project page with the checks and the latest results: https://atsp-protocol.githu
 
 ## 60-second quickstart
 
+> **Before 1.4.0 is published:** this page describes `main`. The released 1.3.1 packages and the `@v1` Action already
+> have `live`, `resource`, `offline`, `report`, `devnet`, `probe --resource` and the Action inputs `facilitators`,
+> `facilitator-auth-host`, `resources`, `resource-url`, `start`, `network`, `port`, `offline`, `results-dir` and
+> `fail-on-error`. Everything else here ships in 1.4.0: both `demo` commands, R11 and the `binding-*` inputs, F11, P6,
+> P7, `pr-comment`, `report --badge`, `--share`, `x402conf-svm resource`, the test helpers, the MCP server, the Docker
+> image and the GitLab template. Until then, run those from a clone (`cd ts && npm ci && npm run build && node
+> dist/src/cli.js demo`, or `PYTHONPATH=src python3 -m x402conf demo`). [CHANGELOG.md](CHANGELOG.md) lists what is
+> unreleased.
+
 See it work first, with nothing to set up: no project, no wallet, no chain, a few seconds each.
 
 ```
@@ -54,7 +63,8 @@ jobs:
 ```
 
 **From your test suite, agent or CI system:** [docs/USING.md](docs/USING.md) covers vitest, jest, node:test, Hono,
-Express, MCP clients (Claude, Cursor), the Vercel AI SDK and LangChain, with the same checks and report everywhere. Failures you choose to share build the public
+Express, MCP clients (Claude, Cursor), the Vercel AI SDK, LangChain, Docker and GitLab CI, with the same checks and
+report everywhere. Failures you choose to share build the public
 [corpus](evidence/corpus) of real x402 failures.
 
 ## Who should use this
@@ -156,8 +166,10 @@ directory, and `report` converts them to SARIF and JUnit, printing a one-line su
 an error-severity check fails; without it they exit 0 so existing scripts keep working. Warnings never fail a run.
 
 `devnet` runs against a self-hosted reference facilitator on loopback with throwaway keys from `--keys`, and refuses any
-other facilitator unless you pass `--operator-permission` with the operator's written permission. It needs Node 20+
-and a funded devnet fee payer; [evidence/devnet](evidence/devnet) shows a full run.
+other facilitator (`--facilitator URL`) unless you pass `--operator-permission` with the operator's written permission.
+`--rpc` picks the devnet RPC (default `https://api.devnet.solana.com`). It needs Node 20+ and a funded devnet fee payer;
+[evidence/devnet](evidence/devnet) shows a full run. `live --evidence DIR` and `devnet --evidence DIR` also write the raw
+bodies, `run.json` and `SHA256SUMS` to `DIR`.
 
 **Facilitators that need credentials** (Coinbase CDP, for example): put the full `Authorization` header value in
 `X402C_FACILITATOR_AUTHORIZATION` and the facilitator's host name in `X402C_FACILITATOR_AUTH_HOST`. The header goes to
@@ -198,6 +210,8 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 | `offline` | `true` | Also run the F1-F11 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-402.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when a check fails, a requested run left no results, or the probe found nothing to grade |
+| `pr-comment` | `false` | `true` posts one sticky pull request comment with the result and a fix link per failed check (needs `permissions: { pull-requests: write }`) |
+| `github-token` | the job token | Token used for `pr-comment`; the default job token is enough |
 
 | output | value |
 |---|---|

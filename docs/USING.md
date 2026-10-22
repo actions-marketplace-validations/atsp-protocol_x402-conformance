@@ -111,7 +111,7 @@ use the CLI's `--start` or the Action.
 { "mcpServers": { "x402-conformance": { "command": "npx", "args": ["-y", "x402-conformance-mcp"] } } }
 ```
 
-Seven tools: `x402_check_payment_required` (P1-P5), `x402_demo` (the whole suite on a built-in demo server, no wallet),
+Seven tools: `x402_check_payment_required` (P1-P7), `x402_demo` (the whole suite on a built-in demo server, no wallet),
 `x402_start_facilitator_double`, `x402_probe_resource_server` (R0-R10, loopback only) and
 `x402_stop_facilitator_double`, `x402_explain_check` (the FIXES.md section) and `x402_share_case` (an anonymised case
 and the issue link; it sends nothing). Listed in the MCP registry as `io.github.atsp-protocol/x402-conformance`. CI

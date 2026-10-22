@@ -1,6 +1,6 @@
 # Architecture
 
-Status: experimental, v1.3.0. Expect changes.
+Status: experimental. The latest release is 1.3.1; this page describes `main`, which becomes 1.4.0. Expect changes.
 
 ```mermaid
 flowchart LR
@@ -13,7 +13,7 @@ flowchart LR
     OFF --> DOUBLES[Facilitator doubles<br/>Reference + Faulty]
     CLI --> DEVNET[Devnet runner F1-F6<br/>self-hosted or permitted facilitator]
     GUARD[ResourceServerGuard<br/>credit rule] --- OFF
-    LEAN[lean/ proofs<br/>Settlement, Nonce] -. models .- GUARD
+    LEAN[lean/ proofs<br/>Settlement, Nonce, Pending] -. models .- GUARD
     VV[tools/vv.py<br/>Proofline V&V] --> RCPT[receipts]
   end
   LIVE -->|GET| PUB[(Public facilitators)]
@@ -34,6 +34,14 @@ flowchart LR
 | `src/x402conf/devnet/` | The devnet runner: F1 to F6 over real `/verify` and `/settle` on Solana devnet, with a self-hosted reference facilitator (`node/`) and its fault-injected builds |
 | `ts/` | TypeScript probe for resource servers: a facilitator double with fault modes on Solana devnet and Base Sepolia, and a probe of the paid route (R0-R10) and of payment-to-request binding (R11, `binding.ts`) |
 | `action.yml` | The GitHub Action: live, 402, resource-server and offline checks, a job summary, SARIF and JUnit. It fails closed when a requested run leaves no results, and runs the probe on a pinned Node that never goes on the caller's PATH |
+| `ts/src/binding.ts` | R11: payment-to-request binding on a real resource server (two routes, method, query, encoded path, SIWX) |
+| `ts/src/resource.ts` | P1-P7 in Node, a port of `run_resource` that CI checks against the Python CLI |
+| `ts/src/testing.ts`, `ts/src/report.ts` | `runConformance()`, the vitest and jest matchers, `assertX402Conformance()` and the shared `x402-conformance.report/1` format every entry point writes |
+| `ts/src/mock-server.ts` | The bundled mock resource server behind `x402conf-svm demo` |
+| `ts/src/corpus.ts` | Opt-in `--share`: an anonymised corpus case and a pre-filled issue link; nothing is sent |
+| `ts/mcp/` | The MCP server and the Vercel AI SDK and LangChain tools, thin entry points into the same checks |
+| `ts/docker/`, `ts/ci/gitlab/` | The Docker image (Python CLI, Node probe, MCP server) and the GitLab CI template |
+| `evidence/corpus/` | The regression corpus: case and report schemas and the shared anonymisation fixture |
 | `evidence/` | Dated live results with raw bodies and hashes, and the devnet run in `evidence/devnet` |
 
 ## Boundaries
