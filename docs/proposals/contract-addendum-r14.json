@@ -1,0 +1,128 @@
+{
+ "about": "PROPOSED, UNSIGNED. One new Proofline task for R14, a crash between a successful /settle and the response. Nothing here is binding and CI does not read this file. The task becomes part of the contract only when the owner merges it into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. It is meant to be signed after the v1.4 addenda (XC-09 to XC-20) are in the contract, so it takes the next free ID, XC-21. R14 is also listed under XC-17 (R12, R13 and R14 together); XC-21 lets R14 be claimed done on its own while R12 and R13 are still being built, and XC-17-AC03 runs the same tests.",
+ "schema": "proofline/1",
+ "status": "proposed",
+ "proposed_by": "mgillr",
+ "target": "proofline.json tasks[]",
+ "tasks": [
+  {
+   "id": "XC-21",
+   "title": "R14: a crash between a successful /settle and the response",
+   "phase": "implement",
+   "owner": "mgillr",
+   "depends_on": [
+    "XC-05",
+    "XC-M4"
+   ],
+   "requirements": [
+    "R-CONC"
+   ],
+   "description": "The probe kills the resource server after /settle succeeds and before the client gets the response, at two points (while /settle is answering, and as the first byte of the response arrives), restarts it and presents the same payment, with a payment-identifier id when the server advertises the extension. It passes only if, at both points, there is at most one settlement, the server never calls /settle again for that payment, never answers 402 to it, and either delivers once from an idempotency record or refuses naming the transaction, payment id, signature or nonce so the payment can be reconciled. Solana devnet and Base Sepolia (exact). Wired into the CLI (--crash, --crash-kill, --crash-restart), the Action (crash, crash-kill, crash-restart), the JSON, SARIF and JUnit reports and docs/FIXES.md. A reference server with a durable record passes; three faulty builds of it fail.",
+   "scope": {
+    "allow": [
+     "ts/**",
+     "src/x402conf/spec.py",
+     "src/x402conf/cli.py",
+     "tests/test_offline.py",
+     "tests/test_live.py",
+     "action.yml",
+     ".github/workflows/ci.yml",
+     "docs/**",
+     "README.md",
+     "CHANGELOG.md",
+     "corpus/cases/**"
+    ]
+   },
+   "criteria": [
+    {
+     "id": "XC-21-AC01",
+     "mandatory": true,
+     "statement": "R14 passes the durable-record control and fails the memory_record, record_after_settle and refuse_silent builds on Solana devnet and Base Sepolia, and the CLI runs it with --start and with --crash-kill and --crash-restart",
+     "verifier": {
+      "type": "command",
+      "cmd": "o=$(mktemp) && { cd ts && npm ci --silent && npx tsc -p . && node --test --test-reporter=tap --test-name-pattern='R14' dist/test/*.test.js; } > \"$o\" 2>&1; rc=$?; cat \"$o\"; test \"$rc\" = 0 && grep -Eq '^# pass ([1-9][0-9]|[8-9])' \"$o\" && grep -Eq '^# fail 0' \"$o\"",
+      "expect_exit": 0,
+      "timeout_s": 900,
+      "test_file": "ts/test/delivery.test.ts"
+     }
+    },
+    {
+     "id": "XC-21-AC02",
+     "mandatory": true,
+     "statement": "R14 is in the check catalog with its profile and spec basis, the TypeScript catalog matches it, its control and faulty builds exist, and docs/FIXES.md has an R14 section",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "expect_exit": 0,
+      "min_tests": 3,
+      "max_skipped": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-21-AC03",
+     "mandatory": true,
+     "statement": "The Action summary fails on a failed R14 and does not count R14 towards the R0-R10 run",
+     "verifier": {
+      "type": "command",
+      "cmd": "PYTHONPATH=src python3 -m unittest tests.test_live.Live.test_action_summary_counts_r14_apart_from_r0_r10",
+      "expect_exit": 0,
+      "min_tests": 1,
+      "max_skipped": 0,
+      "timeout_s": 300
+     }
+    },
+    {
+     "id": "XC-21-AC04",
+     "mandatory": true,
+     "statement": "docs/SPEC.md maps R14 to the payment-identifier extension text it tests",
+     "verifier": {
+      "type": "grep",
+      "file": "docs/SPEC.md",
+      "pattern": "^\\| R14 \\|.*payment-identifier.*Return cached response",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-21-AC05",
+     "mandatory": true,
+     "statement": "The Action takes the crash input",
+     "verifier": {
+      "type": "grep",
+      "file": "action.yml",
+      "pattern": "^  crash:$",
+      "must": "present"
+     }
+    },
+    {
+     "id": "XC-21-AC06",
+     "mandatory": true,
+     "statement": "The R14 corpus case is committed",
+     "verifier": {
+      "type": "file_exists",
+      "path": "corpus/cases/2026-10-22-R14-x402-core.json"
+     }
+    },
+    {
+     "id": "XC-21-AC07",
+     "mandatory": true,
+     "statement": "Every changed file is inside this task's scope",
+     "verifier": {
+      "type": "scope"
+     }
+    },
+    {
+     "id": "XC-21-AC08",
+     "mandatory": true,
+     "statement": "Committed and pushed to main",
+     "verifier": {
+      "type": "pushed"
+     }
+    }
+   ],
+   "stop_rules": [
+    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
+   ]
+  }
+ ]
+}

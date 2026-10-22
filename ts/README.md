@@ -53,6 +53,15 @@ with an error if your server exits. `--network` picks `auto` (default), `solana:
 `eip155:84532`. `--out` writes the results JSON, on errors too. Each request has a 60 s deadline; a server still holding
 a request then has served nothing.
 
+**R14, a crash between `/settle` and the response (`--crash`).** After R0-R10 the probe kills your server twice, once
+while `/settle` is answering and once as the response starts, restarts it and presents the same payment (with a
+`payment-identifier` id if your route advertises that extension). Your server must not call `/settle` again or answer
+402, and must either deliver once from its idempotency record or refuse and name the transaction or payment id so it
+can be reconciled. With `--start` the probe restarts that command itself; for a server it didn't start, pass
+`--crash-kill "<command>"` and `--crash-restart "<command>"`. The idempotency record has to survive the restart: see
+[example/crash-server.ts](https://github.com/atsp-protocol/x402-conformance/blob/main/ts/example/crash-server.ts) and
+[FIXES.md#r14](https://github.com/atsp-protocol/x402-conformance/blob/main/docs/FIXES.md#r14).
+
 **Exit codes.** 0 all pass; 1 a check failed; 2 usage error, or the run couldn't complete (a port in use, your server
 exited or never answered); 3 unsupported (your server offers no network the probe grades). `--help` and `--version`
 exit 0.

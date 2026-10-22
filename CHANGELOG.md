@@ -1,5 +1,13 @@
 # Changelog
 ## Unreleased
+- R14, a crash between a successful `/settle` and the response (`x402conf-svm probe --crash`, Action `crash: "true"`).
+  The probe kills the server while `/settle` is answering and again as the response starts, restarts it (the `--start`
+  command, or `--crash-kill` and `--crash-restart` for a server it didn't start) and presents the same payment, with a
+  payment-identifier id when the server advertises the extension. It fails a server that settles again, answers 402,
+  or refuses without naming the transaction or payment, on Solana devnet and Base Sepolia. The control is
+  `ts/example/crash-server.ts` (a durable idempotency record), and three faulty builds of it each fail. A fix section is
+  in [docs/FIXES.md](docs/FIXES.md#r14); the contract task is proposed in
+  [docs/proposals/contract-addendum-r14.json](docs/proposals/contract-addendum-r14.json).
 - Roadmap for v1.4 and v1.5 ([docs/ROADMAP.md](docs/ROADMAP.md)): payment-to-request binding on a real resource
   server (R11), a fail-closed oracle, F11, P6, P7 and a stricter F5, then concurrency and idempotency (R12-R14) and payment versus
   delivery (R15-R19). Checks are classified as normative, security profile or resilience, and an adoption track (A1 to

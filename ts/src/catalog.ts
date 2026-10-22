@@ -166,6 +166,10 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R11f": {
   "profile": "security-profile",
   "basis": "sign-in-with-x: access is for the requested resource the server priced and settled"
+ },
+ "R14": {
+  "profile": "resilience",
+  "basis": "payment-identifier: same id, same payload returns the cached response; V2 6.1: in the authorization flow funds move only after the resource completes; V2 9: a transaction is surfaced so the caller can reconcile"
  }
 };
 

@@ -283,3 +283,24 @@ whatever URL the client wrote, not what was paid for.
 hook's transport context), never `paymentPayload.resource.url`. Until a fixed `@x402/extensions` release, wrap
 `createSIWxResourceServerExtension` and replace its `onAfterSettle` hook (see `ts/example/binding-server.ts`).
 
+
+## R14
+**What failed.** The probe killed your server after `/settle` succeeded and before the client got the response, started
+it again and presented the same payment. Your server called `/settle` again for a payment that had already settled,
+answered 402 to it (the client is asked to pay a second time for what it bought), or refused it without naming the
+transaction, payment id, signature or nonce. The probe does this at two points: while `/settle` is still answering (the
+server never heard that it settled) and as the first byte of the response goes out. The result's `crash_points` say
+which one failed.
+**Why it matters.** In the default authorization flow funds move when `/settle` succeeds (V2 §6.1), so from then on the
+client has paid and your server owes it the response. A crash, a deploy or an out-of-memory kill in that window loses
+the response, and the client's retry is all that's left. A server that keeps its record of the payment in memory, or
+writes it only after `/settle` returns, has forgotten the payment when it comes back: it settles again (the facilitator
+answers `duplicate_settlement`) and turns the client away, and the money is gone with nothing to show for it.
+**How to fix it.** Persist an idempotency record before `/settle`, or atomically with it, keyed by route and by the
+payment-identifier `id` (advertise the `payment-identifier` extension) or, without one, by the payment itself (the
+Solana transaction signature or the EIP-3009 nonce). Write `settling` before you call `/settle`, `settled` with the
+transaction and the response before you send it, and use a store that survives a restart (a database row, or a file
+written, fsynced and renamed). When the same payment comes back, never settle it again: replay the stored response
+(the extension's "Same `id`, same payload: Return cached response"), or, if the record is still `settling`, refuse
+with a 409 that names the payment so it can be reconciled on chain. `ts/example/crash-server.ts` shows one way to do
+it.

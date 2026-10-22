@@ -29,6 +29,11 @@ export interface Double {
   url: string;
   mode: Mode;
   calls: { path: string; mode: Mode }[];
+  /** Every transaction a reference-mode /settle answered with success, in order (a second success for one tx never happens). */
+  settlements: string[];
+  /** Crash injection (R14): when set, a reference-mode /settle commits the settlement, then awaits this before it
+   *  drops the connection unanswered: the settlement happened and the server never heard about it. One-shot. */
+  onSettled?: (tx: string) => Promise<void>;
   close(): Promise<void>;
 }
 
@@ -51,7 +56,7 @@ export async function startDouble(port = 0): Promise<Double> {
   const settled = new Set<string>();
   const held = new Set<http.ServerResponse>();
   const sockets = new Set<Socket>();
-  const d: Double = { url: "", mode: "reference", calls: [], close: async () => {} };
+  const d: Double = { url: "", mode: "reference", calls: [], settlements: [], close: async () => {} };
   const server = http.createServer(async (rq, rs) => {
     const json = (code: number, obj: unknown) => {
       rs.writeHead(code, { "content-type": "application/json" });
@@ -105,6 +110,14 @@ export async function startDouble(port = 0): Promise<Double> {
       default:
         if (settled.has(tx)) return json(200, { success: false, errorReason: "duplicate_settlement", transaction: "", network });
         settled.add(tx);
+        d.settlements.push(tx);
+        if (d.onSettled) {
+          const hook = d.onSettled;
+          d.onSettled = undefined;
+          await hook(tx);
+          rq.socket.destroy();
+          return;
+        }
         return json(200, success);
     }
   });

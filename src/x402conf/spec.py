@@ -145,4 +145,12 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
              "basis": "sign-in-with-x: access is for the requested resource the server priced and settled",
              "controls": ["ts:R11f control: a SIWX server that records the settled route passes"],
              "faulty": ["ts:R11f: a SIWX server that records the client's resource.url is caught"]},
+    "R14": {"profile": "resilience",
+            "basis": "payment-identifier: same id, same payload returns the cached response; V2 6.1: in the "
+                     "authorization flow funds move only after the resource completes; V2 9: a transaction is "
+                     "surfaced so the caller can reconcile",
+            "controls": ["ts:R14 control: a server with a durable idempotency record passes"],
+            "faulty": ["ts:R14 catches a server whose idempotency record is in memory only",
+                       "ts:R14 catches a server that writes its record only after /settle returns",
+                       "ts:R14 catches a server that refuses after a restart without surfacing the payment"]},
 }

@@ -136,10 +136,15 @@ hundreds of grants where the server did not record the payment identity atomical
 |---|---|---|---|
 | R12 | the same payment sent as N parallel requests (N = 2, 8, 32) to one server | at most one 2xx; at most one successful `/settle` | security profile |
 | R13 | the same payment sent in parallel to two replicas behind a loopback round-robin, with and without a shared store | at most one grant across replicas; a server that needs a shared store says so in its result | security profile; the `payment-identifier` extension is the spec's idempotency key, and the SVM duplicate-settlement mitigation describes the same race for facilitators |
-| R14 | the server is killed after `/settle` succeeds and before the response is written, restarted, and the payment presented again | no second settlement, no second charge, and a defined outcome: delivered once via an idempotency record, or refused with the transaction surfaced for reconciliation | resilience |
+| R14 | the server is killed after `/settle` succeeds and before the response is written, restarted, and the payment presented again | no second settlement, no second charge, and a defined outcome: delivered once via an idempotency record, or refused with the transaction surfaced for reconciliation | resilience; **delivered**: `x402conf-svm probe --crash`, Solana devnet and Base Sepolia |
 
 - **Faulty builds:** a per-process in-memory cache (fails R13), a check-then-set without atomicity (fails R12 under
   parallel load), and a server that settles again after a restart (fails R14).
+- **R14 delivered.** The probe kills the server at two points (while `/settle` is answering, and as the response
+  starts), restarts it and presents the same payment. The control is `ts/example/crash-server.ts`, with a durable
+  record; its `memory_record`, `record_after_settle` and `refuse_silent` builds each fail (`ts/test/delivery.test.ts`).
+  The contract task for it is proposed, unsigned, in
+  [proposals/contract-addendum-r14.json](proposals/contract-addendum-r14.json).
 - **Lean:** extend the settlement model to n replicas, and prove that a shared atomic check-and-set admits at most one
   grant while partitioned caches admit more. As with today's models, this proves the rule, not anyone's code.
 
