@@ -15,7 +15,7 @@ the CLI, the GitHub Action and the test matchers. It never pays, signs or touche
 
 | tool | what it does |
 |---|---|
-| `x402_check_payment_required` | one unpaid GET to a paid URL; checks its 402 answer (P1-P5) |
+| `x402_check_payment_required` | one unpaid GET to a paid URL; checks its 402 answer (P1-P7) |
 | `x402_demo` | the whole suite against a built-in demo server, no wallet or setup; `fault: serve_on_any_settle` shows a failure |
 | `x402_start_facilitator_double` | starts the facilitator double on loopback; point your server at its URL |
 | `x402_probe_resource_server` | R0-R10 against your server on loopback: no content on a timeout, a broken answer, `settlement_pending`, a failure or a duplicate |

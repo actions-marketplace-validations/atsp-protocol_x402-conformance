@@ -161,6 +161,47 @@ class Live(unittest.TestCase):
     def test_p_all_pass_on_spec_example(self):
         self.assertEqual(fails(H.check_402(self._resp(pr=self.V2_EVM))), set())
 
+    def test_p6_header_budget(self):
+        # XC-11-AC03: P6 warns above 8 KB and fails as an error above 16 KB; a normal challenge passes
+        def with_extension(n):
+            return dict(self.V2_EVM, extensions={"bazaar": {"info": {"example": "x" * n}, "schema": {}}})
+        ok = [r for r in H.check_402(self._resp(pr=self.V2_EVM)) if r["check"].startswith("P6")]
+        self.assertTrue(ok and ok[0]["pass"])
+        warn = [r for r in H.check_402(self._resp(pr=with_extension(7000))) if r["check"].startswith("P6")][0]
+        self.assertEqual((warn["pass"], warn["severity"]), (False, "warning"))
+        err = [r for r in H.check_402(self._resp(pr=with_extension(13000))) if r["check"].startswith("P6")][0]
+        self.assertEqual((err["pass"], err["severity"]), (False, "error"))
+        self.assertEqual(fails(H.check_402(self._resp(pr=with_extension(13000)))), {"P6"})
+
+    def test_p7_payment_flow_declared(self):
+        # XC-11-AC04: an upto entry on Solana (escrow by default) must declare extra.paymentFlow (V2 6.1)
+        upto = {"x402Version": 2, "resource": {"url": "https://api.example/x"},
+                "accepts": [{"scheme": "upto", "network": S.SOLANA_DEVNET, "amount": "10000",
+                             "asset": S.SOLANA_DEVNET_USDC, "payTo": FP, "maxTimeoutSeconds": 60,
+                             "extra": {"feePayer": FP}}]}
+        p7 = [r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]
+        self.assertEqual((p7["pass"], p7["severity"]), (False, "warning"))
+        upto["accepts"][0]["extra"]["paymentFlow"] = "escrow"
+        self.assertTrue([r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]["pass"])
+        upto["accepts"][0]["extra"]["paymentFlow"] = ""
+        self.assertFalse([r for r in H.check_402(self._resp(pr=upto)) if r["check"].startswith("P7")][0]["pass"])
+
+    def test_p4_json_number_and_trailing_newline_parity(self):
+        # Same verdicts as ts/src/resource.ts: 60.0 is the JSON number 60 (JSON.parse cannot tell them apart), and a
+        # trailing newline makes an amount or a network invalid (Python's $ would have matched before it).
+        def entry(**kw):
+            return dict(self.V2_EVM, accepts=[dict(self.V2_EVM["accepts"][0], **kw)])
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=60.0)))), set())
+        wire = json.dumps(self.V2_EVM).replace('"maxTimeoutSeconds": 60', '"maxTimeoutSeconds": 60.0')
+        self.assertIn("60.0", wire)
+        raw = {"payment-required": base64.b64encode(wire.encode()).decode()}
+        self.assertEqual(fails(H.check_402(self._resp(headers=raw))), set())
+        for bad in (60.5, 0.0, -60.0, float("nan"), float("inf"), True, "60"):
+            self.assertEqual(fails(H.check_402(self._resp(pr=entry(maxTimeoutSeconds=bad)))), {"P4"}, bad)
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(amount="10000\n")))), {"P4"})
+        self.assertEqual(fails(H.check_402(self._resp(pr=entry(network="eip155:84532\n")))), {"P4"})
+        self.assertIsNone(S.CAIP2.match("eip155:84532\n"))
+
     def test_p1_served_without_payment(self):
         self.assertEqual(fails(H.check_402(self._resp(status=200))), {"P1"})
 

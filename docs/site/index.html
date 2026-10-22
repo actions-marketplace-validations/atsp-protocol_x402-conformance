@@ -65,7 +65,7 @@ jobs:
       - uses: atsp-protocol/x402-conformance@v1
         with:
           facilitators: https://x402.org/facilitator   # GET /supported only</code></pre>
-<p>With no inputs it runs only the F1-F9 safety suite. To test your own resource server, add
+<p>With no inputs it runs only the F1-F11 safety suite. To test your own resource server, add
 <code>resource-url</code> (your paid route) and <code>start</code> (the command that starts your server, which receives
 <code>X402_FACILITATOR_URL</code>); servers on Solana devnet and Base Sepolia are graded. To check any paid URL's 402
 answer, on any network, add <code>resources</code>. The Action fails closed: a requested check that can't run fails the
@@ -78,8 +78,8 @@ npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start 
 <p><strong>CLI</strong> (Python 3.10+, no dependencies):</p>
 <pre><code>pip install x402-conformance
 x402conf live https://x402.org/facilitator   # S0-S4, GET /supported only
-x402conf resource https://your.api/paid      # P1-P5, one unpaid GET
-x402conf offline                             # F1-F9 against reference and fault-injected doubles
+x402conf resource https://your.api/paid      # P1-P7, one unpaid GET
+x402conf offline                             # F1-F11 against reference and fault-injected doubles
 x402conf report --dir DIR --sarif out.sarif --junit junit.xml</code></pre>
 
 <h2>What it checks</h2>
@@ -92,7 +92,7 @@ x402conf report --dir DIR --sarif out.sarif --junit junit.xml</code></pre>
 <tr><td>S3</td><td>a Solana kind uses an old V1 name such as <code>solana-devnet</code></td></tr>
 <tr><td>S4</td><td>a Solana <code>exact</code> kind has no valid fee payer (a fee payer that isn't a listed signer is a warning)</td></tr>
 <tr><td colspan="2"><em>402 answers of any paid URL, one unpaid <code>GET</code></em></td></tr>
-<tr><td>P1-P5</td><td>an unpaid request isn't answered 402, the <code>PaymentRequired</code> object is missing or doesn't decode, or <code>accepts</code> lacks a required field or the scheme's <code>extra</code> (EVM <code>name</code>/<code>version</code>, Solana <code>feePayer</code>)</td></tr>
+<tr><td>P1-P7</td><td>an unpaid request isn't answered 402, the <code>PaymentRequired</code> object is missing or doesn't decode, or <code>accepts</code> lacks a required field or the scheme's <code>extra</code> (EVM <code>name</code>/<code>version</code>, Solana <code>feePayer</code>)</td></tr>
 <tr><td colspan="2"><em>Safety: against doubles, on devnet and in your resource server</em></td></tr>
 <tr><td>F1</td><td>a malformed payment is accepted instead of rejected</td></tr>
 <tr><td>F2</td><td>an underpayment or dust amount is accepted</td></tr>
