@@ -144,13 +144,17 @@ hundreds of grants where the server did not record the payment identity atomical
 |---|---|---|---|
 | R12 | the same payment sent as N parallel requests (N = 2, 8, 32) to one server | at most one 2xx; at most one successful `/settle` | security profile |
 | R13 | the same payment sent in parallel to two replicas behind a loopback round-robin, with and without a shared store | at most one grant across replicas; a server that needs a shared store says so in its result | security profile; the `payment-identifier` extension is the spec's idempotency key, and the SVM duplicate-settlement mitigation describes the same race for facilitators |
-| R14 | the server is killed after `/settle` succeeds and before the response is written, restarted, and the payment presented again | no second settlement, no second charge, and a defined outcome: delivered once via an idempotency record, or refused with the transaction surfaced for reconciliation | resilience |
+| R14 | the server is killed after `/settle` succeeds and before the response is written, restarted, and the payment presented again | no second settlement, no second charge, and a defined outcome: delivered once via an idempotency record, or refused with the transaction surfaced for reconciliation | resilience; **delivered**: `x402conf-svm probe --crash`, Solana devnet and Base Sepolia |
 | R20 | the client times out before `/settle` answers and retries the same request. R20a: the retry carries a fresh payment and the same idempotency key (the `payment-identifier` id, or the server's documented request key). R20b: the retry reuses the same signed payment | R20a: no second charge; the server returns the earlier result or settlement reference. R20b: `/settle` refuses the duplicate and the original result comes back; a client that re-signs a fresh payment for the same request without a key is flagged | security profile. A retry after a timeout, reported publicly by a user, paid twice for one request |
 
 - **Faulty builds:** a per-process in-memory cache (fails R13), a check-then-set without atomicity (fails R12 under
   parallel load), a server that settles again after a restart (fails R14), a server that settles both the original and
   a fresh retry payment or keys its record by payment instead of by request (fails R20a), and a client that re-signs on
   timeout (fails R20b).
+- **R14 delivered.** The probe kills the server at two points (while `/settle` is answering, and as the response
+  starts), restarts it and presents the same payment. The control is `ts/example/crash-server.ts`, with a durable
+  record; its `memory_record`, `record_after_settle` and `refuse_silent` builds each fail (`ts/test/delivery.test.ts`).
+  The contract task for it is XC-21.
 - **Lean:** extend the settlement model to n replicas, and prove that a shared atomic check-and-set admits at most one
   grant while partitioned caches admit more. As with today's models, this proves the rule, not anyone's code.
 

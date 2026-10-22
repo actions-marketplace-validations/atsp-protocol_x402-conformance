@@ -3,10 +3,9 @@
 // x402conf-svm resource --url <url> [--out file] [--share]   (P1-P7, one unpaid GET)
 // Starts the facilitator double on 127.0.0.1:<port>, optionally starts your resource server with
 // X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10, and with the binding options
-// R11 (payment-to-request binding). Every result carries its profile, spec basis and fix link (evidence v2).
+// R11 (payment-to-request binding), and with --crash R14 (a crash between /settle and the response). Every result carries its profile, spec basis and fix link (evidence v2).
 // Exit codes: 0 all pass; 1 a check failed; 2 usage error, or the run could not be completed (port taken, server
 // exited or never answered); 3 unsupported (the server offers no network the probe can grade).
-import { spawn, type ChildProcess } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { NETWORKS, PortInUseError, startDouble, type Network } from "./double.js";
 import { probe, type Result } from "./probe.js";
@@ -17,15 +16,17 @@ import { probeBinding, type BindingTargets } from "./binding.js";
 import { probeRetry } from "./retry.js";
 import { EVIDENCE_FORMAT, label } from "./catalog.js";
 import { MOCK_FAULTS, startMockResource } from "./mock-server.js";
+import { commandControl, probeCrash, SpawnedServer, type ServerControl } from "./crash.js";
 type Labelled = Result & { profile: string; basis: string; fix: string };
 
 export const VERSION: string = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).version;
 
-const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11 and R20 for x402 V2 servers (Solana devnet, Base Sepolia)
+const USAGE = `x402conf-svm ${VERSION}: resource-server checks R0-R11, R14 and R20 for x402 V2 servers (Solana devnet, Base Sepolia)
 
 usage:
   x402conf-svm probe --resource <url> [binding options] [--retry] [--port 4402] [--start "<command>"]
                      [--network auto|${NETWORKS.join("|")}] [--out file] [--share]
+                     [--crash] [--crash-kill "<command>" --crash-restart "<command>"]
   x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file] [--share]
   x402conf-svm resource --url <url> [--out file] [--share]
   x402conf-svm demo [--fault ${MOCK_FAULTS.join("|")}] [--out file]
@@ -41,6 +42,10 @@ usage:
   --by-query        two paid URLs that differ only in the query, comma-separated (R11d)
   --param           a paid parameterised route with {id} for the parameter, e.g. http://host/items/{id}/premium (R11e)
   --siwx-cheap, --siwx-expensive  two paid routes at different prices that declare sign-in-with-x (R11f, EVM)
+  --crash     also run R14 (needs --resource): kill your server after /settle succeeds and before its response, start
+              it again and present the same payment. With --start the probe kills and restarts that command itself
+  --crash-kill, --crash-restart  for a server --start did not launch: a command that kills it hard and returns once
+              it is gone, and one that starts it again in the background and returns (R14)
   --retry     also run R20 on --resource: the client times out before /settle answers and retries, with a fresh
               payment under the same idempotency key (R20a) and with the same signed payment (R20b); the request
               must be paid once and the retry must get the earlier result
@@ -58,8 +63,9 @@ exit codes: 0 all pass, 1 a check failed, 2 usage error or the run could not com
             3 unsupported (the server offers no network the probe grades)`;
 
 const BINDING = ["cheap", "expensive", "by-method", "by-query", "param", "siwx-cheap", "siwx-expensive"];
-const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", "--url", ...BINDING.map((b) => `--${b}`)]);
-const BOOL = new Set(["--share", "--retry"]);
+const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", "--url", "--crash-kill", "--crash-restart",
+  ...BINDING.map((b) => `--${b}`)]);
+const BOOL = new Set(["--share", "--crash", "--retry"]);
 
 function bindingTargets(o: Record<string, string>): BindingTargets | string | null {
   if (!BINDING.some((b) => o[b])) return null;
@@ -90,7 +96,8 @@ function parse(argv: string[]): Record<string, string> | number {
     o[k.slice(2)] = v;
   }
   if (o.cmd === "resource") {
-    if (!o.url || o.resource || o.start || o.port || o.network || BINDING.some((b) => o[b])) {
+    if (!o.url || o.resource || o.start || o.port || o.network || o.crash || o["crash-kill"] || o["crash-restart"] ||
+        BINDING.some((b) => o[b])) {
       console.error(`x402conf-svm: resource takes --url (and optionally --out, --share)\n\n${USAGE}`);
       return 2;
     }
@@ -106,16 +113,24 @@ function parse(argv: string[]): Record<string, string> | number {
     return 2;
   }
   if (o.port && !/^\d+$/.test(o.port)) { console.error("x402conf-svm: --port must be a number"); return 2; }
+  const crashUsage = crashProblem(o);
+  if (crashUsage) { console.error(`x402conf-svm: ${crashUsage}`); return 2; }
   return o;
+}
+
+function crashProblem(o: Record<string, string>): string | null {
+  const kill = o["crash-kill"], restart = o["crash-restart"];
+  if ((kill || restart) && !o.crash) return "--crash-kill and --crash-restart go with --crash";
+  if (!o.crash) return null;
+  if (!o.resource) return "--crash needs --resource (the paid route R14 pays for)";
+  if (!!kill !== !!restart) return "--crash-kill and --crash-restart go together";
+  if (kill && o.start) return "give --start or --crash-kill and --crash-restart, not both";
+  if (!kill && !o.start) return "--crash needs --start (the probe restarts that command) or --crash-kill and --crash-restart";
+  return null;
 }
 
 async function answers(url: string, ms: number): Promise<boolean> {
   try { await fetch(url, { signal: AbortSignal.timeout(ms) }); return true; } catch { return false; }
-}
-
-function stop(child: ChildProcess | null) {
-  if (!child?.pid || child.exitCode !== null || child.signalCode !== null) return;
-  try { process.kill(-child.pid, "SIGTERM"); } catch { child.kill("SIGTERM"); }
 }
 
 function via(): Via {
@@ -208,8 +223,8 @@ async function main(): Promise<number> {
     versions: { "x402-conformance-svm": VERSION, node: process.versions.node }, run_at: new Date().toISOString(),
     resource: o.resource ?? null, ...(binding ? { binding } : {}) };
   let results: Result[] = [];
-  let child: ChildProcess | null = null;
-  let exited: string | null = null;
+  let server: SpawnedServer | null = null;
+  const exited = () => server?.unexpectedExit ?? null;
   let double: Awaited<ReturnType<typeof startDouble>> | null = null;
   try {
     if (o.start && await answers(resource, 1500)) {
@@ -222,19 +237,18 @@ async function main(): Promise<number> {
       throw new RunError(e instanceof PortInUseError ? e.message : `facilitator double failed to start: ${e}`);
     }
     doc.facilitator_double = double.url;
+    const env = { ...process.env, X402_FACILITATOR_URL: double.url };
     if (o.start) {
-      child = spawn(o.start, { shell: true, stdio: "inherit", detached: true,
-        env: { ...process.env, X402_FACILITATOR_URL: double.url } });
-      child.on("exit", (code, sig) => { exited = `your server (--start) exited with ${sig ?? `code ${code}`}`; });
-      child.on("error", (e) => { exited = `your server (--start) could not start: ${e.message}`; });
+      server = new SpawnedServer(o.start, env);
+      server.start();
     }
     let up = false;
     for (let i = 0; i < 60 && !up; i++) {
-      if (exited) throw new RunError(`${exited} before it answered at ${resource}`);
+      if (exited()) throw new RunError(`${exited()} before it answered at ${resource}`);
       up = await answers(resource, 2000);
       if (!up) await new Promise((ok) => setTimeout(ok, 1000));
     }
-    if (exited) throw new RunError(`${exited} before it answered at ${resource}`);
+    if (exited()) throw new RunError(`${exited()} before it answered at ${resource}`);
     if (!up) throw new RunError(`no answer from ${resource} within 60 s`);
     const net = o.network as Network | "auto" | undefined;
     if (o.resource) results = await probe(o.resource, double, { network: net, via: via() });
@@ -248,11 +262,17 @@ async function main(): Promise<number> {
       const rnet = (o.network && o.network !== "auto" ? o.network : offered?.network) as string | undefined;
       results = results.concat(await probeRetry(o.resource, double, { network: rnet }));
     }
-    if (exited) throw new RunError(`${exited} during the probe; the results are not trustworthy`);
+    if (exited()) throw new RunError(`${exited()} during the probe; the results are not trustworthy`);
+    // R14 runs last: it kills and restarts the server. Only on a server R1 showed is wired to the double.
+    if (o.crash && o.resource && results.some((r) => r.check.startsWith("R1 ") && r.pass)) {
+      const control: ServerControl = server ?? commandControl(o["crash-kill"], o["crash-restart"], env);
+      results = results.concat(await probeCrash(o.resource, double, control, { network: net, via: via() }));
+      if (exited()) throw new RunError(`${exited()} after the R14 restart; the results are not trustworthy`);
+    }
   } catch (e) {
     doc.error = e instanceof RunError ? e.message : `the probe crashed: ${e instanceof Error ? e.message : String(e)}`;
   } finally {
-    stop(child);
+    server?.stop();
     await double?.close();
   }
   doc.results = results.map(label);

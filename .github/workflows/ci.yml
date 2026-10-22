@@ -290,6 +290,34 @@ jobs:
           offline: "false"
           results-dir: siwx-stock
       - run: test "${{ steps.siwx-stock.outputs.result }}" = fail
+      - name: R14 input - a server with a durable idempotency record survives a crash between /settle and the response
+        id: crash
+        uses: ./
+        with:
+          resource-url: http://127.0.0.1:4028/paid
+          start: PORT=4028 CRASH_STORE=${{ runner.temp }}/r14-store.json node ts/dist/example/crash-server.js
+          crash: "true"
+          port: "4410"
+          offline: "false"
+          results-dir: crash
+      - run: test "${{ steps.crash.outputs.result }}" = pass
+      - run: python3 -c "import json,sys;d=json.load(open('crash/resource-server.json'));r=d['results'];sys.exit(0 if len(r)==12 and r[-1]['check'].startswith('R14') and all(x['pass'] for x in r) else 1)"
+      - name: R14 input - a server whose record is in memory only settles again after the restart and fails
+        id: crash-faulty
+        uses: ./
+        continue-on-error: true
+        with:
+          resource-url: http://127.0.0.1:4029/paid
+          start: PORT=4029 CRASH_FAULT=memory_record node ts/dist/example/crash-server.js
+          crash: "true"
+          port: "4411"
+          offline: "false"
+          results-dir: crash-faulty
+      - run: test "${{ steps.crash-faulty.outputs.result }}" = fail
+      - name: The R14 failure reaches the SARIF and JUnit files with its fix link
+        run: |
+          python3 -c "import json,sys;d=json.load(open('crash-faulty/x402-conformance.sarif'));ids={r['ruleId'] for r in d['runs'][0]['results']};print(sorted(ids));sys.exit(0 if ids=={'R14'} else 1)"
+          grep -q 'R14' crash-faulty/junit.xml && grep -q 'FIXES.md#r14' crash-faulty/pr-comment.md
   vv:
     needs: [lint, test, lean, ts, first-run, mcp, pytest-plugin, docker, action]
     runs-on: ubuntu-latest

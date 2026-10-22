@@ -1,5 +1,12 @@
 # Changelog
 ## Unreleased
+- R14, a crash between a successful `/settle` and the response (`x402conf-svm probe --crash`, Action `crash: "true"`).
+  The probe kills the server while `/settle` is answering and again as the response starts, restarts it (the `--start`
+  command, or `--crash-kill` and `--crash-restart` for a server it didn't start) and presents the same payment, with a
+  payment-identifier id when the server advertises the extension. It fails a server that settles again, answers 402,
+  or refuses without naming the transaction or payment, on Solana devnet and Base Sepolia. The control is
+  `ts/example/crash-server.ts` (a durable idempotency record), and three faulty builds of it each fail. A fix section is
+  in [docs/FIXES.md](docs/FIXES.md#r14); the contract task is XC-21.
 - R20, retry double-pay (`x402conf-svm probe --resource <url> --retry`, Action input `retry`): the client times out
   before `/settle` answers and retries. A retry with a fresh payment under the same payment-identifier id must not be
   settled again (R20a), and a retry resending the same signed payment must get the original result (R20b); both are

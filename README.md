@@ -99,7 +99,7 @@ report everywhere. Failures you choose to share build the public
 - **P7** an offer whose scheme defaults to a non-authorization flow (`upto` on Solana) doesn't declare
   `extra.paymentFlow` (warning; V2 §6.1 says it must, the upto SVM scheme text says it may be omitted)
 
-**Your resource server, under fault injection (`x402conf-svm probe`, R0-R11 and R20):** the probe starts a facilitator double
+**Your resource server, under fault injection (`x402conf-svm probe`, R0-R11, R14 and R20):** the probe starts a facilitator double
 on loopback, points your server at it through `X402_FACILITATOR_URL` and pays your route with test payloads on
 **Solana devnet or Base Sepolia (`exact`; EVM via EIP-3009)**. Your server must:
 - **R0** answer an unpaid request with a 402 offering one of those networks. If it offers neither, the result is
@@ -115,6 +115,11 @@ on loopback, points your server at it through `X402_FACILITATOR_URL` and pays yo
   (R11b), a payment for the cheaper method (R11c) or query (R11d) is refused on the dearer one, an encoded separator
   or dot segment in a parameter never reaches a paid handler unpaid (R11e), and sign-in-with-x access is recorded for
   the route that was priced and settled, not the client's `resource.url` (R11f)
+- **R14** survive a crash between a successful `/settle` and the response (add `--crash`): the probe kills your server
+  while `/settle` is answering and again as the response starts, restarts it and presents the same payment. It must
+  not settle again or ask for payment again, and must either deliver once (from an idempotency record) or refuse and
+  name the transaction or payment id so it can be reconciled. With `--start` the probe restarts that command; for a
+  server it didn't start, give `--crash-kill` and `--crash-restart`
 - **R20** with `--retry`, never charge one request twice when the client times out before `/settle` answers and
   retries: a retry with a fresh payment under the same payment-identifier id is not settled again (R20a), and a retry
   resending the same signed payment is refused as a duplicate by `/settle`; both get the earlier result (R20b). The
@@ -161,6 +166,7 @@ x402conf pr-comment DIR/pr-comment.md                  # sticky PR comment (GITH
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
 x402conf-svm demo [--fault serve_on_any_settle]       # R0-R10 against a bundled mock server
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out resource-server.json
+x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --crash   # R0-R10, then R14
 ```
 
 `live`, `resource` and `offline` print JSON with one entry per check (`check`, `pass`, `severity`, `detail`). Save them
@@ -188,7 +194,7 @@ a host is a usage error. CDP uses short-lived JWTs, so mint one just before the 
 | `x402conf offline` | the reference passes every check and every fault-injected double is caught | otherwise | usage error | – |
 | `x402conf report` | reports written (with `--fail-on-error`: and nothing failed) | with `--fail-on-error`, an error-severity check failed | usage error, or no results JSON in the directory | – |
 | `x402conf devnet` | the facilitator under test passes, and with `--faults` every fault-injected build is caught | otherwise (the current reference exits `1` on F4, see [Results](#results)) | usage error | – |
-| `x402conf-svm probe` | every requested check (R0-R10, R11) passes | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
+| `x402conf-svm probe` | every requested check (R0-R10, R11, R14) passes | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
 | `x402conf --help`, `--version`, `x402conf-svm --help`, `--version` | always | – | – | – |
 
 With `--out`, the probe writes its results file on every outcome, errors included.
@@ -208,6 +214,8 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 | `binding-query-urls` | empty | Two paid URLs that differ only in the query, comma-separated (R11d) |
 | `binding-param-url` | empty | A paid parameterised route with `{id}` for the parameter (R11e) |
 | `binding-siwx-urls` | empty | Two paid sign-in-with-x routes, cheap first, comma-separated, Base Sepolia (R11f) |
+| `crash` | `false` | `true` also runs R14: the probe kills your server after `/settle` succeeds and before the response, restarts it and presents the same payment (needs `resource-url`, and `start` or the two commands below) |
+| `crash-kill`, `crash-restart` | empty | For a server `start` didn't launch: a command that kills it hard and returns once it's gone, and one that starts it again in the background (R14) |
 | `retry` | `false` | `true` also checks R20 retry double-pay on `resource-url` (`--retry`) |
 | `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
 | `network` | `auto` | Which offered network the probe pays on: `auto`, `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` or `eip155:84532` |

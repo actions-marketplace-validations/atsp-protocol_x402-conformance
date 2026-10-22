@@ -1,0 +1,150 @@
+{
+ "schema": "x402-conformance.case/1",
+ "tool_version": "1.3.1",
+ "via": "cli-ts",
+ "kind": "resource-server",
+ "target": "loopback",
+ "stack": {
+  "framework": "node:http",
+  "sdk": "@x402/core",
+  "sdk_version": "2.28.0",
+  "network": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+  "language": "typescript"
+ },
+ "failed_ids": [
+  "R14"
+ ],
+ "results": [
+  {
+   "id": "R0",
+   "check": "R0 unpaid request: 402 with a PAYMENT-REQUIRED header offering a network the probe grades",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R1",
+   "check": "R1 a settled payment is served, and the server used the facilitator double",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R2",
+   "check": "R2 the same payment presented twice is served at most once (F3)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R3",
+   "check": "R3 /settle never answers: content not served (F6)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R4",
+   "check": "R4 /settle HTML 502: content not served (F6)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R5",
+   "check": "R5 /settle 503 with a success body: content not served (F9)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R6",
+   "check": "R6 /settle non-JSON 200: content not served (F9)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R7",
+   "check": "R7 /settle truncated body: content not served (F9)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R8",
+   "check": "R8 settlement_pending: content not served before the payment is final (F5)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R9",
+   "check": "R9 invalid_transaction_state: content not served (F8)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R10",
+   "check": "R10 the served response carries a PAYMENT-RESPONSE header that decodes to success=true (V2 HTTP transport)",
+   "status": "pass",
+   "severity": "error",
+   "detail": null
+  },
+  {
+   "id": "R14",
+   "check": "R14 a crash between a successful /settle and the response settles once, never asks the client to pay again, and ends delivered once or refused with the payment surfaced",
+   "status": "fail",
+   "severity": "error",
+   "detail": {
+    "graded_on": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
+    "crash_points": {
+     "settle": {
+      "crash_after": "/settle committed, before it answered the server",
+      "payment_identifier": "sent",
+      "first_attempt": "no response (server killed)",
+      "settlements": 1,
+      "settle_calls_after_restart": 1,
+      "after_restart": {
+       "status": 402,
+       "outcome": "asked to pay again",
+       "surfaced": [],
+       "body": "{}"
+      },
+      "problems": [
+       "it called /settle again for a payment that had already settled",
+       "it answered 402 to a payment that had settled: the client is asked to pay again for what it bought"
+      ]
+     },
+     "response": {
+      "crash_after": "/settle answered success, at the first byte of the response",
+      "payment_identifier": "sent",
+      "first_attempt": "no response (server killed)",
+      "settlements": 1,
+      "settle_calls_after_restart": 1,
+      "after_restart": {
+       "status": 402,
+       "outcome": "asked to pay again",
+       "surfaced": [],
+       "body": "{}"
+      },
+      "problems": [
+       "it called /settle again for a payment that had already settled",
+       "it answered 402 to a payment that had settled: the client is asked to pay again for what it bought"
+      ]
+     }
+    }
+   }
+  }
+ ],
+ "regression": {
+  "control": "ts:R14 control: a server with a durable idempotency record passes",
+  "faulty": "ts:R14 catches a server whose idempotency record is in memory only",
+  "expect_failed": [
+   "R14"
+  ],
+  "issue": "https://github.com/atsp-protocol/x402-conformance/pull/17",
+  "reproduced_on": "ts/example/crash-server.ts on @x402/core 2.28.0 and @x402/svm 2.28.0 with CRASH_FAULT=memory_record"
+ }
+}
