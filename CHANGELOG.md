@@ -1,5 +1,13 @@
 # Changelog
 ## Unreleased
+- Roadmap for v1.4 and v1.5 ([docs/ROADMAP.md](docs/ROADMAP.md)): payment-to-request binding on a real resource
+  server (R11), a fail-closed oracle, F11, P6, P7 and a stricter F5, then concurrency and idempotency (R12-R14) and payment versus
+  delivery (R15-R19). Checks are classified as normative, security profile or resilience, and an adoption track (A1 to
+  A8: one-line demo, 3-line Action with a PR summary, fix hints, framework quickstarts, badge, regression corpus,
+  compatibility matrix rebuilt in CI, examples) is built into the code. The release gate for dropping the experimental
+  label is written down. The new contract tasks are proposed, unsigned, in
+  [docs/proposals/contract-addendum-v1.4-v1.5.json](docs/proposals/contract-addendum-v1.4-v1.5.json).
+- README and the Action list F10 and F11 with the rest of the offline self-test.
 - A first run with nothing to set up: `npx -y x402-conformance-svm demo` runs R0-R10 against a bundled mock resource
   server (`ts/src/mock-server.ts`, @x402/core only) behind the facilitator double, and `x402conf demo` runs S1-S4 and
   P1-P7 against a bundled mock facilitator and paid route, then the F1-F11 self-test. No wallet, no chain, a few
