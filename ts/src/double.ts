@@ -29,6 +29,13 @@ export interface Double {
   url: string;
   mode: Mode;
   calls: { path: string; mode: Mode }[];
+  /** Delay before /settle answers in the modes that answer, so a client can time out while settlement is in flight
+   * (R20). 0, the default, answers at once. */
+  settleDelayMs: number;
+  /** The transaction of every /settle that answered success, in order. */
+  successes: string[];
+  /** How many /settle calls have been answered so far (any outcome). */
+  settleAnswers: number;
   close(): Promise<void>;
 }
 
@@ -51,7 +58,8 @@ export async function startDouble(port = 0): Promise<Double> {
   const settled = new Set<string>();
   const held = new Set<http.ServerResponse>();
   const sockets = new Set<Socket>();
-  const d: Double = { url: "", mode: "reference", calls: [], close: async () => {} };
+  const d: Double = { url: "", mode: "reference", calls: [], settleDelayMs: 0, successes: [], settleAnswers: 0,
+    close: async () => {} };
   const server = http.createServer(async (rq, rs) => {
     const json = (code: number, obj: unknown) => {
       rs.writeHead(code, { "content-type": "application/json" });
@@ -78,6 +86,8 @@ export async function startDouble(port = 0): Promise<Double> {
     if (path !== "/settle") return json(404, { error: "not found" });
     const tx = txOf(body);
     const success = { success: true, transaction: tx, network, payer };
+    if (d.mode !== "settle_timeout" && d.settleDelayMs > 0) await new Promise((ok) => setTimeout(ok, d.settleDelayMs));
+    rs.on("finish", () => { d.settleAnswers++; });
     switch (d.mode) {
       case "settle_timeout":
         // Never answer, and never answer success later: a slow success is not a timeout, and a server that waits for
@@ -105,6 +115,7 @@ export async function startDouble(port = 0): Promise<Double> {
       default:
         if (settled.has(tx)) return json(200, { success: false, errorReason: "duplicate_settlement", transaction: "", network });
         settled.add(tx);
+        d.successes.push(tx);
         return json(200, success);
     }
   });

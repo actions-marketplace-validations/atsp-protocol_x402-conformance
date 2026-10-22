@@ -60,6 +60,7 @@ _OFF = "py:tests.test_offline.Offline."
 _TS_OK = "ts:the example server passes R0-R10"
 _TS_STOCK = "ts:a stock @x402/express server with default settings passes every check"
 _TS_BIND = "ts:R11 control: the stock @x402/express server passes R11"
+_TS_RETRY = "ts:R20a control: the stock @x402/express server with an idempotency record"
 CATALOG: Final[dict[str, dict[str, object]]] = {
     "S0": {"profile": "normative", "basis": "V2 7.3: GET /supported answers with a SupportedResponse",
            "controls": [_LIVE + "test_s_all_pass_on_conformant_body"], "faulty": [_LIVE + "test_s0_unreachable_is_a_check"]},
@@ -145,4 +146,14 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
              "basis": "sign-in-with-x: access is for the requested resource the server priced and settled",
              "controls": ["ts:R11f control: a SIWX server that records the settled route passes"],
              "faulty": ["ts:R11f: a SIWX server that records the client's resource.url is caught"]},
+    "R20": {"profile": "security-profile", "basis": "control: the route answers 402 with an exact offer the probe can pay",
+            "controls": [_TS_RETRY], "faulty": ["ts:R20 control: a URL that is not a paid route fails the control"]},
+    "R20a": {"profile": "security-profile",
+             "basis": "payment-identifier: a retry with the same id and a fresh payment is not charged again",
+             "controls": [_TS_RETRY], "faulty": ["ts:R20a settle_both: a server with no idempotency record",
+                                                 "ts:R20a key_by_payment: a record keyed by the payment"]},
+    "R20b": {"profile": "security-profile",
+             "basis": "a retry resending the same signed payment is settled once and gets the original result",
+             "controls": [_TS_RETRY, "ts:R20b client control: the stock @x402/fetch client"],
+             "faulty": ["ts:R20b settle_both: with no record", "ts:R20b client resign_on_timeout"]},
 }

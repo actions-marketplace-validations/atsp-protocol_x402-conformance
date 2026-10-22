@@ -1,5 +1,13 @@
 # Changelog
 ## Unreleased
+- R20, retry double-pay (`x402conf-svm probe --resource <url> --retry`, Action input `retry`): the client times out
+  before `/settle` answers and retries. A retry with a fresh payment under the same payment-identifier id must not be
+  settled again (R20a), and a retry resending the same signed payment must get the original result (R20b); both are
+  graded on Solana devnet and Base Sepolia against the facilitator double, which can now hold `/settle`
+  (`settleDelayMs`) and counts successful settlements. `checkClientRetry` grades a client's own retry: it must resend
+  the payment or keep the payment id. The stock `@x402/express` server with an idempotency record keyed by the request
+  and the stock `@x402/fetch` client with a payment id pass; servers with no record or a record keyed by payment, and a
+  client that re-signs on timeout, are caught (`ts/test/retry.test.ts`).
 - [docs/INTERDEPENDENCY.md](docs/INTERDEPENDENCY.md): every contract task and its dependencies, every check with its
   spec basis, upstream refs, code, tests and docs, the entry points and the downstream drafts, with a mermaid graph.
   It is generated from the contract, the proposed addenda and the tree. The generator (`tools/interdeps.py`), its tests

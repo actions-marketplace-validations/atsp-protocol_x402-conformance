@@ -283,3 +283,28 @@ whatever URL the client wrote, not what was paid for.
 hook's transport context), never `paymentPayload.resource.url`. Until a fixed `@x402/extensions` release, wrap
 `createSIWxResourceServerExtension` and replace its `onAfterSettle` hook (see `ts/example/binding-server.ts`).
 
+## R20
+**What failed.** The route did not answer 402 with an `exact` offer the probe could pay, so R20 graded nothing.
+**Why it matters.** R20a and R20b need one paid attempt to time out and be retried.
+**How to fix it.** Point `--resource` at a paid route on Solana devnet or Base Sepolia behind `X402_FACILITATOR_URL`.
+
+## R20a
+**What failed.** The client timed out before `/settle` answered and retried with a fresh payment under the same
+payment-identifier id, and the retry was settled again (paid twice), or it was refused without the earlier result.
+**Why it matters.** A client that gives up while settlement is in flight can't know whether it paid. If the retry is
+charged again the buyer pays twice for one request; if it is only refused, the buyer paid and got nothing.
+**How to fix it.** Declare the `payment-identifier` extension and keep a durable idempotency record keyed by the request
+(route and payment id, bound to the payer), written after settlement with the result and its settlement. In
+`onProtectedRequest`, serve a retry whose key is in the record from it, with the original `PAYMENT-RESPONSE`, and never
+settle again. Key it by the request, not by the payment: a fresh payment changes the payment (see
+`ts/example/retry-server.ts`).
+
+## R20b
+**What failed.** A retry that resent the same signed payment did not get the original result (the duplicate settle was
+refused and the request answered 402), or a client's retry after a timeout re-signed a fresh payment with no
+idempotency key.
+**Why it matters.** The facilitator refuses the duplicate, so the buyer is not charged again, but without a record the
+paid result is lost. A client that re-signs with no key leaves a server nothing to deduplicate on and pays twice.
+**How to fix it.** Server: serve a resent payment from the idempotency record above. Client: generate one payment id per
+logical request and append it in `onBeforePaymentCreation` (`appendPaymentIdentifierToExtensions`), or resend the
+same `PAYMENT-SIGNATURE` on retry.
