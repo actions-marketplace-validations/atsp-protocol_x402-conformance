@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|<CAIP-2>] [--out file] [--share]
-// x402conf-svm resource --url <url> [--out file] [--share]   (P1-P5, one unpaid GET)
+// x402conf-svm resource --url <url> [--out file] [--share]   (P1-P7, one unpaid GET)
 // Starts the facilitator double on 127.0.0.1:<port>, optionally starts your resource server with
 // X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10, and with the binding options
 // R11 (payment-to-request binding). Every result carries its profile, spec basis and fix link (evidence v2).
@@ -44,7 +44,7 @@ usage:
   --start     command that starts your server; it gets X402_FACILITATOR_URL and must use it as its facilitator
   --network   which offered network to pay on (default auto: the first of ${NETWORKS.join(", ")})
   --out       also write the results JSON here (written on errors too)
-  --url       (resource) a paid URL; one unpaid GET checks its 402 answer (P1-P5), on any network
+  --url       (resource) a paid URL; one unpaid GET checks its 402 answer (P1-P7), on any network
   --share     opt-in: also write an anonymised corpus case next to --out (or ./x402-conformance-case.json) and print
               a link to a pre-filled GitHub issue. Nothing is sent; you review the case and submit it yourself.
 

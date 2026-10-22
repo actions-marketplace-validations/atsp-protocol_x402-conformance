@@ -6,7 +6,7 @@ Status: experimental, v1.3.0. Expect changes.
 flowchart LR
   subgraph suite[x402-conformance]
     CLI[x402conf CLI] --> LIVE[Live checks S0-S4<br/>GET /supported only]
-    CLI --> RES[402 checks P1-P5<br/>one unpaid GET]
+    CLI --> RES[402 checks P1-P7<br/>one unpaid GET]
     PROBE[x402conf-svm probe<br/>R0-R11] --> DBL[Facilitator double<br/>loopback, fault modes]
     DBL -->|X402_FACILITATOR_URL| RS[(Your resource server<br/>Solana devnet or Base Sepolia)]
     CLI --> OFF[Safety checks F1-F11]
@@ -26,7 +26,7 @@ flowchart LR
 | path | role |
 |---|---|
 | `src/x402conf/spec.py` | Identifiers quoted from the x402 V2 spec and the Solana `exact` scheme (CAIP-2 IDs, error codes) |
-| `src/x402conf/harness.py` | The checks. `run_live` makes exactly one GET per target (S0-S4); `run_resource` makes one unpaid GET per paid URL (P1-P5). `check_safety` runs F1 to F6 against anything that has `verify` and `settle`, and F7 to F9 against a double whose simulated chain it can advance between retries |
+| `src/x402conf/harness.py` | The checks. `run_live` makes exactly one GET per target (S0-S4); `run_resource` makes one unpaid GET per paid URL (P1-P7). `check_safety` runs F1 to F6 against anything that has `verify` and `settle`, and F7 to F9 against a double whose simulated chain it can advance between retries |
 | `src/x402conf/mock.py` | The `Reference` double, which behaves as the spec asks, and `Faulty` doubles, each reproducing one known failure. `Chain` is the simulated ledger F7 to F9 advance |
 | `src/x402conf/fixtures/devnet.json` | Devnet requirements (`solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1`, devnet USDC) and the test vectors |
 | `lean/` | Lean 4 models of the credit rule and the nonce state machine, built by `lake build` |

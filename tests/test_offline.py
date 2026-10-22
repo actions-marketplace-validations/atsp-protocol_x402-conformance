@@ -1,4 +1,4 @@
-"""F1-F10: the reference double passes; each faulty double is caught by the check that targets it."""
+"""F1-F11: the reference double passes; each faulty double is caught by the check that targets it."""
 
 import contextlib
 import io

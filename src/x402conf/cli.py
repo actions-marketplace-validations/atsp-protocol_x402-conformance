@@ -1,8 +1,8 @@
 """Command line.
 
     x402conf live <facilitator-base-url> ... [--evidence DIR] [--fail-on-error]   S0-S4, GET /supported only
-    x402conf resource <paid-url> ... [--fail-on-error]                            P1-P5, one unpaid GET per URL
-    x402conf offline                                                F1-F9 against the reference and faulty doubles
+    x402conf resource <paid-url> ... [--fail-on-error]                            P1-P7, one unpaid GET per URL
+    x402conf offline                                                F1-F11 against the reference and faulty doubles
     x402conf devnet [--faults] [--evidence DIR] ...                  F1-F6 over real /verify and /settle on Solana devnet
     x402conf report [--dir DIR] [--sarif FILE] [--junit FILE] [--fail-on-error]   SARIF 2.1.0 and JUnit XML
 
@@ -203,12 +203,12 @@ def parser() -> argparse.ArgumentParser:
     lv.add_argument("targets", nargs="+", metavar="FACILITATOR_URL")
     lv.add_argument("--evidence", help="directory for raw bodies, run.json and SHA256SUMS")
     lv.add_argument("--fail-on-error", action="store_true", help=fe)
-    rs = sub.add_parser("resource", help="P1-P5 over one unpaid GET of a paid URL: the 402 answer and its PaymentRequired",
-                        description="P1-P5: one unpaid GET per URL, any network, V1 or V2. Never pays or POSTs.")
+    rs = sub.add_parser("resource", help="P1-P7 over one unpaid GET of a paid URL: the 402 answer and its PaymentRequired",
+                        description="P1-P7: one unpaid GET per URL, any network, V1 or V2. Never pays or POSTs.")
     rs.add_argument("targets", nargs="+", metavar="PAID_URL")
     rs.add_argument("--fail-on-error", action="store_true", help=fe)
-    sub.add_parser("offline", help="F1-F9 against the built-in reference and fault-injected facilitator doubles",
-                   description="Self-test of the suite: F1-F9 against in-process doubles. Exits 1 unless the reference "
+    sub.add_parser("offline", help="F1-F11 against the built-in reference and fault-injected facilitator doubles",
+                   description="Self-test of the suite: F1-F11 against in-process doubles. Exits 1 unless the reference "
                                "passes and every fault-injected double is caught. It does not test your code.")
     rp = sub.add_parser("report", help="convert results JSON in a directory to SARIF 2.1.0 and JUnit XML",
                         description="Convert live.json, resource-402.json, resource-server.json and offline.json to "
