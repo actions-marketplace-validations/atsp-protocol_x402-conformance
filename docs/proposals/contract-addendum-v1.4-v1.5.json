@@ -1,5 +1,5 @@
 {
- "about": "PROPOSED, UNSIGNED. New Proofline tasks for the v1.4 and v1.5 milestones in docs/ROADMAP.md. Nothing here is binding and CI does not read this file. The tasks become part of the contract only when the owner merges them into proofline.json and re-signs it with the owner key pinned in guard/owner.pub.",
+ "about": "PROPOSED, UNSIGNED. New Proofline tasks for the v1.4 and v1.5 milestones in docs/ROADMAP.md. Nothing here is binding and CI does not read this file. The tasks become part of the contract only when the owner merges them into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. Task IDs XC-11 to XC-14 are left to the integration tasks proposed in docs/proposals/contract-addendum-integrations.json (PRs #11 to #14), so this file uses XC-09, XC-10 and XC-15 to XC-20.",
  "schema": "proofline/1",
  "status": "proposed",
  "proposed_by": "mgillr",
@@ -205,7 +205,7 @@
    ]
   },
   {
-   "id": "XC-11",
+   "id": "XC-15",
    "title": "Normative additions: F5 extended, F11, P6, P7",
    "phase": "implement",
    "owner": "mgillr",
@@ -232,7 +232,7 @@
    },
    "criteria": [
     {
-     "id": "XC-11-AC01",
+     "id": "XC-15-AC01",
      "mandatory": true,
      "statement": "F5 catches a double that answers settlement_pending without a transaction or network",
      "verifier": {
@@ -246,7 +246,7 @@
      }
     },
     {
-     "id": "XC-11-AC02",
+     "id": "XC-15-AC02",
      "mandatory": true,
      "statement": "F11 catches a double whose /verify consumes the payment",
      "verifier": {
@@ -260,7 +260,7 @@
      }
     },
     {
-     "id": "XC-11-AC03",
+     "id": "XC-15-AC03",
      "mandatory": true,
      "statement": "P6 warns above 8 KB and fails above 16 KB on fixtures",
      "verifier": {
@@ -274,7 +274,7 @@
      }
     },
     {
-     "id": "XC-11-AC04",
+     "id": "XC-15-AC04",
      "mandatory": true,
      "statement": "P7 fails a non-authorization 402 that omits extra.paymentFlow",
      "verifier": {
@@ -293,14 +293,14 @@
    ]
   },
   {
-   "id": "XC-12",
+   "id": "XC-16",
    "title": "Evidence v2 and the test-credibility gate",
    "phase": "integrate",
    "owner": "mgillr",
    "depends_on": [
     "XC-09",
     "XC-10",
-    "XC-11"
+    "XC-15"
    ],
    "requirements": [
     "R-CRED"
@@ -318,7 +318,7 @@
    },
    "criteria": [
     {
-     "id": "XC-12-AC01",
+     "id": "XC-16-AC01",
      "mandatory": true,
      "statement": "Every check id maps to at least one passing control and at least one caught faulty build",
      "verifier": {
@@ -332,7 +332,7 @@
      }
     },
     {
-     "id": "XC-12-AC02",
+     "id": "XC-16-AC02",
      "mandatory": true,
      "statement": "Every result carries profile, spec basis and versions",
      "verifier": {
@@ -351,7 +351,7 @@
    ]
   },
   {
-   "id": "XC-13",
+   "id": "XC-17",
    "title": "Concurrency and idempotency: R12, R13, R14",
    "phase": "implement",
    "owner": "mgillr",
@@ -371,7 +371,7 @@
    },
    "criteria": [
     {
-     "id": "XC-13-AC01",
+     "id": "XC-17-AC01",
      "mandatory": true,
      "statement": "R12 catches a non-atomic check-then-set under parallel load",
      "verifier": {
@@ -383,7 +383,7 @@
      }
     },
     {
-     "id": "XC-13-AC02",
+     "id": "XC-17-AC02",
      "mandatory": true,
      "statement": "R13 catches a per-process in-memory cache across two replicas",
      "verifier": {
@@ -395,7 +395,7 @@
      }
     },
     {
-     "id": "XC-13-AC03",
+     "id": "XC-17-AC03",
      "mandatory": true,
      "statement": "R14 catches a server that settles again after a restart",
      "verifier": {
@@ -407,7 +407,7 @@
      }
     },
     {
-     "id": "XC-13-AC04",
+     "id": "XC-17-AC04",
      "mandatory": true,
      "statement": "The n-replica theorems build with standard axioms only",
      "verifier": {
@@ -423,7 +423,7 @@
    ]
   },
   {
-   "id": "XC-14",
+   "id": "XC-18",
    "title": "Payment versus delivery: R15 to R19",
    "phase": "implement",
    "owner": "mgillr",
@@ -442,7 +442,7 @@
    },
    "criteria": [
     {
-     "id": "XC-14-AC01",
+     "id": "XC-18-AC01",
      "mandatory": true,
      "statement": "R15: no /settle when the handler returns 3xx or 5xx or throws",
      "verifier": {
@@ -454,7 +454,7 @@
      }
     },
     {
-     "id": "XC-14-AC02",
+     "id": "XC-18-AC02",
      "mandatory": true,
      "statement": "R16: a HEAD carrying a payment is refused with zero /settle calls",
      "verifier": {
@@ -466,7 +466,7 @@
      }
     },
     {
-     "id": "XC-14-AC03",
+     "id": "XC-18-AC03",
      "mandatory": true,
      "statement": "R17: an unpaid request through a caching proxy after a paid one gets 402",
      "verifier": {
@@ -478,7 +478,7 @@
      }
     },
     {
-     "id": "XC-14-AC04",
+     "id": "XC-18-AC04",
      "mandatory": true,
      "statement": "R18: pending, then success, is served once, never twice",
      "verifier": {
@@ -490,7 +490,7 @@
      }
     },
     {
-     "id": "XC-14-AC05",
+     "id": "XC-18-AC05",
      "mandatory": true,
      "statement": "R19: an upfront or escrow route never executes before a check",
      "verifier": {
@@ -507,14 +507,14 @@
    ]
   },
   {
-   "id": "XC-15",
+   "id": "XC-19",
    "title": "Implementation matrix: stock servers at pinned versions",
    "phase": "verify",
    "owner": "mgillr",
    "depends_on": [
     "XC-10",
-    "XC-13",
-    "XC-14"
+    "XC-17",
+    "XC-18"
    ],
    "requirements": [
     "R-MATRIX"
@@ -530,7 +530,7 @@
    },
    "criteria": [
     {
-     "id": "XC-15-AC01",
+     "id": "XC-19-AC01",
      "mandatory": true,
      "statement": "At least five stack-and-version rows with SHA256SUMS",
      "verifier": {
@@ -545,13 +545,13 @@
    ]
   },
   {
-   "id": "XC-16",
+   "id": "XC-20",
    "title": "Adoption track A1-A8, built into the code",
    "phase": "integrate",
    "owner": "mgillr",
    "depends_on": [
     "XC-10",
-    "XC-12"
+    "XC-16"
    ],
    "requirements": [
     "R-ADOPT"
@@ -572,7 +572,7 @@
    },
    "criteria": [
     {
-     "id": "XC-16-AC01",
+     "id": "XC-20-AC01",
      "mandatory": true,
      "statement": "A1: the demo one-liner finishes with results in under 60 s, offline apart from the package",
      "verifier": {
@@ -583,7 +583,7 @@
      }
     },
     {
-     "id": "XC-16-AC02",
+     "id": "XC-20-AC02",
      "mandatory": true,
      "statement": "A1: the Python demo runs with no wallet and exits 0",
      "verifier": {
@@ -594,18 +594,18 @@
      }
     },
     {
-     "id": "XC-16-AC03",
+     "id": "XC-20-AC03",
      "mandatory": true,
      "statement": "A3: every check id in spec.CATALOG has a fix hint",
      "verifier": {
       "type": "command",
-      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_every_check_has_a_fix_hint",
+      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Report.test_every_catalog_check_has_a_fix_section",
       "expect_exit": 0,
       "timeout_s": 300
      }
     },
     {
-     "id": "XC-16-AC04",
+     "id": "XC-20-AC04",
      "mandatory": true,
      "statement": "A6: every corpus case has a control, a faulty build and an expected outcome, and passes",
      "verifier": {
@@ -616,7 +616,7 @@
      }
     },
     {
-     "id": "XC-16-AC05",
+     "id": "XC-20-AC05",
      "mandatory": true,
      "statement": "A6: the corpus case template exists",
      "verifier": {
@@ -625,7 +625,7 @@
      }
     },
     {
-     "id": "XC-16-AC06",
+     "id": "XC-20-AC06",
      "mandatory": true,
      "statement": "A7: the compatibility matrix is generated, not hand-edited",
      "verifier": {
