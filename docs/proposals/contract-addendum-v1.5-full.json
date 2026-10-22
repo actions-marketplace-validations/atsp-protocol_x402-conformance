@@ -94,7 +94,7 @@
      "statement": "R20, R20a and R20b are in the check catalog with profile, basis, control, faulty build and a FIXES section, and the TypeScript catalog matches",
      "verifier": {
       "type": "command",
-      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"R20\", \"R20a\", \"R20b\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"R20a\", \"R20\", \"R20b\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
       "expect_exit": 0,
       "timeout_s": 600
      }
@@ -292,10 +292,10 @@
     {
      "id": "XC-24-AC02",
      "mandatory": true,
-     "statement": "No sorry in the replica model",
+     "statement": "The replica model exists and has no sorry",
      "verifier": {
       "type": "command",
-      "cmd": "! grep -n -w sorry lean/X402Conformance/Replicas.lean",
+      "cmd": "test -s lean/X402Conformance/Replicas.lean && ! grep -n -w sorry lean/X402Conformance/Replicas.lean",
       "expect_exit": 0,
       "timeout_s": 30
      }
@@ -1318,7 +1318,7 @@
      "statement": "U1, U2, U3, B1, B2, B3 are in the catalog with controls, faulty builds and FIXES sections",
      "verifier": {
       "type": "command",
-      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"U1\", \"B3\", \"B2\", \"U2\", \"B1\", \"U3\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
+      "cmd": "PYTHONPATH=src python3 -c 'import sys; from x402conf.spec import CATALOG; m={\"B3\", \"U2\", \"U3\", \"B1\", \"B2\", \"U1\"}-set(CATALOG); print(\"missing:\", sorted(m)); sys.exit(1 if m else 0)' && PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
       "expect_exit": 0,
       "timeout_s": 600
      }
