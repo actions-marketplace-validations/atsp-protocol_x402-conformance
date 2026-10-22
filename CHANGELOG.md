@@ -1,4 +1,12 @@
 # Changelog
+## Unreleased
+- Roadmap for v1.4 and v1.5 ([docs/ROADMAP.md](docs/ROADMAP.md)): payment-to-request binding on a real resource
+  server (R11), a fail-closed oracle, F11, F12, P6 and P7, then concurrency and idempotency (R12-R14) and payment versus
+  delivery (R15-R19). Checks are classified as normative, security profile or resilience; the release gate for dropping
+  the experimental label and the free-core boundary are written down. The new contract tasks are proposed, unsigned, in
+  [docs/proposals/contract-addendum-v1.4-v1.5.json](docs/proposals/contract-addendum-v1.4-v1.5.json).
+- README and the Action list F10 with the rest of the offline self-test.
+
 ## 1.3.1
 - XC-08: cross-request payment replay security — the reference verifier records the requirements hash each transaction
   was verified under and refuses the same transaction against a different requirements set (amount escalation, recipient

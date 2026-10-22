@@ -83,10 +83,11 @@ on loopback, points your server at it through `X402_FACILITATOR_URL` and pays yo
   truncated body, `settlement_pending` or `invalid_transaction_state`
 - **R10** send a `PAYMENT-RESPONSE` header that decodes to `success: true` with the content
 
-**Safety suite (`x402conf offline` and `devnet`, F1-F9):** a malformed payment accepted (F1), an underpayment accepted
+**Safety suite (`x402conf offline` and `devnet`, F1-F10):** a malformed payment accepted (F1), an underpayment accepted
 (F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation (F5), a timeout or
 garbage answer credited (F6), a pending payment never finalised or credited twice (F7), a failure stuck pending (F8),
-a broken `/settle` transport credited (F9). `offline` runs them against built-in doubles: it's a self-test of the suite
+a broken `/settle` transport credited (F9), a payment settled under one set of requirements accepted again under
+different ones (F10). `offline` runs them against built-in doubles: it's a self-test of the suite
 and doesn't test your code. `devnet` runs F1-F6 over real `/verify` and `/settle` on Solana devnet.
 
 [docs/SPEC.md](docs/SPEC.md) quotes the spec text behind every check, and [docs/FIXES.md](docs/FIXES.md) explains, for
@@ -112,7 +113,7 @@ follows the latest 1.x release.
 ```
 x402conf live https://x402.org/facilitator             # S0-S4, GET /supported only
 x402conf resource https://api.example.com/paid         # P1-P5, one unpaid GET
-x402conf offline                                       # F1-F9 self-test against the built-in doubles
+x402conf offline                                       # F1-F10 self-test against the built-in doubles
 x402conf report --dir DIR --sarif out.sarif --junit junit.xml
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out resource-server.json
@@ -159,7 +160,7 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 | `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
 | `network` | `auto` | Which offered network the probe pays on: `auto`, `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` or `eip155:84532` |
 | `port` | `4402` | Loopback port for the facilitator double |
-| `offline` | `true` | Also run the F1-F9 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
+| `offline` | `true` | Also run the F1-F10 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-402.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when a check fails, a requested run left no results, or the probe found nothing to grade |
 
@@ -247,6 +248,15 @@ that ties one purchase to one memo has to enforce that itself. Every fault-injec
 it targets. Transaction links, the full `run.json` and its hash are in [evidence/devnet](evidence/devnet). Results for
 other facilitators go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the
 operator's permission.
+
+## Roadmap
+
+Next is depth, not breadth. v1.4 tests that a payment for one route, price, recipient or method never unlocks another,
+on a real resource server rather than only on the facilitator double, and makes the suite's own oracle fail closed on
+malformed amounts. v1.5 adds parallel and multi-replica replay, a crash between settling and serving, and payment
+versus delivery (failed handlers, `HEAD`, caches, late settlement). Every check is labelled normative, security profile
+or resilience, and every check ships with a passing control and a faulty build it catches. The plan, the release gate
+for dropping the experimental label, and what stays free are in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How this repo is verified
 
