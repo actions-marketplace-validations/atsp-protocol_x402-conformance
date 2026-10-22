@@ -78,13 +78,13 @@ export const x402Matchers = {
     const ok = passed(received);
     return { pass: ok, message: () => (ok ? "expected the x402-conformance run to fail, but it passed\n" : "") + message(received) };
   },
-  /** A report from checkPaymentRequired(): the unpaid answer is a well-formed x402 402 (P1-P5). */
+  /** A report from checkPaymentRequired(): the unpaid answer is a well-formed x402 402 (P1-P7). */
   toBeValidX402Challenge(this: Ctx, received: unknown): MatcherResult {
     if (!isReport(received) || received.kind !== "resource-402") {
       return { pass: false, message: () => "expected a report from checkPaymentRequired()" };
     }
     const ok = passed(received);
-    return { pass: ok, message: () => (ok ? "expected the 402 answer to be invalid, but P1-P5 passed\n" : "") + message(received) };
+    return { pass: ok, message: () => (ok ? "expected the 402 answer to be invalid, but P1-P7 passed\n" : "") + message(received) };
   },
 };
 
