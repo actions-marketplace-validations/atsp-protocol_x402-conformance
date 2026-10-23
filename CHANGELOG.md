@@ -1,5 +1,55 @@
 # Changelog
 ## Unreleased
+- R22, the paid response keeps the handler's 2xx status and headers (`probeStatus`): after a successful settle the
+  client receives the handler's own status and headers. A 201 stays a 201 with its Location and a 202 stays a 202 with
+  its Content-Location. Only 2xx statuses are graded, since a paid 3xx is never settled (R15). The control is
+  `ts/example/status-server.ts`; a build that rewrites the paid response to 200 fails, on Solana devnet and Base
+  Sepolia (`ts/test/handler-status.test.ts`).
+- R12, parallel requests with one payment identifier (`probeParallel`): the probe sends eight requests at once with the
+  same payment-identifier id and a fresh payment each, and fails a server that settles more than one of them or serves
+  one that doesn't name the settlement. R13, two replicas (`probeReplicas`): the same id goes to one replica, then the
+  other, then both at once, and the service must settle it once in all. The control is `ts/example/replica-server.ts`
+  (an idempotency record that reserves the key before it awaits, shared by both replicas); the `check_then_set` build
+  and a per-process record each fail, on Solana devnet and Base Sepolia (`ts/test/concurrency.test.ts`). The contract
+  task is XC-17 (AC01, AC02).
+- C3, a client offered V2 never falls back to V1 (`checkClientKeepsV2`). A recording proxy in front of a paid route
+  adds a V1 body for the same offer to the route's 402, next to its V2 `PAYMENT-REQUIRED` header. The client must pay
+  with `PAYMENT-SIGNATURE` at `x402Version` 2; a payment with `X-PAYMENT` or at `x402Version` 1 fails, and so does a
+  client that never pays. Only a V2 payment is forwarded, so nothing settles for a V1 one. The stock `@x402/fetch`
+  client passes and a client that reads the V1 body first is caught, on Solana devnet and Base Sepolia
+  (`ts/test/client-version.test.ts`). A fix section is in [docs/FIXES.md](docs/FIXES.md#c3).
+- C2, a client pays an offer within its own policy (`checkClientOfferPolicy`): given several offers a client must
+  choose one on its configured networks and within its maximum amount, not the first, and never sign for a network
+  outside its set. A recording proxy puts two decoys before the route's offer in the 402 (the same offer on a network
+  outside the client's set, and one on its network above its maximum), answers a payment for a decoy with 402 so
+  nothing settles, and reads which offer the client signed. The stock `x402Client` with `@x402/fetch`, registered only
+  for its network and capped with spend controls, passes; a client that signs the first offer and one that ignores its
+  maximum are caught, on Solana devnet and Base Sepolia (`ts/test/client-offers.test.ts`). A fix section is in
+  [docs/FIXES.md](docs/FIXES.md#c2).
+- C1, a client never hands a 402 to its caller as a success. `checkClientHandles402` runs a client once through a
+  recording proxy in front of a paid route behind the facilitator double. It passes when the client pays and gets a
+  2xx, or rejects with an error, and fails when the client resolves with the 402. The stock `@x402/fetch` client, the
+  same client with a policy that declines the price, and a client that pays a 402 before its status check pass; a
+  client whose status check accepts every status and whose payment step only runs for rejected statuses is caught
+  (`ts/test/client-status.test.ts`, Solana devnet and Base Sepolia). A fix section is in
+  [docs/FIXES.md](docs/FIXES.md#c1).
+- R23, a client abort during settle (`probeAbort`): the probe pays a route, drops its connection while the server's
+  `/settle` is in flight and then resends the same signed payment. It passes when nothing was settled, or when the
+  payment was settled once and the resend gets the settled result with no second charge. The stock `@x402/express`
+  server with an idempotency record written when `/settle` succeeds passes; a server that writes its record only once
+  the response is delivered, and one with no record, fail (`ts/test/abort.test.ts`, on Solana devnet and Base
+  Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r23).
+- R24, a malformed payment header (`probeMalformedHeader`): the probe sends a paid route five `PAYMENT-SIGNATURE`
+  values that are not base64, not JSON or not an object, and passes when every one gets 402 or 400 with a structured
+  error, never a 5xx, a dropped connection or the content. The stock `@x402/express` server passes; a build that decodes
+  the header itself and throws, and one that drops the connection, fail (`ts/test/malformed-header.test.ts`, on Solana
+  devnet and Base Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r24).
+- `tools/interdeps.py` generates `docs/INTERDEPENDENCY.md` from `proofline.json`, the unmerged addenda,
+  `vv/claims.json`, the check catalogue and the tree, with a mermaid graph of the tasks. `--check` fails when the
+  committed map is stale; `--drift` fails when a doc names a check id, CLI flag or Action input the code doesn't have,
+  when the code has one no doc names, or when the package versions disagree; `--versions X.Y.Z` fails unless every
+  package is at X.Y.Z. CI runs `--check` and `--drift`, and `tests/test_interdeps.py` shows each kind of drift is
+  caught. The `ts/README.md` now documents the R11 binding flags, which no doc named. The contract task is XC-23.
 - R15, no settlement when the paid handler fails (`probeDelivery`): the probe pays a route that answers 5xx, one that
   redirects and one that throws, and fails a server that calls `/settle` for any of them or sends a
   `PAYMENT-RESPONSE`. The control is `ts/example/delivery-server.ts`, which settles only after a 2xx; the
@@ -13,6 +63,9 @@
   is not answered 402 with a `PAYMENT-REQUIRED` offer. The control is `ts/example/head-unpaid-server.ts`; the
   `head_bypass` build (a paywall that matches only `GET`) fails, on Solana devnet and Base Sepolia
   (`ts/test/head-unpaid.test.ts`).
+- F12, `/verify` rejects an unsupported network or an asset that is not a token contract: the offline harness verifies
+  a well-formed payment on a network the facilitator doesn't advertise and one in an address with no contract code,
+  and each must be answered `isValid: false` with a reason. The `trust_kind` double fails it.
 ## 1.4.0 (2026-10-22)
 - R14, a crash between a successful `/settle` and the response (`x402conf-svm probe --crash`, Action `crash: "true"`).
   The probe kills the server while `/settle` is answering and again as the response starts, restarts it (the `--start`
