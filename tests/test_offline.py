@@ -179,6 +179,57 @@ class Offline(unittest.TestCase):
         # XC-15-AC02: a /verify that commits payment state (V2 7.1) is caught by F11
         self.assertIn("F11", fails(H.check_safety(M.Faulty(verify_commits=True), M.vectors())))
 
+    def test_f12_reference_rejects_unsupported_network_and_asset(self):
+        r = next(x for x in H.check_safety(M.Reference(), M.vectors()) if x["check"].startswith("F12 "))
+        self.assertTrue(r["pass"], r)
+        self.assertEqual(r["detail"]["unsupported_network"]["invalidReason"], "unsupported_network")
+        self.assertEqual(r["detail"]["asset_without_code"]["invalidReason"], "invalid_asset")
+
+    def test_f12_trusting_the_requirements_caught(self):
+        self.assertEqual(fails(H.check_safety(M.FAULTS["trust_kind"](), M.vectors())), {"F12"})
+
+    def _s5(self, fac):
+        r = next((x for x in H.check_safety(fac, M.vectors()) if x["check"].startswith("S5 ")), None)
+        self.assertIsNotNone(r, "check_safety gave no S5 result")
+        return r
+
+    def _fault(self, name):
+        self.assertIn(name, M.FAULTS, f"no {name} build")
+        return M.FAULTS[name]()
+
+    def test_s5_reference_answers_every_advertised_kind(self):
+        r = self._s5(M.Reference())
+        self.assertTrue(r["pass"], r)
+        self.assertEqual([k["answer"] for k in r["detail"]["kinds"]], [{"isValid": True}])
+        # A second advertised network with no token at the fixture's asset gets invalid with a reason: still an answer.
+        fac = M.Reference()
+        fac.networks.add("solana:x402confSecondNetwork")
+        r = self._s5(fac)
+        self.assertTrue(r["pass"], r)
+        self.assertEqual(sorted(str(k["answer"].get("invalidReason")) for k in r["detail"]["kinds"]),
+                         ["None", "invalid_asset"])
+
+    def test_s5_unhandled_advertised_kind_caught(self):
+        self.assertEqual(fails(H.check_safety(self._fault("advertise_unhandled"), M.vectors())), {"S5"})
+        r = self._s5(self._fault("advertise_unhandled"))
+        self.assertIn("raised KeyError", [k.get("answer") for k in r["detail"]["kinds"]])
+
+    def test_s5_reasonless_invalid_caught(self):
+        self.assertEqual(fails(H.check_safety(self._fault("reasonless_invalid"), M.vectors())), {"S5"})
+
+    def test_s5_not_graded_without_supported(self):
+        class Bare:
+            def __init__(self) -> None:
+                self.inner = M.Reference()
+
+            def verify(self, p, req):
+                return self.inner.verify(p, req)
+
+            def settle(self, p, req):
+                return self.inner.settle(p, req)
+
+        self.assertFalse(any(x["check"].startswith("S5 ") for x in H.check_safety(Bare(), M.vectors())))
+
     def test_f6_guard_crediting_on_error_caught(self):
         g = H.GUARD_FAULTS["guard_credit_on_error"]
         self.assertEqual(fails(H.check_safety(M.Reference(), M.vectors(), guard=g)), {"F6"})
@@ -190,8 +241,18 @@ class Offline(unittest.TestCase):
         ts = "".join(p.read_text("utf-8") for p in (pathlib.Path(__file__).parent.parent / "ts" / "test").glob("*.ts"))
         emitted = {r["check"].split()[0] for r in H.check_safety(M.Reference(), M.vectors())}
         emitted |= {"S0", "S1", "S2", "S3", "S4", "P1", "P2", "P3", "P4", "P5", "P6", "P7"}
-        emitted |= {f"R{i}" for i in range(11)} | {"R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f"}
+        emitted |= {f"R{i}" for i in range(11)} | {"R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f", "R14"}
         emitted |= {"R20", "R20a", "R20b"}
+        emitted |= {"C3"}
+        emitted |= {"C2"}
+        emitted |= {"C1"}
+        emitted |= {"R23"}
+        emitted |= {"R15"}
+        emitted |= {"R16"}
+        emitted |= {"R16a"}
+        emitted |= {"R12", "R13"}
+        emitted |= {"R24"}
+        emitted |= {"R22"}
         self.assertEqual(emitted - set(S.CATALOG), set(), "checks with no catalog entry")
         for cid, e in S.CATALOG.items():
             with self.subTest(check=cid):

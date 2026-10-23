@@ -59,6 +59,21 @@ inputs:
       (R11f). Needs @x402/extensions in your project; nothing is signed with a funded key.
     required: false
     default: ""
+  crash:
+    description: >-
+      "true" also runs R14 after R0-R10: the probe kills your server after /settle succeeds and before the response,
+      restarts it and presents the same payment. Needs resource-url, and start (the probe restarts that command) or
+      crash-kill and crash-restart.
+    required: false
+    default: "false"
+  crash-kill:
+    description: For a server start did not launch, a command that kills it hard and returns once it is gone (R14).
+    required: false
+    default: ""
+  crash-restart:
+    description: For a server start did not launch, a command that starts it again in the background and returns (R14).
+    required: false
+    default: ""
   retry:
     description: >-
       'true' to also check R20 retry double-pay on resource-url: the client times out before /settle answers and
@@ -183,7 +198,7 @@ runs:
         echo "$sum  $dir/node.tgz" | (sha256sum -c - 2>/dev/null || shasum -a 256 -c -)
         tar -xzf "$dir/node.tgz" -C "$dir" --strip-components=1
         rm "$dir/node.tgz"
-    - name: Resource-server checks R0-R11 and R20 (facilitator double on loopback)
+    - name: Resource-server checks R0-R11, R14 and R20 (facilitator double on loopback)
       if: inputs.resource-url != '' || inputs.binding-cheap-url != '' || inputs.binding-method-url != '' || inputs.binding-query-urls != '' || inputs.binding-param-url != '' || inputs.binding-siwx-urls != ''
       shell: bash
       env:
@@ -196,6 +211,9 @@ runs:
         X402C_B_SIWX: ${{ inputs.binding-siwx-urls }}
         X402C_RETRY: ${{ inputs.retry }}
         X402C_START: ${{ inputs.start }}
+        X402C_CRASH: ${{ inputs.crash }}
+        X402C_CRASH_KILL: ${{ inputs.crash-kill }}
+        X402C_CRASH_RESTART: ${{ inputs.crash-restart }}
         X402C_PORT: ${{ inputs.port }}
         X402C_NETWORK: ${{ inputs.network }}
         X402C_DIR: ${{ inputs.results-dir }}
@@ -215,6 +233,9 @@ runs:
         if [ -n "$X402C_B_SIWX" ]; then args+=(--siwx-cheap "${X402C_B_SIWX%%,*}" --siwx-expensive "${X402C_B_SIWX#*,}"); fi
         if [ "$X402C_RETRY" = "true" ] && [ -n "$X402C_RESOURCE" ]; then args+=(--retry); fi
         if [ -n "$X402C_START" ]; then args+=(--start "$X402C_START"); fi
+        if [ "$X402C_CRASH" = "true" ]; then args+=(--crash); fi
+        if [ -n "$X402C_CRASH_KILL" ]; then args+=(--crash-kill "$X402C_CRASH_KILL"); fi
+        if [ -n "$X402C_CRASH_RESTART" ]; then args+=(--crash-restart "$X402C_CRASH_RESTART"); fi
         # The exit code is read from the results file by the summary step; a missing file is a failure there.
         "$node_dir/bin/node" "$GITHUB_ACTION_PATH/ts/dist/src/cli.js" "${args[@]}" > /dev/null || true
     - name: Offline self-test F1-F11

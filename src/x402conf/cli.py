@@ -534,7 +534,7 @@ def action_summary(env: dict[str, str] | None = None) -> int:
     if want["resource-server.json"] and os.path.exists(rsv):
         with open(rsv) as f:
             doc = json.load(f)
-        core = [c for c in doc.get("results", []) if not c["check"].startswith("R11")]
+        core = [c for c in doc.get("results", []) if not c["check"].startswith(("R11", "R14"))]
         n = len(core)
         if doc.get("resource") and not doc.get("error") and not unsupported and n < 11 and all(c["pass"] for c in core):
             bad.append(f"{doc.get('resource')}: the probe stopped after {n} checks")

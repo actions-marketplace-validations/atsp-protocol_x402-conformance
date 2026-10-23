@@ -53,6 +53,21 @@ with an error if your server exits. `--network` picks `auto` (default), `solana:
 `eip155:84532`. `--out` writes the results JSON, on errors too. Each request has a 60 s deadline; a server still holding
 a request then has served nothing.
 
+**R11, payment-to-request binding.** Give the routes to bind, with or without `--resource`: `--cheap` and `--expensive`
+are two paid routes at different prices (R11, R11a, R11b), `--by-method` a paid URL priced differently for `GET` and
+`POST` (R11c), `--by-query` two paid URLs that differ only in the query, comma-separated (R11d), `--param` a paid
+parameterised route with `{id}` where the parameter goes (R11e), and `--siwx-cheap` and `--siwx-expensive` two paid
+routes at different prices that declare sign-in-with-x, on Base Sepolia (R11f).
+
+**R14, a crash between `/settle` and the response (`--crash`).** After R0-R10 the probe kills your server twice, once
+while `/settle` is answering and once as the response starts, restarts it and presents the same payment (with a
+`payment-identifier` id if your route advertises that extension). Your server must not call `/settle` again or answer
+402, and must either deliver once from its idempotency record or refuse and name the transaction or payment id so it
+can be reconciled. With `--start` the probe restarts that command itself; for a server it didn't start, pass
+`--crash-kill "<command>"` and `--crash-restart "<command>"`. The idempotency record has to survive the restart: see
+[example/crash-server.ts](https://github.com/atsp-protocol/x402-conformance/blob/main/ts/example/crash-server.ts) and
+[FIXES.md#r14](https://github.com/atsp-protocol/x402-conformance/blob/main/docs/FIXES.md#r14).
+
 **Retry double-pay (R20).** `--retry` adds R20 on `--resource`: the double holds `/settle` past the client's 400 ms
 timeout, the probe gives up and retries once the first payment has settled. R20a retries with a fresh payment under the
 same payment-identifier id (and `Idempotency-Key`); R20b resends the same signed payment. Either way the request must be

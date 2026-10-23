@@ -29,6 +29,9 @@ export interface Double {
   url: string;
   mode: Mode;
   calls: { path: string; mode: Mode }[];
+  /** Crash injection (R14): when set, a reference-mode /settle commits the settlement, then awaits this before it
+   *  drops the connection unanswered: the settlement happened and the server never heard about it. One-shot. */
+  onSettled?: (tx: string) => Promise<void>;
   /** Delay before /settle answers in the modes that answer, so a client can time out while settlement is in flight
    * (R20). 0, the default, answers at once. */
   settleDelayMs: number;
@@ -116,6 +119,13 @@ export async function startDouble(port = 0): Promise<Double> {
         if (settled.has(tx)) return json(200, { success: false, errorReason: "duplicate_settlement", transaction: "", network });
         settled.add(tx);
         d.successes.push(tx);
+        if (d.onSettled) {
+          const hook = d.onSettled;
+          d.onSettled = undefined;
+          await hook(tx);
+          rq.socket.destroy();
+          return;
+        }
         return json(200, success);
     }
   });

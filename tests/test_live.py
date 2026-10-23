@@ -299,6 +299,16 @@ class Live(unittest.TestCase):
                     {"check": f"R{i} ok", "pass": True, "status": "pass", "detail": {}} for i in range(11)]}, f)
             self.assertEqual(self._summary(d, X402C_WANT_PROBE=1), (0, "result=pass"))
 
+    def test_action_summary_counts_r14_apart_from_r0_r10(self):
+        r = lambda c, ok=True: {"check": f"{c} x", "pass": ok, "status": "pass" if ok else "fail", "detail": {}}  # noqa: E731
+        for results, want in (([r(f"R{i}") for i in range(11)] + [r("R14")], (0, "result=pass")),
+                              ([r(f"R{i}") for i in range(11)] + [r("R14", False)], (1, "result=fail")),
+                              ([r(f"R{i}") for i in range(10)] + [r("R14")], (1, "result=fail"))):
+            with tempfile.TemporaryDirectory() as d:
+                with open(os.path.join(d, "resource-server.json"), "w") as f:
+                    json.dump({"resource": "http://x/paid", "results": results}, f)
+                self.assertEqual(self._summary(d, X402C_WANT_PROBE=1), want, [x["check"] for x in results])
+
 
 class Funnel(unittest.TestCase):
     """The shared report, the via tag and the opt-in corpus case, as in ts/src/report.ts and ts/src/corpus.ts."""
