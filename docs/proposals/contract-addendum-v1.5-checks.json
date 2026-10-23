@@ -1,5 +1,5 @@
 {
- "about": "PROPOSED, UNSIGNED. Nine Proofline tasks, XC-39 to XC-47, one per check built after the v1.5 addendum that no signed task covers: R16a, R22, R23, R24, C1, C2, C3, F12 and S5. Nothing here is binding and vv does not read this file. A task becomes part of the contract only when the owner merges it into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. XC-38 is left for R20c, which is proposed on its own. Each task has the shape of XC-21: the TypeScript criteria use the signed name guard from XC-17-AC01, with the name anchored to the check id and a minimum equal to the passing tests at the commit that adds the check, so a control or a faulty build can't be dropped later without failing the task. Requirement ids reuse R-DELIV and R-CONC where a signed task already has them, and are R-<check id> for a new kind of check, as R-F11 and R-R11 are.",
+ "about": "PROPOSED, UNSIGNED. Eight Proofline tasks, XC-39 to XC-46, one per check built after the v1.5 addendum that no signed task covers: R16a, R22, R23, R24, C1, C2, C3 and F12. Nothing here is binding and vv does not read this file. A task becomes part of the contract only when the owner merges it into proofline.json and re-signs it with the owner key pinned in guard/owner.pub. XC-38 is left for R20c, which is proposed on its own. Each task has the shape of XC-21: the TypeScript criteria use the signed name guard from XC-17-AC01, with the name anchored to the check id and a minimum equal to the passing tests at the commit that adds the check, so a control or a faulty build can't be dropped later without failing the task. Requirement ids reuse R-DELIV and R-CONC where a signed task already has them, and are R-<check id> for a new kind of check, as R-F11 and R-R11 are.",
  "schema": "proofline/1",
  "status": "proposed",
  "proposed_by": "mgillr",
@@ -96,7 +96,7 @@
   },
   {
    "id": "XC-40",
-   "title": "R22: the paid response keeps the handler's status",
+   "title": "R22: the paid response keeps the handler's 2xx status and headers",
    "phase": "implement",
    "owner": "mgillr",
    "depends_on": [
@@ -105,7 +105,7 @@
    "requirements": [
     "R-DELIV"
    ],
-   "description": "After a successful settle the client receives the handler's own status code and Location: a 201 stays a 201 and a 302 stays a 302, never a rewritten 200.",
+   "description": "After a successful settle the client receives the handler's own 2xx status and headers: a 201 stays a 201 with its Location and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15).",
    "scope": {
     "allow": [
      "ts/**",
@@ -708,98 +708,6 @@
     },
     {
      "id": "XC-46-AC06",
-     "mandatory": true,
-     "statement": "Committed and pushed to main",
-     "verifier": {
-      "type": "pushed"
-     }
-    }
-   ],
-   "stop_rules": [
-    "If a criterion cannot pass, STOP and report what blocks it, what was tried and what is needed. Never weaken a criterion, skip a test or raise a timeout to make it pass."
-   ]
-  },
-  {
-   "id": "XC-47",
-   "title": "S5: every kind /supported advertises gets a verdict from /verify",
-   "phase": "implement",
-   "owner": "mgillr",
-   "depends_on": [
-    "XC-01",
-    "XC-02"
-   ],
-   "requirements": [
-    "R-S5"
-   ],
-   "description": "Every (scheme, network, x402Version) kind a facilitator advertises in /supported gets a structured /verify answer: isValid true, or isValid false with an invalidReason, never an error. V2 7.1 and 7.3.",
-   "scope": {
-    "allow": [
-     "src/x402conf/**",
-     "tests/test_offline.py",
-     "ts/src/catalog.ts",
-     "docs/**",
-     "CHANGELOG.md"
-    ]
-   },
-   "criteria": [
-    {
-     "id": "XC-47-AC01",
-     "mandatory": true,
-     "statement": "S5 passes the reference double and catches a facilitator that advertises a kind its /verify can't answer, or refuses it with no reason",
-     "verifier": {
-      "type": "command",
-      "cmd": "PYTHONPATH=src python3 -m unittest -v tests.test_offline.Offline.test_s5_reference_answers_every_advertised_kind tests.test_offline.Offline.test_s5_unhandled_advertised_kind_caught tests.test_offline.Offline.test_s5_reasonless_invalid_caught tests.test_offline.Offline.test_s5_not_graded_without_supported",
-      "expect_exit": 0,
-      "min_tests": 4,
-      "max_skipped": 0,
-      "timeout_s": 300
-     }
-    },
-    {
-     "id": "XC-47-AC02",
-     "mandatory": true,
-     "statement": "S5 is in the check catalog with its profile, spec basis, control and faulty build, the TypeScript catalog matches it, and it has a fix section",
-     "verifier": {
-      "type": "command",
-      "cmd": "PYTHONPATH=src python3 -m unittest tests.test_offline.Offline.test_credibility_matrix_complete tests.test_offline.Report.test_every_catalog_check_has_a_fix_section tests.test_offline.Report.test_ts_catalog_matches_spec_catalog",
-      "expect_exit": 0,
-      "min_tests": 3,
-      "max_skipped": 0,
-      "timeout_s": 300
-     }
-    },
-    {
-     "id": "XC-47-AC03",
-     "mandatory": true,
-     "statement": "docs/SPEC.md has the S5 row",
-     "verifier": {
-      "type": "grep",
-      "file": "docs/SPEC.md",
-      "pattern": "^\\| S5 \\|",
-      "must": "present"
-     }
-    },
-    {
-     "id": "XC-47-AC04",
-     "mandatory": true,
-     "statement": "docs/FIXES.md has the S5 section",
-     "verifier": {
-      "type": "grep",
-      "file": "docs/FIXES.md",
-      "pattern": "^## S5$",
-      "must": "present"
-     }
-    },
-    {
-     "id": "XC-47-AC05",
-     "mandatory": true,
-     "statement": "Every changed file is inside this task's scope",
-     "verifier": {
-      "type": "scope"
-     }
-    },
-    {
-     "id": "XC-47-AC06",
      "mandatory": true,
      "statement": "Committed and pushed to main",
      "verifier": {
