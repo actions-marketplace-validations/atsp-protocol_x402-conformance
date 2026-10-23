@@ -11,3 +11,4 @@ export { probeCrash, SpawnedServer, commandControl, paymentRef, R14, CRASH_POINT
 export { probeRetry, checkClientRetry, type RetryOptions, type RetryingClient } from "./retry.js";
 export { probeDelivery, R15, type FailingRoutes, type DeliveryOptions } from "./delivery.js";
 export { probeHead, R16 } from "./head.js";
+export { probeUnpaidHead, R16A } from "./head-unpaid.js";
