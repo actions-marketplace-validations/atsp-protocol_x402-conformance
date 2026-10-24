@@ -209,6 +209,12 @@ as a pass or a security failure.
 at least five stack-and-version rows with pinned, hashed evidence, regenerated in CI (A7), and the FastAPI, Flask and
 Go quickstarts (A4) are green.
 
+## XC-51: self-hosted open-source facilitators as matrix columns (proposed)
+
+| task | acceptance |
+|---|---|
+| XC-51 `x402conf devnet --facilitator http://127.0.0.1:<port>` on Base Sepolia (`eip155:84532`): the F checks that need only `/verify` (no `/settle`) over real `/verify` on Base Sepolia, against any loopback facilitator, with throwaway keys and no `/settle` | each launchable self-hosted facilitator in [MATRIX.md](MATRIX.md#self-hosted-open-source-facilitators) has an evidence folder with `run.json` and `SHA256SUMS`; a failing row says "under disclosure" until SECURITY.md's window clears; nothing off loopback is called |
+
 ## Later: breadth, once the depth is there
 
 Each of these lands only when it can be tested as thoroughly as `exact` is today.

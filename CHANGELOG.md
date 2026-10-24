@@ -1,5 +1,8 @@
 # Changelog
 ## Unreleased
+- Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
+  on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
+  Base Sepolia for these columns are the proposed task XC-51.
 - Every example the docs mark with `<!-- runnable: <kind> -->` is run or checked by CI through
   `tools/doc_examples.py --run`, so a broken example fails the build. The contract task is XC-27.
 - The mutation matrix: `tools/mutation_matrix.py` resolves every faulty build in the catalogue the way the credibility
