@@ -243,6 +243,23 @@ and lists the links to submit them in the terminal summary. Nothing is sent. CI 
 x402 Python SDK's FastAPI middleware ([example](../examples/python/fastapi_server.py)), which passes R0-R10 on Solana
 devnet, and against a faulty server, which fails.
 
+## Quickstarts: clone to a first result
+
+One minimal paid route per framework under [`examples/`](../examples), each on its SDK at a pinned version: Express,
+Hono and Next on `@x402/*` 2.28.0, FastAPI and Flask on the Python SDK 2.25.0, and Go gin on the Go SDK. From a clean
+checkout, one command installs that quickstart's dependencies, starts it on a free port behind the facilitator double,
+runs R0-R10 against it and writes `examples/<framework>/quickstart-result.json`:
+
+<!-- runnable: cli -->
+```
+sh tools/quickstart.sh express      # also: hono, next, fastapi, flask, go
+```
+
+It exits 0 only when the probe ran, every check passed and the run took under 300 s, and it prints the elapsed
+seconds. Each `examples/<framework>/` is also the smallest working copy of that integration: copy it, change the
+route and the `payTo`, and point `X402_FACILITATOR_URL` at your facilitator. CI runs all six quickstarts on every
+push (the `quickstarts` job).
+
 ## Examples that CI runs
 
 A fenced example whose previous line is `<!-- runnable: <kind> -->` is run or checked by `python3 tools/doc_examples.py

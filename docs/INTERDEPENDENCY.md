@@ -336,6 +336,7 @@ graph LR
   devnet["devnet<br/>code"]
   py_suite["py-suite<br/>code"]
   py_tests["py-tests<br/>test"]
+  quickstarts["quickstarts<br/>code"]
   py_examples["py-examples<br/>code"]
   ts_catalog["ts-catalog<br/>code"]
   ts_cli["ts-cli<br/>code"]
@@ -380,6 +381,9 @@ graph LR
   claims -.-> vv
   vv -.-> ci
   vv -.-> vv_doc
+  ts_cli -.-> quickstarts
+  quickstarts -.-> docs
+  quickstarts -.-> ci
   docs -.-> doc_examples
   ts_cli -.-> doc_examples
   py_suite -.-> doc_examples
@@ -473,6 +477,7 @@ graph LR
 | devnet | code | `src/x402conf/devnet/**`; `src/x402conf/fixtures/**` | the devnet runner, its node helpers and fixtures |
 | py-suite | code | `src/x402conf/**`; `pyproject.toml` | the Python suite: CLI, harness, mock and package |
 | py-tests | test | `tests/**` | the Python tests |
+| quickstarts | code | `tools/quickstart.sh`; `examples/.gitignore`; `examples/express/**`; `examples/hono/**`; `examples/next/**`; `examples/fastapi/**`; `examples/flask/**`; `examples/go/**` | the framework quickstarts: one minimal paid route per stack at a pinned SDK version, and the script that goes from a clean checkout to a first result |
 | py-examples | code | `examples/**` | the Python example server |
 | ts-catalog | code | `ts/src/catalog.ts` | the TypeScript catalogue, kept identical to the Python one |
 | ts-cli | code | `ts/src/cli.ts` | the x402conf-svm CLI |
@@ -520,6 +525,9 @@ graph LR
 | claims | vv | review |
 | vv | ci | review |
 | vv | vv-doc | review |
+| ts-cli | quickstarts | review |
+| quickstarts | docs | review |
+| quickstarts | ci | review |
 | docs | doc-examples | review |
 | ts-cli | doc-examples | review |
 | py-suite | doc-examples | review |

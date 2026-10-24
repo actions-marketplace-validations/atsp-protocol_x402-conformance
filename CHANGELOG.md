@@ -17,6 +17,10 @@
   `docs/compat-matrix.json` and the implementation-matrix table in `docs/MATRIX.md` (stack, version, network, tool, every
   check's status, the run's path and hashes), byte-identical for one tree; `--check` fails CI when either is stale, and
   `.github/workflows/compat-matrix.yml` rebuilds it on a schedule. The contract task is XC-28.
+- Framework quickstarts: `examples/` holds one minimal paid route per framework (Express, Hono and Next on `@x402/*`
+  2.28.0, FastAPI and Flask on the Python SDK 2.25.0, Go gin on the Go SDK), and `sh tools/quickstart.sh <framework>`
+  takes a clean checkout to a first R0 to R10 result behind the facilitator double, writing
+  `examples/<framework>/quickstart-result.json`; the `quickstarts` CI job runs all six. The contract task is XC-26.
 
 ## 1.5.0 (2026-10-23)
 - The contract: XC-39 to XC-46 (R16a, R22, R23, R24, C1, C2, C3, F12) are signed and claimed (#55), XC-23 is claimed
