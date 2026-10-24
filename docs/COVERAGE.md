@@ -130,7 +130,9 @@ Flask, Next and Go servers, and the compatibility matrix rebuilt in CI, are in t
 The live run of 2026-10-20 covers fifteen public facilitators with one `GET /supported` each (S0 to S4); the table is in
 [../README.md](../README.md#results) and the raw bodies in [../evidence/2026-10-20-v1.3.0](../evidence/2026-10-20-v1.3.0).
 The devnet safety run (F1 to F6) covers my self-hosted reference facilitator only; third-party facilitators are run only
-with the operator's permission, and none has been asked yet ([MATRIX.md](MATRIX.md)).
+with the operator's permission, and none has been asked yet ([MATRIX.md](MATRIX.md)). Seventeen open-source
+facilitators are built at pinned commits and run on loopback as my own instances; S0 to S4 run against them today and the
+verify-only F checks follow with XC-51 ([MATRIX.md](MATRIX.md#self-hosted-open-source-facilitators)).
 
 ## Lean models
 

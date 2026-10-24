@@ -350,7 +350,9 @@ transactions with the same memo both settled. The payer paid twice, so the selle
 that ties one purchase to one memo has to enforce that itself. Every fault-injected build was caught by the check
 it targets. Transaction links, the full `run.json` and its hash are in [evidence/devnet](evidence/devnet). Results for
 other facilitators go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the
-operator's permission.
+operator's permission. Open-source facilitators I can build myself are listed there as
+[self-hosted columns](docs/MATRIX.md#self-hosted-open-source-facilitators): each runs at a pinned commit on loopback as my
+own instance, S0 to S4 run against them today, and the verify-only F checks follow with XC-51.
 
 ## Roadmap
 
