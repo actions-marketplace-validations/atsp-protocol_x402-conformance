@@ -13,6 +13,10 @@
   Hono 2.28.0, FastAPI and Flask with the Python SDK 2.25.0), each a probe run of R0 to R10 against the stock example
   server behind the double, with `run.json`, a README naming the versions and `SHA256SUMS`; `.github/workflows/impl-matrix.yml`
   rebuilds them, one job per row; `examples/python/flask_server.py` is new. The contract task is XC-19.
+- The compatibility matrix: `tools/compat_matrix.py` reads every row of `evidence/impl-matrix/` and writes
+  `docs/compat-matrix.json` and the implementation-matrix table in `docs/MATRIX.md` (stack, version, network, tool, every
+  check's status, the run's path and hashes), byte-identical for one tree; `--check` fails CI when either is stale, and
+  `.github/workflows/compat-matrix.yml` rebuilds it on a schedule. The contract task is XC-28.
 
 ## 1.5.0 (2026-10-23)
 - The contract: XC-39 to XC-46 (R16a, R22, R23, R24, C1, C2, C3, F12) are signed and claimed (#55), XC-23 is claimed
