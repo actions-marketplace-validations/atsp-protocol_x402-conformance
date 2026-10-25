@@ -1,5 +1,9 @@
 # Changelog
 ## Unreleased
+- `x402conf-svm mcp --url <mcp-endpoint> --tool <name> [--arguments '<json>'] [--no-initialize]`: one unpaid
+  `tools/call` of a paid MCP tool on a live server, paced like `live`, graded X1 on the tool result and P3, P4, P5 and
+  P7 on the `PaymentRequired` in it (`checkMcpSeller`). `--no-initialize` grades a server that needs no session in one
+  request. MCP is JSON-RPC over `POST`, so it is for servers whose operator agreed. Proposed task XC-89.
 - P9 and P10 (proposed task XC-85). P9: the bazaar discovery `info` in a 402, including its example query, body or
   tool arguments, validates against the `schema` the endpoint ships next to it (a Draft 2020-12 subset with no
   dependency; keywords it does not grade are listed, never guessed). P10, with `x402conf resource --well-known`: the
