@@ -324,6 +324,24 @@
    ],
    "profile": "normative"
   },
+  "P10": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "tests.test_discovery_pacing.Discovery.test_p10_unlisted_offsite_and_stale_terms: passed (1 run)",
+     "kind": "py",
+     "ref": "py:tests.test_discovery_pacing.Discovery.test_p10_unlisted_offsite_and_stale_terms"
+    },
+    {
+     "caught": true,
+     "how": "tests.test_discovery_pacing.Discovery.test_p10_atomic_amount_mismatch: passed (1 run)",
+     "kind": "py",
+     "ref": "py:tests.test_discovery_pacing.Discovery.test_p10_atomic_amount_mismatch"
+    }
+   ],
+   "profile": "resilience"
+  },
   "P2": {
    "caught": 1,
    "faults": [
@@ -398,6 +416,24 @@
      "how": "tests.test_live.Live.test_p7_payment_flow_declared: passed (1 run)",
      "kind": "py",
      "ref": "py:tests.test_live.Live.test_p7_payment_flow_declared"
+    }
+   ],
+   "profile": "normative"
+  },
+  "P9": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "tests.test_discovery_pacing.Discovery.test_p9_example_type_mismatch: passed (1 run)",
+     "kind": "py",
+     "ref": "py:tests.test_discovery_pacing.Discovery.test_p9_example_type_mismatch"
+    },
+    {
+     "caught": true,
+     "how": "tests.test_discovery_pacing.Discovery.test_p9_external_ref_and_missing_required: passed (1 run)",
+     "kind": "py",
+     "ref": "py:tests.test_discovery_pacing.Discovery.test_p9_external_ref_and_missing_required"
     }
    ],
    "profile": "normative"
@@ -1135,6 +1171,6 @@
    "profile": "resilience"
   }
  },
- "generated_from": "08053e4710e97ec5056f64875a79dd75156f71dfd16e98e454c8a3c44fc04809",
+ "generated_from": "7ff1f497fc0a5f2af32b436e404577b5857755ed435c1531edf088b94acf0ea3",
  "schema": "x402-conformance.mutation-matrix/1"
 }

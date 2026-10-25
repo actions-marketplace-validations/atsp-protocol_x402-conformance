@@ -67,6 +67,10 @@ for _i in ("U1", "U2", "U3"):
     RUNS[_i] = "library only: `probeUpto` from `x402-conformance-svm`"
 for _i in ("B1", "B2", "B3"):
     RUNS[_i] = "library only: `probeBatch` from `x402-conformance-svm`"
+for _i in ("R16a", "R24"):
+    RUNS[_i] = f"`x402conf-svm live` (unpaid, paced), and `{LIB[_i]}` from `x402-conformance-svm`"
+RUNS["P9"] = "`x402conf resource`, when the 402 carries the bazaar extension"
+RUNS["P10"] = "`x402conf resource --well-known`"
 
 
 def key(i: str) -> tuple[str, int, str]:

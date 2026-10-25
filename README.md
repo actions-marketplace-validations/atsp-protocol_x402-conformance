@@ -90,6 +90,14 @@ report everywhere. Failures you choose to share build the public
   headers that large
 - **P7** an offer whose scheme defaults to a non-authorization flow (`upto` on Solana) doesn't declare
   `extra.paymentFlow` (warning; V2 §6.1 says it must, the upto SVM scheme text says it may be omitted)
+- **P9** the bazaar discovery `info` in the 402 (the `info.input` example) doesn't validate against the `schema` that
+  ships with it, so a catalog that validates it may skip the listing (only when the 402 carries the extension)
+- **P10** with `--well-known`: the host's `/.well-known/x402` doesn't list the paid URL, lists URLs off its own host,
+  or declares terms no live offer matches (warning; one extra `GET` per origin)
+
+Live targets are paced: at least 5 s between requests to a non-loopback host (`--min-interval`), an optional cap on the
+whole run (`--max-requests`), and one line per request on stderr. `x402conf-svm live --url <paid-url>` adds R16a and
+R24 to P1-P7 against a server you may test, unpaid, in 7 requests.
 
 **Your resource server, under fault injection (`x402conf-svm probe`, R0-R11, R14 and R20):** the probe starts a facilitator double
 on loopback, points your server at it through `X402_FACILITATOR_URL` and pays your route with test payloads on
@@ -128,8 +136,8 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
 - **R15** not settle or send a `PAYMENT-RESPONSE` when the paid handler answers 5xx, redirects or throws
   (`probeDelivery`)
 - **R16** not settle a paid `HEAD`: no 2xx, no `/settle` call and no `PAYMENT-RESPONSE` (`probeHead`)
-- **R16a** answer an unpaid `HEAD` with the same 402 and `PAYMENT-REQUIRED` offer as `GET` (`probeUnpaidHead`, which
-  needs no double)
+- **R16a** never let an unpaid `HEAD` reach the handler: answer it with the same 402 and `PAYMENT-REQUIRED` offer as
+  `GET`, or refuse it with 405 (`probeUnpaidHead`, which needs no double)
 - **R17** mark the paid response `private` or `no-store`, or vary it on the payment header, so a shared cache in front
   of the route never serves the paid content to an unpaid request (`probeCacheLeak`)
 - **R18** never serve while a settlement is pending, late or unanswered, serve once after it is final, and name the
@@ -159,6 +167,10 @@ Your client must:
   for a network outside its set (`checkClientOfferPolicy`)
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
+
+A client that has no payment path by design (it hands a 402 back to its caller as an error) is graded **not
+applicable** on C2 and C3 when you pass `{ signsPayments: false }` and it signs nothing; the report lists it under
+`summary.not_applicable` and it does not fail the run.
 
 On the `upto` and `batch-settlement` schemes (unreleased), your server must:
 - **U1** never settle more than the maximum the client signed, whatever the metered usage (`probeUpto`)

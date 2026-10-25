@@ -183,6 +183,27 @@ facilitators that read it fall back to authorization semantics when it's absent.
 scheme text allows omitting it.
 **How to fix it.** Set `extra.paymentFlow` (`"upfront"` or `"escrow"`) on every such offer.
 
+## P9
+**What failed.** The 402 carries the bazaar discovery extension, and its `info` (usually the `info.input` example: the
+query parameters, body or tool arguments) does not validate against the `schema` it ships with. The result lists each
+problem with its path, for example `at /input/queryParams/limit: "3" is not of type integer`. An external `$ref` or
+`$id`, or a `$schema` other than Draft 2020-12, fails too.
+**Why it matters.** The bazaar extension says facilitators must validate `info` against `schema` before cataloging. An
+example that fails its own schema can keep the endpoint out of a discovery catalog, and agents that build calls from
+the schema and the example get two different answers.
+**How to fix it.** Make the example match the schema (send `3`, not `"3"`, for an integer), or change the schema to
+what the endpoint really accepts (query string values are strings, so `type: string` is also a valid choice). Keep
+`$ref` same-document (`#/...`).
+
+## P10
+**What failed.** With `--well-known`, the host's `/.well-known/x402` manifest does not match the live 402: the paid URL
+is not in `resources`, an entry is not HTTPS on this host or a subdomain, or the declared terms (scheme, network,
+asset, payTo, or an atomic `amount`) match none of the live offers. It is a warning: the live 402 is what clients pay.
+**Why it matters.** Crawlers and agents read the manifest to find what you sell. A stale or incomplete one hides paid
+routes or advertises a price or recipient you no longer use, and an off-host entry is ignored by careful consumers.
+**How to fix it.** Generate the manifest from the same route configuration as the payment middleware, list every paid
+URL on your own host, and keep `payTo`, `asset`, `network` and `amount` in step with the 402.
+
 ## F12
 **What failed.** The offline check asked the facilitator to verify a well-formed payment on a network no facilitator
 supports (`x402conf:unsupported`), and one whose asset is an address with no contract code. It answered
@@ -421,14 +442,15 @@ answer 402 asking the client to retry as `GET`, without calling `/verify` or `/s
 `ts/example/head-server.ts` shows one way to do it.
 
 ## R16a
-**What failed.** The probe sent an unpaid `HEAD` to your paid `GET` route. Your server did not answer it 402 with a
-`PAYMENT-REQUIRED` offer; usually it answered 200, which means the protected handler ran with no payment.
+**What failed.** The probe sent an unpaid `HEAD` to your paid `GET` route. Your server neither answered it 402 with a
+`PAYMENT-REQUIRED` offer nor refused it with 405; usually it answered 200, which means the protected handler ran with
+no payment. (A 405 with `Allow: GET` passes: the router refuses `HEAD` before any handler runs.)
 **Why it matters.** Many routers serve `HEAD` from the `GET` handler (RFC 9110 §9.3.2: the same response without the
 content). A paywall that matches routes by the exact method then misses `HEAD`, and anyone can run the handler, read
 its status and headers and trigger its side effects for free.
 **How to fix it.** Match `HEAD` against the `GET` route in the payment layer, so an unpaid `HEAD` gets the same 402
-and `PAYMENT-REQUIRED` header as `GET` and never reaches the handler. `ts/example/head-unpaid-server.ts` shows one way
-to do it.
+and `PAYMENT-REQUIRED` header as `GET` and never reaches the handler, or refuse `HEAD` on paid routes with 405.
+`ts/example/head-unpaid-server.ts` shows both.
 
 ## D1
 **What failed.** Your facilitator's discovery API did not answer in the V2 section 8 shapes: `/discovery/resources`
@@ -599,6 +621,9 @@ for. A client that reads the body first also pays whatever the body says, even w
 `@x402/core` HTTP client does (`x402HTTPClient.getPaymentRequiredResponse`). Pay a V2 offer with `PAYMENT-SIGNATURE` at
 `x402Version` 2, and keep a V1 scheme (`registerV1`) for servers that send no V2 offer at all.
 
+If your client has no payment path by design (it hands a 402 back to its caller as an error), pass
+`{ signsPayments: false }`: a client that then signs nothing is graded not applicable, not failed.
+
 ## C2
 **What failed.** Given several offers, the client signed one outside its own policy: an offer on a network outside
 its configured set, or one for more than its maximum amount, listed before an offer it could pay. Or it paid nothing,
@@ -611,6 +636,10 @@ networks and at or below your maximum, choose among those, and pay nothing if no
 `x402Client`, register your scheme clients only for the networks you configured (registration is its network scope),
 not a wildcard, and keep spend controls on with a per-payment cap (`setSpendControls({ allowedAssets: [{ network,
 asset, maxAmountPerPayment }] })`, an atomic amount). `ts/example/client-offers-clients.ts` shows one way to do it.
+
+If your client has no payment path by design (it hands a 402 back to its caller as an error), pass
+`{ signsPayments: false }`: a client that then signs nothing is graded not applicable, not failed.
+
 
 ## C1
 **What failed.** The client was answered 402 with payment requirements and handed that 402 to its caller as a

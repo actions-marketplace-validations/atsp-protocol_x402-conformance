@@ -55,6 +55,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "normative",
   "basis": "V2 6.1: extra.paymentFlow MUST be present when the resolved flow is not authorization (a warning: the upto SVM scheme spec allows omitting it)"
  },
+ "P9": {
+  "profile": "normative",
+  "basis": "bazaar extension, Schema Validation: schema is JSON Schema Draft 2020-12 with same-document $ref only, and facilitators MUST validate info against schema before cataloging"
+ },
+ "P10": {
+  "profile": "resilience",
+  "basis": "draft-hawkins-x402-dns-discovery 3.2: resources are HTTPS on the manifest's own host, and a manifest that diverges from the live endpoint is a misconfiguration (a warning; the runtime 402 is authoritative)"
+ },
  "F1": {
   "profile": "normative",
   "basis": "V2 9 invalid_payload; V2 5.1.2 atomic units; SVM exact: fail closed"
