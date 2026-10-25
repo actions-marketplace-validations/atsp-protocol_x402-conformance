@@ -1,5 +1,20 @@
 # Changelog
 ## Unreleased
+- P9 and P10 (proposed task XC-85). P9: the bazaar discovery `info` in a 402, including its example query, body or
+  tool arguments, validates against the `schema` the endpoint ships next to it (a Draft 2020-12 subset with no
+  dependency; keywords it does not grade are listed, never guessed). P10, with `x402conf resource --well-known`: the
+  host's `/.well-known/x402` manifest lists the paid URL, lists only HTTPS URLs on its own host or a subdomain, and
+  declares terms a live offer matches; one GET per origin, a 404 is not graded.
+- R16a passes an unpaid `HEAD` that is refused with 405 and no `PAYMENT-RESPONSE`, as well as a 402 with an offer: both
+  keep `HEAD` away from the handler. A 2xx still fails. Proposed task XC-86.
+- C2 and C3 grade a client the caller declares does not sign (`{ signsPayments: false }`) and that signs nothing as not
+  applicable instead of failed. Reports, `explain`, SARIF, JUnit (skipped) and the badge show it as N/A and never count
+  it as a failure. Without the declaration a client that never pays still fails. Proposed task XC-87.
+- Live targets are paced by default: at least 5 s between requests to a non-loopback host (`--min-interval`), an
+  optional cap (`--max-requests`; a request over it is not sent and the target is reported skipped), one log line per
+  request on stderr and the log in the JSON under `pacing`. This applies to `x402conf live` and `resource` and to
+  `x402conf-svm resource` and the new `x402conf-svm live --url`, which grades P1-P7, R16a and R24 on one paid URL in
+  7 unpaid requests. Proposed task XC-88.
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.

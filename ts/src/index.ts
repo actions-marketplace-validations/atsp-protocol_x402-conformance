@@ -10,14 +10,17 @@ export { probeCrash, SpawnedServer, commandControl, paymentRef, R14, CRASH_POINT
   type CrashPoint } from "./crash.js";
 export { probeRetry, checkClientRetry, type RetryOptions, type RetryingClient } from "./retry.js";
 export { checkClientKeepsV2, type VersionClient } from "./client-version.js";
-export { checkClientOfferPolicy, type OfferPolicy, type OfferClient } from "./client-offers.js";
+export { checkClientOfferPolicy, notApplicable, type OfferPolicy, type OfferClient, type ClientSigningOptions }
+  from "./client-offers.js";
 export { checkClientHandles402, type PayingClient, type ClientStatusOptions } from "./client-status.js";
 export { probeAbort, type AbortOptions } from "./abort.js";
 export { probeDelivery, R15, type FailingRoutes, type DeliveryOptions } from "./delivery.js";
 export { probeHead, R16 } from "./head.js";
-export { probeUnpaidHead, R16A } from "./head-unpaid.js";
+export { probeUnpaidHead, R16A, type UnpaidHeadOptions } from "./head-unpaid.js";
+export { createPacedFetch, isLoopback, RequestBudgetExceeded, DEFAULT_MIN_INTERVAL_MS, type PaceOptions, type PacedFetch,
+  type PacedRequest } from "./pace.js";
 export { probeParallel, probeReplicas, R12, R13, type ConcurrencyOptions } from "./concurrency.js";
-export { probeMalformedHeader, MALFORMED_HEADERS } from "./header.js";
+export { probeMalformedHeader, MALFORMED_HEADERS, type MalformedHeaderOptions } from "./header.js";
 export { probeStatus, R22, type StatusRoute, type StatusRoutes, type StatusOptions } from "./status.js";
 export { probeCacheLeak, markedPrivate, R17, type CacheOptions } from "./cache.js";
 export { probePending, R18, type PendingOptions } from "./pending.js";

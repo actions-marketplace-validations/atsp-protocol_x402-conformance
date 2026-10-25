@@ -8,16 +8,16 @@ says which release added what, and [SPEC.md](SPEC.md) quotes the spec text behin
 
 <!-- generated from src/x402conf/spec.py by tools/build_coverage.py; edit RUNS there, not this block -->
 
-## Checks: 63 in the catalogue
+## Checks: 65 in the catalogue
 
 - **S**: Facilitator, `GET /supported` (S0 to S4 live; S5 offline): S0, S1, S2, S3, S4, S5 (6 checks)
-- **P**: Any paid URL's 402 answer, one unpaid GET: P1, P2, P3, P4, P5, P6, P7 (7 checks)
+- **P**: Any paid URL's 402 answer, one unpaid GET: P1, P2, P3, P4, P5, P6, P7, P9, P10 (9 checks)
 - **F**: Facilitator safety, against doubles offline and on devnet: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14 (14 checks)
 - **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R22, R23, R24 (33 checks)
 - **C**: Client, through a recording proxy: C1, C2, C3 (3 checks)
 
-By profile: 32 normative (the spec says MUST), 20 security
-profile (a hardening rule the spec leaves open), 11 resilience (behaviour under failure).
+By profile: 33 normative (the spec says MUST), 20 security
+profile (a hardening rule the spec leaves open), 12 resilience (behaviour under failure).
 Every check has at least one control that passes and one faulty build it catches, and CI runs every one of them
 (`tests/test_offline.py`, `ts/test/`).
 
@@ -47,6 +47,8 @@ Every check has at least one control that passes and one faulty build it catches
 | P5 | normative | EVM exact: extra.name and extra.version; SVM exact: extra.feePayer | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 1 | 2 |
 | P6 | resilience | The spec sets no header budget; Node fetch fails above 16 KB of headers and aiohttp near 8 KB | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 1 | 1 |
 | P7 | normative | V2 6.1: extra.paymentFlow MUST be present when the resolved flow is not authorization (a warning: the upto SVM scheme spec allows omitting it) | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 1 | 1 |
+| P9 | normative | bazaar extension, Schema Validation: schema is JSON Schema Draft 2020-12 with same-document $ref only, and facilitators MUST validate info against schema before cataloging | `x402conf resource`, when the 402 carries the bazaar extension | 1 | 2 |
+| P10 | resilience | draft-hawkins-x402-dns-discovery 3.2: resources are HTTPS on the manifest's own host, and a manifest that diverges from the live endpoint is a misconfiguration (a warning; the runtime 402 is authoritative) | `x402conf resource --well-known` | 1 | 2 |
 | R0 | normative | V2 HTTP transport: an unpaid request gets 402 with PAYMENT-REQUIRED | `x402conf-svm probe`, Action `resource-url`, `runConformance`, pytest `probe`, MCP `x402_probe_resource_server` | 2 | 1 |
 | R1 | normative | V2 7.2: the resource server settles through its facilitator | `x402conf-svm probe`, Action `resource-url`, `runConformance`, pytest `probe`, MCP `x402_probe_resource_server` | 2 | 1 |
 | R2 | normative | F3, F5, F6, F8 and F9 applied to a running resource server | `x402conf-svm probe`, Action `resource-url`, `runConformance`, pytest `probe`, MCP `x402_probe_resource_server` | 2 | 2 |
@@ -70,7 +72,7 @@ Every check has at least one control that passes and one faulty build it catches
 | R14 | resilience | payment-identifier: same id, same payload returns the cached response; V2 6.1: in the authorization flow funds move only after the resource completes; V2 9: a transaction is surfaced so the caller can reconcile | `x402conf-svm probe --crash`, Action `crash` | 1 | 3 |
 | R15 | normative | V2 6.1: in the authorization flow funds move only after the resource completes successfully; a failed, redirected or thrown request is not settled | library only: `probeDelivery` from `x402-conformance-svm` | 1 | 2 |
 | R16 | security-profile | RFC 9110 9.3.2: a HEAD response carries no content, so a HEAD carrying a payment has nothing to deliver and is not settled | library only: `probeHead` from `x402-conformance-svm` | 1 | 1 |
-| R16a | security-profile | the paywall covers every method that reaches the protected handler: RFC 9110 9.3.2 HEAD is GET without the content, so an unpaid HEAD is answered 402 | library only: `probeUnpaidHead` from `x402-conformance-svm` | 1 | 1 |
+| R16a | security-profile | the paywall covers every method that reaches the protected handler: RFC 9110 9.3.2 HEAD is GET without the content, so an unpaid HEAD is answered 402 | `x402conf-svm live` (unpaid, paced), and `probeUnpaidHead` from `x402-conformance-svm` | 1 | 1 |
 | R17 | security-profile | RFC 9111: a shared cache may store a 200 that is not private or no-store and does not vary on the request header that decided it, so a paid response must say so or the next caller gets it for free | library only: `probeCacheLeak` from `x402-conformance-svm` | 1 | 2 |
 | R18 | resilience | V2 9: settlement_pending carries the transaction so the caller can reconcile; a pending, late or unanswered settlement ends served once after it is final, or refused with the payment surfaced | library only: `probePending` from `x402-conformance-svm` | 1 | 2 |
 | R19 | normative | V2 6.1: at least one check MUST run before the resource executes, and a server MUST reject an unsupported flow; on an upfront or escrow offer the check that gates execution is the settle | library only: `probeFlows` from `x402-conformance-svm` | 1 | 2 |
@@ -79,7 +81,7 @@ Every check has at least one control that passes and one faulty build it catches
 | R20b | security-profile | a retry resending the same signed payment is settled once and gets the original result | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 2 | 2 |
 | R22 | normative | after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15) | library only: `probeStatus` from `x402-conformance-svm` | 1 | 2 |
 | R23 | security-profile | a client that disconnects while /settle is in flight is not charged, or a resend of the same payment gets the settled result and is not charged again | library only: `probeAbort` from `x402-conformance-svm` | 1 | 2 |
-| R24 | resilience | V2 HTTP transport, Error Handling: Invalid Payment (a malformed payment payload) is 400, Payment Required and Payment Failed are 402, and Server Error (500) is for the server's own failures | library only: `probeMalformedHeader` from `x402-conformance-svm` | 1 | 3 |
+| R24 | resilience | V2 HTTP transport, Error Handling: Invalid Payment (a malformed payment payload) is 400, Payment Required and Payment Failed are 402, and Server Error (500) is for the server's own failures | `x402conf-svm live` (unpaid, paced), and `probeMalformedHeader` from `x402-conformance-svm` | 1 | 3 |
 | S0 | normative | V2 7.3: GET /supported answers with a SupportedResponse | `x402conf live`, Action `facilitators` | 1 | 1 |
 | S1 | normative | V2 7.3.1 SupportedResponse: kinds, extensions, signers; V1 7.3: kinds | `x402conf live`, Action `facilitators` | 2 | 2 |
 | S2 | normative | V2 11.1: networks are CAIP-2 | `x402conf live`, Action `facilitators` | 1 | 1 |
