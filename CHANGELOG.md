@@ -1,8 +1,9 @@
 # Changelog
-## 1.6.0 (2026-10-24)
+## Unreleased
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.
+## 1.6.0 (2026-10-24)
 - The contract: XC-48, Release 1.6.0, carries the tasks that were still open when 1.5.0 was planned and the two added
   since: R17 to R19 (XC-18), the implementation matrix (XC-19), the framework quickstarts (XC-26), docs examples run by
   CI (XC-27), the compatibility matrix (XC-28), the mutation matrix with the false-positive register (XC-29), and F13
