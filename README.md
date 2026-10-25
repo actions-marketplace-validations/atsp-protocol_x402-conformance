@@ -174,6 +174,15 @@ A client that has no payment path by design (it hands a 402 back to its caller a
 applicable** on C2 and C3 when you pass `{ signsPayments: false }` and it signs nothing; the report lists it under
 `summary.not_applicable` and it does not fail the run.
 
+On the `upto` and `batch-settlement` schemes (unreleased), your server must:
+- **U1** never settle more than the maximum the client signed, whatever the metered usage (`probeUpto`)
+- **U2** report the amount it settled in `PAYMENT-RESPONSE` (`probeUpto`)
+- **U3** declare only a payment flow `upto` allows on its network, never `upfront` (`probeUpto`)
+- **B1** serve each `batch-settlement` commitment once, with its commitment identifier and a charge within the
+  per-request amount, and refuse a voucher it has already been paid with (`probeBatch`)
+- **B2** claim each channel once per redemption run, at its latest voucher (`probeBatch`)
+- **B3** report a partly failed redemption run per channel, and claim only the failed channels again (`probeBatch`)
+
 Your facilitator's discovery API and your A2A agent (unreleased) must:
 - **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
   honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)

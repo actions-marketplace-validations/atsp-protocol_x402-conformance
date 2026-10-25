@@ -287,6 +287,30 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "normative",
   "basis": "after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15)"
  },
+ "U1": {
+  "profile": "normative",
+  "basis": "upto, Core Property 4: the settled amount MUST be less than or equal to the authorized maximum; the settle-time requirements.amount is the actual charge (Core Property 5)"
+ },
+ "U2": {
+  "profile": "normative",
+  "basis": "upto SettlementResponse: amount, the actual amount charged in atomic units (may be 0), is required on EVM and on Solana"
+ },
+ "U3": {
+  "profile": "normative",
+  "basis": "upto, Payment Flow: upto cannot use upfront, because the amount is known only after the handler runs; Permit2 on EVM supports authorization, the Solana channel escrow (V2 6.1 extra.paymentFlow, as P7)"
+ },
+ "B1": {
+  "profile": "normative",
+  "basis": "batch-settlement: the settlement result MUST include a non-empty commitment identifier on success, the charge is at most the per-request amount, and the same authorization MUST NOT execute the handler twice"
+ },
+ "B2": {
+  "profile": "security-profile",
+  "basis": "batch-settlement redemption: the server claims each channel's latest cumulative voucher, which supersedes the older ones, and a claim cannot advance accounting twice"
+ },
+ "B3": {
+  "profile": "resilience",
+  "basis": "batch-settlement redemption in batches: a channel is not silently dropped from a batch, and a voucher whose claim failed stays claimable, so a partly failed run is reported and retried per item"
+ },
  "X1": {
   "profile": "normative",
   "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text"

@@ -29,6 +29,8 @@ FAMILY = {
     "G": "An A2A agent's paid skill, against the HTTP route it mirrors",
     "R": "Resource server behind the facilitator double",
     "C": "Client, through a recording proxy",
+    "U": "The upto scheme on a paid route, behind the scheme double",
+    "B": "The batch-settlement scheme on a paid route and its redemption runs, behind the scheme double",
     "X": "Paid MCP tools, over the MCP transport (JSON-RPC over Streamable HTTP)",
 }
 # Where each check runs: the CLIs, the Action, the library exports and the harness (reviewed 2026-10-23).
@@ -61,6 +63,10 @@ LIB = {"R12": "probeParallel", "R13": "probeReplicas", "R15": "probeDelivery", "
        "X2": "probeMcpTransport"}
 for _i, _fn in LIB.items():
     RUNS[_i] = f"library only: `{_fn}` from `x402-conformance-svm`"
+for _i in ("U1", "U2", "U3"):
+    RUNS[_i] = "library only: `probeUpto` from `x402-conformance-svm`"
+for _i in ("B1", "B2", "B3"):
+    RUNS[_i] = "library only: `probeBatch` from `x402-conformance-svm`"
 for _i in ("R16a", "R24"):
     RUNS[_i] = f"`x402conf-svm live` (unpaid, paced), and `{LIB[_i]}` from `x402-conformance-svm`"
 RUNS["X1"] = "`x402conf-svm mcp` (one unpaid tools/call, paced), and `checkMcpPaymentRequired` from `x402-conformance-svm`"
@@ -94,7 +100,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "D", "R", "G", "C", "W", "X") if f in fam)
+                             for f in ("S", "P", "F", "D", "R", "G", "C", "W", "U", "B", "X") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 

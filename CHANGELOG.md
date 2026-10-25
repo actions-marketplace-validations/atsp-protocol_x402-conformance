@@ -22,6 +22,14 @@
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.
+- U1 to U3 for the `upto` scheme and B1 to B3 for the `batch-settlement` scheme (XC-35), on Solana devnet and Base
+  Sepolia, exported as `probeUpto` and `probeBatch` with a scheme double, `startSchemeDouble`. U1: a settle never
+  exceeds the authorised maximum; U2: `PAYMENT-RESPONSE` reports the settled amount; U3: an `upto` offer never declares
+  `upfront` (P7's flow rule, graded). B1: a commitment is served once with its identifier and charge; B2: one
+  redemption run claims each channel once, at its latest voucher; B3: a partly failed run is reported and retried per
+  channel. The `upto` control is `ts/example/upto-server.ts` on the stock scheme servers, the `batch-settlement` control
+  `ts/example/batch-server.ts`; the `no_cap`, `report_max`, `upfront_flow`, `accept_replay`, `claim_every_voucher` and
+  `drop_failed` builds are each caught.
 - W1 to W3, the sign-in-with-x server rules (XC-37), exported as `probeSiwx`. After a throwaway wallet pays the route
   through the double and signs back in (the control), W1 refuses a message signed for another site even when `Host` or
   `X-Forwarded-Host` names it, W2 refuses the same signed message twice, and W3 refuses a stale, future or expired
