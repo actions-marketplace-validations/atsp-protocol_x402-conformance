@@ -218,6 +218,22 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
                      "without the content, so an unpaid HEAD is answered 402",
             "controls": ["ts:R16a control: a paywall that covers HEAD answers it 402"],
             "faulty": ["ts:R16a catches a paywall that matches only GET"]},
+    "D1": {"profile": "normative",
+           "basis": "V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination "
+           "(limit, offset, total), GET /discovery/search returns resources; every item has resource, type, "
+           "x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured",
+           "controls": ["ts:D1 control: a discovery API in the V2 section 8 shapes that honours limit and the network "
+                        "filter"],
+           "faulty": ["ts:D1 catches a discovery API whose items lack x402Version, lastUpdated and maxTimeoutSeconds",
+                      "ts:D1 catches a discovery API that ignores limit and the network filter"]},
+    "G1": {"profile": "security-profile",
+           "basis": "A2A transport: payment required is a task in input-required with x402.payment.status "
+           "payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route "
+           "asks for the same requirements as its 402",
+           "controls": ["ts:G1 control: an A2A agent's input-required task carries the HTTP route's PAYMENT-REQUIRED "
+                        "accepts"],
+           "faulty": ["ts:G1 catches an A2A agent whose requirements carry a different price from the HTTP 402",
+                      "ts:G1 catches an A2A agent that answers a failed task with the requirements only in text"]},
     "R17": {"profile": "security-profile",
            "basis": "RFC 9111: a shared cache may store a 200 that is not private or no-store and does not vary on "
            "the request header that decided it, so a paid response must say so or the next caller gets it "
@@ -248,6 +264,13 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
              "basis": "a retry resending the same signed payment is settled once and gets the original result",
              "controls": [_TS_RETRY, "ts:R20b client control: the stock @x402/fetch client"],
              "faulty": ["ts:R20b settle_both: with no record", "ts:R20b client resign_on_timeout"]},
+    "R21": {"profile": "security-profile",
+            "basis": "EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding "
+            "it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks "
+            "the resource again",
+            "controls": ["ts:R21 control: a server that serves only on its own settle refuses a preempted Permit2 payment"],
+            "faulty": ["ts:R21 catches a server that reads a spent Permit2 nonce as paid",
+                       "ts:R21 catches a server that serves a Permit2 payment before its settle"]},
     "C3": {"profile": "security-profile",
            "basis": "V2 HTTP transport: PAYMENT-REQUIRED is canonical; V2 5.2.2 accepted is Required, and a V1 payload "
                     "(V1 5.2.2) has none",
@@ -288,4 +311,17 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
             "controls": ["ts:R22 control: a server that returns the handler status"],
             "faulty": ["ts:R22 catches a server that rewrites the paid response to 200",
                        "ts:R22 gate: a 3xx expectation is refused and nothing is paid"]},
+    "X1": {"profile": "normative",
+           "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, "
+           "the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text",
+           "controls": ["ts:X1 control: a paid tool answers isError with PaymentRequired in structuredContent and "
+                        "content[0].text"],
+           "faulty": ["ts:X1 catches a paid tool whose payment-required result has no structuredContent",
+                      "ts:X1 catches a paid tool that answers a JSON-RPC error instead of a tool result"]},
+    "X2": {"profile": "resilience",
+           "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it "
+           "returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call",
+           "controls": ["ts:X2 control: a paid tool returns its result once, only on a final first-time settle"],
+           "faulty": ["ts:X2 catches a paid tool that returns its result when the settle failed",
+                      "ts:X2 catches a paid tool that returns its result before the settle"]},
 }

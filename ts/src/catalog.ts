@@ -219,6 +219,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "the paywall covers every method that reaches the protected handler: RFC 9110 9.3.2 HEAD is GET without the content, so an unpaid HEAD is answered 402"
  },
+ "D1": {
+  "profile": "normative",
+  "basis": "V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination (limit, offset, total), GET /discovery/search returns resources; every item has resource, type, x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured"
+ },
+ "G1": {
+  "profile": "security-profile",
+  "basis": "A2A transport: payment required is a task in input-required with x402.payment.status payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route asks for the same requirements as its 402"
+ },
  "R17": {
   "profile": "security-profile",
   "basis": "RFC 9111: a shared cache may store a 200 that is not private or no-store and does not vary on the request header that decided it, so a paid response must say so or the next caller gets it for free"
@@ -243,6 +251,10 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "a retry resending the same signed payment is settled once and gets the original result"
  },
+ "R21": {
+  "profile": "security-profile",
+  "basis": "EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks the resource again"
+ },
  "C3": {
   "profile": "security-profile",
   "basis": "V2 HTTP transport: PAYMENT-REQUIRED is canonical; V2 5.2.2 accepted is Required, and a V1 payload (V1 5.2.2) has none"
@@ -266,6 +278,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R22": {
   "profile": "normative",
   "basis": "after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15)"
+ },
+ "X1": {
+  "profile": "normative",
+  "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text"
+ },
+ "X2": {
+  "profile": "resilience",
+  "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call"
  }
 };
 

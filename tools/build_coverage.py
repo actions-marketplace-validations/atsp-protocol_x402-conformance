@@ -25,14 +25,19 @@ FAMILY = {
     "P": "Any paid URL's 402 answer, one unpaid GET",
     "W": "Sign-in-with-x on a paid route, behind the facilitator double",
     "F": "Facilitator safety, against doubles offline and on devnet",
+    "D": "A facilitator's discovery API (Bazaar), GET only",
+    "G": "An A2A agent's paid skill, against the HTTP route it mirrors",
     "R": "Resource server behind the facilitator double",
     "C": "Client, through a recording proxy",
+    "X": "Paid MCP tools, over the MCP transport (JSON-RPC over Streamable HTTP)",
 }
 # Where each check runs: the CLIs, the Action, the library exports and the harness (reviewed 2026-10-23).
 RUNS: dict[str, str] = {}
 for _i in ("S0", "S1", "S2", "S3", "S4"):
     RUNS[_i] = "`x402conf live`, Action `facilitators`"
 RUNS["S5"] = "`x402conf offline` (needs `supported()` on the facilitator)"
+RUNS["D1"] = "library only: `checkDiscovery` from `x402-conformance-svm` (GET only)"
+RUNS["G1"] = "library only: `checkA2aMirrorsHttp` from `x402-conformance-svm`"
 for _i in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     RUNS[_i] = ("`x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, "
                 "MCP `x402_check_payment_required`")
@@ -50,9 +55,10 @@ for _i in ("W1", "W2", "W3"):
 for _i in ("R20", "R20a", "R20b"):
     RUNS[_i] = "`x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients"
 LIB = {"R12": "probeParallel", "R13": "probeReplicas", "R15": "probeDelivery", "R16": "probeHead", "R16a": "probeUnpaidHead",
-       "R17": "probeCacheLeak", "R18": "probePending", "R19": "probeFlows",
+       "R17": "probeCacheLeak", "R18": "probePending", "R19": "probeFlows", "R21": "probePreempt",
        "R22": "probeStatus", "R23": "probeAbort", "R24": "probeMalformedHeader", "C1": "checkClientHandles402",
-       "C2": "checkClientOfferPolicy", "C3": "checkClientKeepsV2"}
+       "C2": "checkClientOfferPolicy", "C3": "checkClientKeepsV2", "X1": "checkMcpPaymentRequired",
+       "X2": "probeMcpTransport"}
 for _i, _fn in LIB.items():
     RUNS[_i] = f"library only: `{_fn}` from `x402-conformance-svm`"
 
@@ -83,7 +89,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "R", "C", "W") if f in fam)
+                             for f in ("S", "P", "F", "D", "R", "G", "C", "W", "X") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 

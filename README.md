@@ -136,6 +136,8 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
   transaction on every refusal (`probePending`)
 - **R19** on an `upfront` or `escrow` offer, settle before the resource executes, and reject a flow it doesn't support
   (`probeFlows`)
+- **R21** on a Base Sepolia offer that uses Permit2, serve only on its own successful settle: never on a settlement a
+  third party made first with the same signature, and never a second time for a spent payment (`probePreempt`)
 - **R22** keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location`, and a
   202 stays a 202 with its `Content-Location` (`probeStatus`)
 - **R23** not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the
@@ -157,6 +159,19 @@ Your client must:
   for a network outside its set (`checkClientOfferPolicy`)
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
+
+Your facilitator's discovery API and your A2A agent (unreleased) must:
+- **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
+  honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)
+- **G1** answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the
+  same offers as the HTTP route's 402 (`checkA2aMirrorsHttp`, which sends no payment)
+
+Your paid MCP tools (unreleased), over Streamable HTTP, must:
+- **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
+  in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
+  needs no double)
+- **X2** return the tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing
+  on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate (`probeMcpTransport`)
 
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
