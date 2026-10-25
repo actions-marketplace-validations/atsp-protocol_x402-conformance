@@ -271,4 +271,37 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
             "controls": ["ts:R22 control: a server that returns the handler status"],
             "faulty": ["ts:R22 catches a server that rewrites the paid response to 200",
                        "ts:R22 gate: a 3xx expectation is refused and nothing is paid"]},
+    "U1": {"profile": "normative",
+           "basis": "upto, Core Property 4: the settled amount MUST be less than or equal to the authorized maximum; the "
+           "settle-time requirements.amount is the actual charge (Core Property 5)",
+           "controls": ["ts:U1 control: a stock upto server charges metered usage below the maximum as metered",
+                        "ts:U1 control: a stock upto server caps usage above the maximum at the maximum"],
+           "faulty": ["ts:U1 catches a server that charges metered usage above the authorised maximum (no_cap)"]},
+    "U2": {"profile": "normative",
+           "basis": "upto SettlementResponse: amount, the actual amount charged in atomic units (may be 0), is required "
+           "on EVM and on Solana",
+           "controls": ["ts:U2 control: the stock server's PAYMENT-RESPONSE reports the amount it settled"],
+           "faulty": ["ts:U2 catches a server that reports the authorised maximum instead of the settled amount "
+                      "(report_max)"]},
+    "U3": {"profile": "normative",
+           "basis": "upto, Payment Flow: upto cannot use upfront, because the amount is known only after the handler "
+           "runs; Permit2 on EVM supports authorization, the Solana channel escrow (V2 6.1 extra.paymentFlow, as P7)",
+           "controls": ["ts:U3 control: the stock upto offer declares no flow but the binding's own"],
+           "faulty": ["ts:U3 catches a server whose upto offer declares the upfront flow (upfront_flow)"]},
+    "B1": {"profile": "normative",
+           "basis": "batch-settlement: the settlement result MUST include a non-empty commitment identifier on success, "
+           "the charge is at most the per-request amount, and the same authorization MUST NOT execute the handler twice",
+           "controls": ["ts:B1 control: each commitment is served once with its identifier and charge"],
+           "faulty": ["ts:B1 catches a server that serves a voucher it has already been paid with (accept_replay)"]},
+    "B2": {"profile": "security-profile",
+           "basis": "batch-settlement redemption: the server claims each channel's latest cumulative voucher, which "
+           "supersedes the older ones, and a claim cannot advance accounting twice",
+           "controls": ["ts:B2 control: one redemption run claims each channel once at its latest voucher"],
+           "faulty": ["ts:B2 catches a server that claims every voucher it stored, not each channel's latest "
+                      "(claim_every_voucher)"]},
+    "B3": {"profile": "resilience",
+           "basis": "batch-settlement redemption in batches: a channel is not silently dropped from a batch, and a "
+           "voucher whose claim failed stays claimable, so a partly failed run is reported and retried per item",
+           "controls": ["ts:B3 control: a partly failed run reports each channel's own outcome"],
+           "faulty": ["ts:B3 catches a server that records a failed claim batch as claimed (drop_failed)"]},
 }

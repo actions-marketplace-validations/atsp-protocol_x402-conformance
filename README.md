@@ -151,6 +151,15 @@ Your client must:
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
 
+On the `upto` and `batch-settlement` schemes (unreleased), your server must:
+- **U1** never settle more than the maximum the client signed, whatever the metered usage (`probeUpto`)
+- **U2** report the amount it settled in `PAYMENT-RESPONSE` (`probeUpto`)
+- **U3** declare only a payment flow `upto` allows on its network, never `upfront` (`probeUpto`)
+- **B1** serve each `batch-settlement` commitment once, with its commitment identifier and a charge within the
+  per-request amount, and refuse a voucher it has already been paid with (`probeBatch`)
+- **B2** claim each channel once per redemption run, at its latest voucher (`probeBatch`)
+- **B3** report a partly failed redemption run per channel, and claim only the failed channels again (`probeBatch`)
+
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).

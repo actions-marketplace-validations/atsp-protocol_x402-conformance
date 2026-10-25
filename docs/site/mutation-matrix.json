@@ -1,5 +1,41 @@
 {
  "checks": {
+  "B1": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'B1 catches a server that serves a voucher it has already been paid with (accept_replay)' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:B1 catches a server that serves a voucher it has already been paid with (accept_replay)"
+    }
+   ],
+   "profile": "normative"
+  },
+  "B2": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled \"B2 catches a server that claims every voucher it stored, not each channel's latest (claim_every_voucher)\" exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:B2 catches a server that claims every voucher it stored, not each channel's latest (claim_every_voucher)"
+    }
+   ],
+   "profile": "security-profile"
+  },
+  "B3": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'B3 catches a server that records a failed claim batch as claimed (drop_failed)' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:B3 catches a server that records a failed claim batch as claimed (drop_failed)"
+    }
+   ],
+   "profile": "resilience"
+  },
   "C1": {
    "caught": 3,
    "faults": [
@@ -935,8 +971,44 @@
     }
    ],
    "profile": "normative"
+  },
+  "U1": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'U1 catches a server that charges metered usage above the authorised maximum (no_cap)' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:U1 catches a server that charges metered usage above the authorised maximum (no_cap)"
+    }
+   ],
+   "profile": "normative"
+  },
+  "U2": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'U2 catches a server that reports the authorised maximum instead of the settled amount (report_max)' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:U2 catches a server that reports the authorised maximum instead of the settled amount (report_max)"
+    }
+   ],
+   "profile": "normative"
+  },
+  "U3": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'U3 catches a server whose upto offer declares the upfront flow (upfront_flow)' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:U3 catches a server whose upto offer declares the upfront flow (upfront_flow)"
+    }
+   ],
+   "profile": "normative"
   }
  },
- "generated_from": "e271cbbf856f30147105aa274ffbc9995c4505f52e9dafa4f08ad982c7225771",
+ "generated_from": "c98e95216de47ef9468883ea92e65c70cafd1c3f3696ee0ebc82c24edffd9e26",
  "schema": "x402-conformance.mutation-matrix/1"
 }

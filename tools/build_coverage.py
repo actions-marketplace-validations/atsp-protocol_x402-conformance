@@ -26,6 +26,8 @@ FAMILY = {
     "F": "Facilitator safety, against doubles offline and on devnet",
     "R": "Resource server behind the facilitator double",
     "C": "Client, through a recording proxy",
+    "U": "The upto scheme on a paid route, behind the scheme double",
+    "B": "The batch-settlement scheme on a paid route and its redemption runs, behind the scheme double",
 }
 # Where each check runs: the CLIs, the Action, the library exports and the harness (reviewed 2026-10-23).
 RUNS: dict[str, str] = {}
@@ -52,6 +54,10 @@ LIB = {"R12": "probeParallel", "R13": "probeReplicas", "R15": "probeDelivery", "
        "C2": "checkClientOfferPolicy", "C3": "checkClientKeepsV2"}
 for _i, _fn in LIB.items():
     RUNS[_i] = f"library only: `{_fn}` from `x402-conformance-svm`"
+for _i in ("U1", "U2", "U3"):
+    RUNS[_i] = "library only: `probeUpto` from `x402-conformance-svm`"
+for _i in ("B1", "B2", "B3"):
+    RUNS[_i] = "library only: `probeBatch` from `x402-conformance-svm`"
 
 
 def key(i: str) -> tuple[str, int, str]:
@@ -80,7 +86,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "R", "C") if f in fam)
+                             for f in ("S", "P", "F", "R", "C", "U", "B") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 

@@ -108,6 +108,20 @@ them.
 | C2 | `checkClientOfferPolicy(client, url, double, { networks, maxAmount })` | pay one of several offers on its configured networks and within its maximum, and never sign for a network outside its set |
 | C3 | `checkClientKeepsV2(client, url, double)` | pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body |
 
+**The `upto` and `batch-settlement` schemes (unreleased): U1 to U3 and B1 to B3.** These take the scheme double from
+`startSchemeDouble()` instead of `startDouble()`; it serves both schemes on Solana devnet and Base Sepolia and settles
+whatever amount it is asked for, so the probe sees what your server asked. `probeBatch` also needs `redeem`, a function
+that runs your server's redemption once and returns one `{ channelId, ok }` item per channel it tried.
+
+| id | export | what your server must do |
+|---|---|---|
+| U1 | `probeUpto(url, double, { network? })` | settle at most the maximum the client signed; point `url` at a request whose usage you want graded |
+| U2 | `probeUpto(url, double)` | report the settled `amount` and its transaction in `PAYMENT-RESPONSE` |
+| U3 | `probeUpto(url, double)` | declare no `extra.paymentFlow` or the binding's own (`authorization` on EVM, `escrow` on Solana), never `upfront` |
+| B1 | `probeBatch(url, double, { redeem })` | serve a deposit and each fresh voucher once, with a commitment identifier and a charge within the per-request amount, and refuse a voucher already paid with |
+| B2 | `probeBatch(url, double, { redeem })` | claim each channel once per run, at its latest voucher, and nothing on a run with nothing new |
+| B3 | `probeBatch(url, double, { redeem })` | when a claim batch fails, report each channel with its own outcome and claim only the failed ones on the next run |
+
 A client check takes your client as a function that fetches a URL, pays and returns the final `Response`. The controls
 and the faulty builds each check catches are in `example/` and `test/`, and
 [docs/USING.md](https://github.com/atsp-protocol/x402-conformance/blob/main/docs/USING.md#checks-you-call-from-code) has

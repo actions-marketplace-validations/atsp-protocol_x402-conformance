@@ -467,6 +467,67 @@ paid result is lost. A client that re-signs with no key leaves a server nothing 
 logical request and append it in `onBeforePaymentCreation` (`appendPaymentIdentifierToExtensions`), or resend the
 same `PAYMENT-SIGNATURE` on retry.
 
+## U1
+**What failed.** Your `upto` route asked the facilitator to settle more than the maximum the client signed: the
+metered charge went to `/settle` as it was, above `permit2Authorization.permitted.amount` (EVM) or `maxAmount` (Solana).
+**Why it matters.** The client authorised a ceiling, and the scheme says the settled amount must not exceed it. A
+facilitator that follows the spec refuses the settle (`invalid_upto_evm_payload_settlement_exceeds_amount` on EVM),
+so the work is done and nothing is paid; one that doesn't charges the client more than it agreed to.
+**How to fix it.** Cap the charge at the authorised maximum before you settle: pass `min(metered, max)` as the
+settlement override's `amount` (`setSettlementOverrides`, or the `amount` of `processSettlement`'s overrides), and
+stop or truncate work that would cost more than the ceiling (see `ts/example/upto-server.ts`).
+
+## U2
+**What failed.** The paid response of your `upto` route didn't report what it charged: `PAYMENT-RESPONSE` had no
+`amount`, or an amount other than the one the settle charged (often the authorised maximum), or another transaction.
+**Why it matters.** With `upto` the client signs a ceiling and learns the price only afterwards. The `amount` in the
+settlement response is how it learns what it paid; without it, or with the ceiling in its place, the client's books
+are wrong and it cannot tell a fair charge from an unfair one.
+**How to fix it.** Return the facilitator's settlement response unchanged in `PAYMENT-RESPONSE`: it carries the
+`amount` the settle charged, `0` included. If you build the header yourself, take `amount` and `transaction` from the
+settle response, never from the offer.
+
+## U3
+**What failed.** Your `upto` offer declared a payment flow the scheme doesn't allow on its network: `upfront`, or a
+flow other than `authorization` for Permit2 on EVM or `escrow` for the Solana payment channel.
+**Why it matters.** `upto` charges what the request used, which is known only after the handler runs, so the settle
+cannot come first. A client or facilitator that follows the declared flow either refuses the payment or settles the
+wrong amount at the wrong time.
+**How to fix it.** Leave `extra.paymentFlow` out and let the scheme's default apply, or declare the binding's own
+flow: `authorization` on EVM, `escrow` on Solana. P7 still warns when a Solana `upto` offer leaves it out, because V2
+section 6.1 asks for it.
+
+## B1
+**What failed.** On your `batch-settlement` route a paid response had no commitment identifier, or reported a charge
+above the per-request amount, or a valid deposit or voucher was refused, or a voucher you had already been paid with
+was served again.
+**Why it matters.** With `batch-settlement` the money moves later, so the commitment is the only record of what the
+request paid. The scheme requires a non-empty identifier for it, and a voucher is cumulative: one that doesn't advance
+the channel's charged total by the request's amount pays for nothing new, so serving it gives the content away.
+**How to fix it.** Keep the channel state the binding asks for (`chargedCumulativeAmount` per channel) and accept a
+voucher only when its `maxClaimableAmount` is that total plus the request's amount; answer anything else with a
+corrective 402 that carries the channel state. Return `extra.commitmentId` (or the channel snapshot) and
+`extra.chargedAmount` in `PAYMENT-RESPONSE` (see `ts/example/batch-server.ts`).
+
+## B2
+**What failed.** A redemption run claimed a channel more than once, or at a voucher older than its latest, or a run
+with nothing new claimed vouchers again.
+**Why it matters.** Vouchers are cumulative, so the latest one supersedes every earlier one. Claiming the old ones as
+well sends claims that cannot advance the onchain total and fail or waste a transaction, and a batch that fails on a
+stale row can take the good rows down with it.
+**How to fix it.** For each channel, claim only the latest voucher above what you have already claimed, record the
+claimed amount when the claim succeeds, and skip channels with nothing new.
+
+## B3
+**What failed.** Part of a redemption run failed and your server reported the failed channels as claimed, or reported
+the run without an item per channel, or the next run didn't claim the failed channels again (or claimed the others
+twice).
+**Why it matters.** A voucher that is never claimed is revenue lost once the payer withdraws. Recording a failed batch
+as claimed hides that loss, and retrying the whole run claims the good channels twice.
+**How to fix it.** Track the outcome per batch and per channel: mark a channel claimed only when the claim that named
+it succeeded, report each channel with its own outcome, and leave failed ones due for the next run, well inside the
+withdraw delay.
+
 ## C3
 **What failed.** The 402 offered V2 (the `PAYMENT-REQUIRED` header) and V1 (a V1 JSON body for the same offer), and the
 client paid the V1 offer: with an `X-PAYMENT` header, or with a payment at `x402Version` 1. Or it never paid.
