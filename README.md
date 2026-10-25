@@ -3,9 +3,9 @@
 **Prove your x402 payments can't double-credit, credit too early or credit on a broken answer, in one CI step.**
 
 [![ci](https://github.com/atsp-protocol/x402-conformance/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/atsp-protocol/x402-conformance/actions/workflows/ci.yml)
-[![release](https://img.shields.io/github/v/release/atsp-protocol/x402-conformance)](https://github.com/atsp-protocol/x402-conformance/releases/latest)
-[![PyPI](https://img.shields.io/pypi/v/x402-conformance?label=PyPI)](https://pypi.org/project/x402-conformance/)
-[![npm](https://img.shields.io/npm/v/x402-conformance-svm?label=npm)](https://www.npmjs.com/package/x402-conformance-svm)
+[![release](https://img.shields.io/github/v/release/atsp-protocol/x402-conformance?cacheSeconds=3600)](https://github.com/atsp-protocol/x402-conformance/releases/latest)
+[![PyPI](https://img.shields.io/pypi/v/x402-conformance?label=PyPI&cacheSeconds=3600)](https://pypi.org/project/x402-conformance/)
+[![npm](https://img.shields.io/npm/v/x402-conformance-svm?label=npm&cacheSeconds=3600)](https://www.npmjs.com/package/x402-conformance-svm)
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-x402%20Conformance-blue?logo=github)](https://github.com/marketplace/actions/x402-conformance)
 [![licence](https://img.shields.io/github/license/atsp-protocol/x402-conformance)](LICENSE)
 [![Tested with x402-conformance](https://img.shields.io/badge/tested%20with-x402--conformance-2ea44f)](https://github.com/atsp-protocol/x402-conformance)
@@ -18,6 +18,7 @@ complements x402 and its facilitators and doesn't replace them.
 — Ryan Gillespie, Optitransfer
 
 Project page with the checks and the latest results: https://atsp-protocol.github.io/x402-conformance/
+Release map: [RELEASES.md](RELEASES.md). What the suite covers, check by check: [docs/COVERAGE.md](docs/COVERAGE.md).
 
 ## 60-second quickstart
 
@@ -25,7 +26,7 @@ See it work first, with nothing to set up: no project, no wallet, no chain, a fe
 
 ```
 npx -y x402-conformance-svm demo                       # R0-R10 against a bundled mock server behind a facilitator double
-pipx run --spec x402-conformance x402conf demo         # S1-S4, P1-P7 against a bundled mock, then the F1-F11 self-test
+pipx run --spec x402-conformance x402conf demo         # S1-S4, P1-P7 against a bundled mock, then the F1-F14 and S5 self-test
 npx -y x402-conformance-svm demo --fault serve_on_any_settle   # what a failure looks like, with a fix link per check
 ```
 
@@ -54,7 +55,7 @@ jobs:
 ```
 
 **From your test suite, agent or CI system:** [docs/USING.md](docs/USING.md) covers vitest, jest, node:test, Hono,
-Express, MCP clients (Claude, Cursor), the Vercel AI SDK, LangChain, Docker and GitLab CI, with the same checks and
+Express, pytest (FastAPI, Flask), MCP clients (Claude, Cursor), the Vercel AI SDK, LangChain, Docker and GitLab CI, with the same checks and
 report everywhere. Failures you choose to share build the public
 [corpus](corpus) of real x402 failures.
 
@@ -89,6 +90,16 @@ report everywhere. Failures you choose to share build the public
   headers that large
 - **P7** an offer whose scheme defaults to a non-authorization flow (`upto` on Solana) doesn't declare
   `extra.paymentFlow` (warning; V2 §6.1 says it must, the upto SVM scheme text says it may be omitted)
+- **P9** the bazaar discovery `info` in the 402 (the `info.input` example) doesn't validate against the `schema` that
+  ships with it, so a catalog that validates it may skip the listing (only when the 402 carries the extension)
+- **P10** with `--well-known`: the host's `/.well-known/x402` doesn't list the paid URL, lists URLs off its own host,
+  or declares terms no live offer matches (warning; one extra `GET` per origin)
+
+Live targets are paced: at least 5 s between requests to a non-loopback host (`--min-interval`), an optional cap on the
+whole run (`--max-requests`), and one line per request on stderr. `x402conf-svm live --url <paid-url>` adds R16a and
+R24 to P1-P7 against a server you may test, unpaid, in 7 requests. `x402conf-svm mcp --url <mcp-endpoint> --tool <name>`
+calls a paid MCP tool once, unpaid, and grades X1 and P3-P5 and P7 on the offer in its result (`--no-initialize` for a
+server that needs no session: one request).
 
 **Your resource server, under fault injection (`x402conf-svm probe`, R0-R11, R14 and R20):** the probe starts a facilitator double
 on loopback, points your server at it through `X402_FACILITATOR_URL` and pays your route with test payloads on
@@ -116,16 +127,91 @@ on loopback, points your server at it through `X402_FACILITATOR_URL` and pays yo
   resending the same signed payment is refused as a duplicate by `/settle`; both get the earlier result (R20b). The
   same check grades a client's own retry (`checkClientRetry`): it must resend the payment or keep the payment id
 
+**Your resource server and client, from code (new in 1.5.0, R17 to R19 in 1.6.0):** these checks are functions that
+`x402-conformance-svm` exports. The CLIs, the Action, `runConformance`, the pytest plugin and the MCP server don't run
+them. Start the facilitator double with `startDouble()`, point your server or client at its `url` and pass the double
+to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an example). Your server must:
+- **R12** settle one payment-identifier id once when eight requests carry it at the same time, each with a fresh
+  payment, and serve no response that doesn't name that settlement (`probeParallel`)
+- **R13** settle one payment-identifier id once across two replicas: sent to one, then the other, then both at once
+  (`probeReplicas`)
+- **R15** not settle or send a `PAYMENT-RESPONSE` when the paid handler answers 5xx, redirects or throws
+  (`probeDelivery`)
+- **R16** not settle a paid `HEAD`: no 2xx, no `/settle` call and no `PAYMENT-RESPONSE` (`probeHead`)
+- **R16a** never let an unpaid `HEAD` reach the handler: answer it with the same 402 and `PAYMENT-REQUIRED` offer as
+  `GET`, or refuse it with 405 (`probeUnpaidHead`, which needs no double)
+- **R17** mark the paid response `private` or `no-store`, or vary it on the payment header, so a shared cache in front
+  of the route never serves the paid content to an unpaid request (`probeCacheLeak`)
+- **R18** never serve while a settlement is pending, late or unanswered, serve once after it is final, and name the
+  transaction on every refusal (`probePending`)
+- **R19** on an `upfront` or `escrow` offer, settle before the resource executes, and reject a flow it doesn't support
+  (`probeFlows`)
+- **R21** on a Base Sepolia offer that uses Permit2, serve only on its own successful settle: never on a settlement a
+  third party made first with the same signature, and never a second time for a spent payment (`probePreempt`)
+- **R22** keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location`, and a
+  202 stays a 202 with its `Content-Location` (`probeStatus`)
+- **R23** not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the
+  same payment the settled result (`probeAbort`)
+- **R24** answer five malformed `PAYMENT-SIGNATURE` values (not base64, not JSON or not an object) with 402 or 400 and
+  a structured error, never a 5xx, a dropped connection or the content (`probeMalformedHeader`)
+
+On a paid route that declares sign-in-with-x (unreleased), your server must (`probeSiwx`):
+- **W1** check the message's `domain` and `uri` against its configured public origin, never against `Host` or
+  `X-Forwarded-Host`
+- **W2** let one signed message in once: a nonce it has seen is refused
+- **W3** refuse a message whose `issuedAt` is over five minutes old or in the future, or whose `expirationTime` has
+  passed
+
+Your client must:
+- **C1** never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error
+  (`checkClientHandles402`)
+- **C2** given several offers, pay one on its configured networks and within its maximum, not the first, and never sign
+  for a network outside its set (`checkClientOfferPolicy`)
+- **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
+  (`checkClientKeepsV2`)
+
+A client that has no payment path by design (it hands a 402 back to its caller as an error) is graded **not
+applicable** on C2 and C3 when you pass `{ signsPayments: false }` and it signs nothing; the report lists it under
+`summary.not_applicable` and it does not fail the run.
+
+On the `upto` and `batch-settlement` schemes (unreleased), your server must:
+- **U1** never settle more than the maximum the client signed, whatever the metered usage (`probeUpto`)
+- **U2** report the amount it settled in `PAYMENT-RESPONSE` (`probeUpto`)
+- **U3** declare only a payment flow `upto` allows on its network, never `upfront` (`probeUpto`)
+- **B1** serve each `batch-settlement` commitment once, with its commitment identifier and a charge within the
+  per-request amount, and refuse a voucher it has already been paid with (`probeBatch`)
+- **B2** claim each channel once per redemption run, at its latest voucher (`probeBatch`)
+- **B3** report a partly failed redemption run per channel, and claim only the failed channels again (`probeBatch`)
+
+Your facilitator's discovery API and your A2A agent (unreleased) must:
+- **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
+  honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)
+- **G1** answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the
+  same offers as the HTTP route's 402 (`checkA2aMirrorsHttp`, which sends no payment)
+
+Your paid MCP tools (unreleased), over Streamable HTTP, must:
+- **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
+  in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
+  needs no double)
+- **X2** return the tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing
+  on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate (`probeMcpTransport`)
+
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).
 
-**Safety suite (`x402conf offline` and `devnet`, F1-F11):** a malformed payment accepted (F1), an underpayment accepted
-(F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation, or `settlement_pending` without a transaction and network (F5), a timeout or
-garbage answer credited (F6), a pending payment never finalised or credited twice (F7), a failure stuck pending (F8),
-a broken `/settle` transport credited (F9), a payment accepted under requirements it wasn't made for (F10),
-`/verify` committing payment state (F11). `offline` runs them against built-in doubles: it's a self-test of the suite
-and doesn't test your code. `devnet` runs F1-F6 over real `/verify` and `/settle` on Solana devnet.
+**Safety suite (`x402conf offline` and `devnet`, F1-F14 and S5):** a malformed payment accepted (F1), an underpayment
+accepted (F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation, or
+`settlement_pending` without a transaction and network (F5), a timeout or garbage answer credited (F6), a pending
+payment never finalised or credited twice (F7), a failure stuck pending (F8), a broken `/settle` transport credited
+(F9), a payment accepted under requirements it wasn't made for (F10), `/verify` committing payment state (F11),
+`/verify` accepting, or refusing without a reason, a payment on a network the facilitator doesn't advertise or in an
+asset with no token contract (F12), a payment in a different asset at the quoted amount and recipient accepted (F13), a
+payment authorized for another network accepted when amount, recipient and asset match (F14), and a facilitator whose
+`/supported` lists no kinds, or a listed kind that `/verify` answers with an exception or with `isValid: false` and no
+`invalidReason` (S5). F13 and F14 are new in 1.6.0, F12 and S5 in 1.5.0. `offline` runs them against built-in doubles:
+it's a self-test of the suite and doesn't test your code. `devnet` runs F1-F6 over real `/verify` and `/settle` on
+Solana devnet.
 
 [docs/SPEC.md](docs/SPEC.md) quotes the spec text behind every check, and [docs/FIXES.md](docs/FIXES.md) explains, for
 every check, what failed, why it matters and how to fix it.
@@ -138,24 +224,26 @@ every check, what failed, why it matters and how to fix it.
 | Python CLI, one-off | `pipx run --spec x402-conformance x402conf --help` or `uvx --from x402-conformance x402conf --help` | [pipx](https://pipx.pypa.io) or [uv](https://docs.astral.sh/uv/) |
 | Python CLI, installed | `pip install x402-conformance` | Python 3.10+, no dependencies |
 | TypeScript probe | `npx -y x402-conformance-svm --help` | Node 20+ |
+| pytest plugin | `pip install x402-conformance pytest` (the `x402` fixture, see [docs/USING.md](docs/USING.md#pytest-fastapi-flask-and-any-python-server)) | Python 3.10+; `x402.probe` also needs Node 20+ |
+| MCP server | `npx -y x402-conformance-mcp` | Node 20+ |
 
 Packages: [x402-conformance on PyPI](https://pypi.org/project/x402-conformance/) (command `x402conf`) and
 [x402-conformance-svm on npm](https://www.npmjs.com/package/x402-conformance-svm) (command `x402conf-svm`; the name is
 historical, it grades Base Sepolia too). `x402conf --version` and `x402conf-svm --version` print the version. Pin
-`x402-conformance==1.4.0`, `x402-conformance-svm@1.4.0` or the Action at `@v1.4.0` if you want a fixed version; `@v1`
+`x402-conformance==1.6.0`, `x402-conformance-svm@1.6.0` or the Action at `@v1.6.0` if you want a fixed version; `@v1`
 follows the latest 1.x release.
 
 ## CLI
 
 ```
-x402conf demo [--fault no_fee_payer|no_402]           # a bundled mock on loopback, then the self-test
+x402conf demo [--fault no_fee_payer|no_402] [--dir DIR] # a bundled mock on loopback, then the self-test
 x402conf live https://x402.org/facilitator             # S0-S4, GET /supported only
 x402conf resource https://api.example.com/paid         # P1-P7, one unpaid GET
-x402conf offline                                       # F1-F11 self-test against the built-in doubles
+x402conf offline                                       # F1-F14 and S5 self-test against the built-in doubles
 x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
 x402conf pr-comment DIR/pr-comment.md                  # sticky PR comment (GITHUB_TOKEN, in a pull_request run)
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
-x402conf-svm demo [--fault serve_on_any_settle]       # R0-R10 against a bundled mock server
+x402conf-svm demo [--fault serve_on_any_settle] [--out file] # R0-R10 against a bundled mock server
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out resource-server.json
 x402conf-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --crash   # R0-R10, then R14
 ```
@@ -185,7 +273,7 @@ a host is a usage error. CDP uses short-lived JWTs, so mint one just before the 
 | `x402conf offline` | the reference passes every check and every fault-injected double is caught | otherwise | usage error | – |
 | `x402conf report` | reports written (with `--fail-on-error`: and nothing failed) | with `--fail-on-error`, an error-severity check failed | usage error, or no results JSON in the directory | – |
 | `x402conf devnet` | the facilitator under test passes, and with `--faults` every fault-injected build is caught | otherwise (the current reference exits `1` on F4, see [Results](#results)) | usage error | – |
-| `x402conf-svm probe` | every requested check (R0-R10, R11, R14) passes | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
+| `x402conf-svm probe` | every requested check (R0-R10, R11, R14, R20) passes | a check failed | usage error, or the run couldn't complete: a port in use, your `--start` server exited or never answered | unsupported: your server offers no network the probe grades |
 | `x402conf --help`, `--version`, `x402conf-svm --help`, `--version` | always | – | – | – |
 
 With `--out`, the probe writes its results file on every outcome, errors included.
@@ -211,7 +299,7 @@ The [quickstart](#60-second-quickstart) workflow runs as is. Inputs:
 | `start` | empty | Command that starts your server; it receives `X402_FACILITATOR_URL` |
 | `network` | `auto` | Which offered network the probe pays on: `auto`, `solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1` or `eip155:84532` |
 | `port` | `4402` | Loopback port for the facilitator double |
-| `offline` | `true` | Also run the F1-F11 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
+| `offline` | `true` | Also run the F1-F14 and S5 self-test of the suite (it tests the suite, not your code; set `false` to skip) |
 | `results-dir` | `x402-conformance` | Where `live.json`, `resource-402.json`, `resource-server.json` and `offline.json` are written |
 | `fail-on-error` | `true` | Fail the job when a check fails, a requested run left no results, or the probe found nothing to grade |
 | `pr-comment` | `false` | `true` posts one sticky pull request comment with the result and a fix link per failed check (needs `permissions: { pull-requests: write }`) |
@@ -307,19 +395,26 @@ transactions with the same memo both settled. The payer paid twice, so the selle
 that ties one purchase to one memo has to enforce that itself. Every fault-injected build was caught by the check
 it targets. Transaction links, the full `run.json` and its hash are in [evidence/devnet](evidence/devnet). Results for
 other facilitators go in the [facilitator matrix](docs/MATRIX.md), and I run them against a third party only with the
-operator's permission.
+operator's permission. Open-source facilitators I can build myself are listed there as
+[self-hosted columns](docs/MATRIX.md#self-hosted-open-source-facilitators): each runs at a pinned commit on loopback as my
+own instance, S0 to S4 run against them today, and the verify-only F checks follow with XC-51.
 
 ## Roadmap
 
-Next is depth, not breadth. v1.4 tests that a payment for one route, price, recipient or method never unlocks another,
-on a real resource server rather than only on the facilitator double, and makes the suite's own oracle fail closed on
-malformed amounts. v1.5 adds parallel and multi-replica replay, a crash between settling and serving, and payment
-versus delivery (failed handlers, `HEAD`, caches, late settlement). Every check is labelled normative, security profile
-or resilience, and every check ships with a passing control and a faulty build it catches. Alongside the checks, an
-adoption track makes the suite quick to run and keep: a one-line demo against a local mock target in under 60 seconds
-with no wallet, a 3-line Action with a pull-request summary, fix hints on every failure, framework quickstarts, a
-public regression corpus anyone can add a case to, and a compatibility matrix rebuilt in CI. The plan and the release
-gate for dropping the experimental label are in [docs/ROADMAP.md](docs/ROADMAP.md).
+Depth first, then breadth. 1.4.0 (2026-10-22) tests that a payment for one route, price, recipient or method never
+unlocks another, on a real resource server rather than only on the facilitator double (R11), adds a crash between
+settling and serving (R14) and retry double-pay (R20), and makes the suite's own oracle fail closed on malformed
+amounts. 1.5.0 (2026-10-23) adds parallel and multi-replica replay (R12, R13), payment versus delivery (failed handlers
+R15, `HEAD` R16 and R16a, the paid 2xx status R22), a client abort during settle (R23), malformed payment headers (R24),
+three client checks (C1-C3), and a `/verify` answer for every advertised kind (S5) and for an unsupported network or
+asset (F12), with the n-replica Lean models (`Replicas.lean`) and the R20 corpus case. 1.6.0 (2026-10-24) adds caches
+and late settlement (R17, R18), `upfront` and `escrow` flows (R19), asset and network substitution at the facilitator
+(F13, F14), and the adoption track: framework quickstarts, docs examples run by CI, the implementation and compatibility
+matrices and the published mutation matrix. Next: the release gate for dropping the experimental label, the MCP
+transport, settlement preemption, the `upto` and `batch-settlement` schemes, A2A and discovery, and SIWX normative
+checks (XC-32 to XC-37). Every check is labelled normative, security profile or resilience, and every check ships with a
+passing control and a faulty build it catches. The plan and the release gate for dropping the experimental label are in
+[docs/ROADMAP.md](docs/ROADMAP.md); every release and what it added is in [docs/RELEASES.md](docs/RELEASES.md).
 
 ## How this repo is verified
 

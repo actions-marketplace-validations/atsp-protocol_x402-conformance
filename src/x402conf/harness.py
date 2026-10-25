@@ -1,7 +1,7 @@
 """The checks.
 
 Live checks (S0-S4) read a facilitator's public GET /supported and nothing else: no signing, no payment, no POST.
-Offline checks (F1-F12) drive a facilitator implementation in-process through /verify and /settle semantics and test
+Offline checks (F1-F14) drive a facilitator implementation in-process through /verify and /settle semantics and test
 the safety properties a resource server depends on. F7 and F8 advance the double's simulated chain between retries of
 the same /settle body; F9 puts a broken transport (a 503, a non-JSON page, a truncated body) between the resource
 server and the facilitator. On devnet they run only against a facilitator its operator
@@ -23,7 +23,9 @@ from typing import Any
 
 from . import __version__
 from . import spec as S
+from .discovery import check_bazaar, check_well_known, fetch_well_known, well_known_url
 from .mock import Chain, Vectors
+from .pacing import RequestBudgetExceeded
 from .types import CheckResult, Facilitator, Json, Severity
 
 MAX_BYTES = 1 << 20
@@ -158,6 +160,8 @@ def run_live(base: str, *, timeout: float = 10, opener: Opener | None = None,
     auth_header(base, env)  # a credential without a host is a usage error, before any request is made
     try:
         r = fetch_supported(base, timeout=timeout, opener=opener, env=env)
+    except RequestBudgetExceeded as e:
+        return {"target": base, "mode": "live-GET-only", "skipped": str(e), "checks": []}
     except Exception as e:  # noqa: BLE001  a network or JSON failure is itself a result
         status = getattr(e, "code", None)
         err = _redact(repr(e)[:200], env)
@@ -322,16 +326,53 @@ def check_402(resp: Json) -> list[CheckResult]:
                              "non-authorization flow, so V2 6.1 requires extra.paymentFlow"})
         # A warning: the upto SVM scheme spec says paymentFlow may be omitted, while V2 6.1 says it MUST be present.
         out.append(result(P7, not flow, {"problems": flow[:10]}, severity="warning"))
+    out += check_bazaar(pr)
     return out
 
 
-def run_resource(url: str, *, timeout: float = 15, opener: Opener | None = None) -> Json:
+def offers_of(resp: Json) -> list[Any]:
+    """The live accepts[] of a 402 answer (header first, then a V1 body), or [] when there is none."""
+    try:
+        hv = resp["headers"].get("payment-required")
+        pr = _decode_header(hv.strip()) if hv else json.loads(resp["body"] or b"null")
+    except Exception:  # noqa: BLE001
+        return []
+    acc = pr.get("accepts") if isinstance(pr, dict) else None
+    return acc if isinstance(acc, list) else []
+
+
+def run_resource(url: str, *, timeout: float = 15, opener: Opener | None = None, well_known: bool = False,
+                 manifests: dict[str, Json] | None = None) -> Json:
+    """One unpaid GET (P1-P7, and P9 when the 402 carries the bazaar extension). With well_known, also one GET of the
+    origin's /.well-known/x402 (P10), shared through `manifests` by every target on the same origin."""
     try:
         r = fetch_402(url, timeout=timeout, opener=opener)
+    except RequestBudgetExceeded as e:
+        return {"target": url, "mode": "resource-GET-only", "skipped": str(e), "checks": []}
     except Exception as e:  # noqa: BLE001
         return {"target": url, "mode": "resource-GET-only", "error": repr(e)[:200],
                 "checks": [result(P1, False, {"error": repr(e)[:200]})]}
-    return {"target": url, "mode": "resource-GET-only", "http": r["status"], "ms": r["ms"], "checks": check_402(r)}
+    out = {"target": url, "mode": "resource-GET-only", "http": r["status"], "ms": r["ms"], "checks": check_402(r)}
+    if well_known and r["status"] == 402:
+        out["checks"] += well_known_checks(url, offers_of(r), timeout=timeout, opener=opener, manifests=manifests)
+    return out
+
+
+def well_known_checks(url: str, offers: list[Any], *, timeout: float = 15, opener: Opener | None = None,
+                      manifests: dict[str, Json] | None = None) -> list[CheckResult]:
+    cache = manifests if manifests is not None else {}
+    key = well_known_url(url)
+    if key not in cache:
+        try:
+            cache[key] = fetch_well_known(url, timeout=timeout, opener=opener)
+        except RequestBudgetExceeded as e:
+            cache[key] = {"url": key, "status": 0, "doc": None, "skipped": str(e)}
+        except Exception as e:  # noqa: BLE001
+            cache[key] = {"url": key, "status": 0, "doc": None, "error": repr(e)[:200]}
+    wk = cache[key]
+    if wk.get("skipped") or wk.get("error"):
+        return []
+    return check_well_known(wk, url, offers)
 
 
 # ---------------- offline safety checks ----------------
@@ -407,6 +448,43 @@ def _f12(fac: Facilitator, mk: Vectors, req: Json) -> CheckResult:
             got[name] = "raised"
     ok = all(isinstance(v, dict) and v.get("isValid") is False and bool(v.get("invalidReason")) for v in got.values())
     return result(F12, ok, {"unsupported_network": got["network"], "asset_without_code": got["asset"]})
+
+
+F13 = ("F13 a payment whose on-chain asset differs from the requirement's asset is rejected, even when the amount "
+       "and recipient match (V2 5.1.2)")
+
+
+def _f13(fac: Facilitator, mk: Vectors, req: Json) -> CheckResult:
+    # The same amount to the same recipient, paid in a different mint. A verifier that compares only amount and
+    # payTo lets the wrong asset settle the route.
+    asset = str(req["asset"])
+    other_asset = asset[:-1] + ("2" if asset[-1:] != "2" else "3")
+    p = dict(mk("good"), tx="tx-f13", memo="m-f13", mint=other_asset)
+    v = fac.verify(p, req)
+    s = fac.settle(p, req)
+    rejected = isinstance(v, dict) and v.get("isValid") is False and not _success(s)
+    return result(F13, rejected, {"substituted_mint": other_asset, "verify": v, "settle": s})
+
+
+F14 = ("F14 a payment whose authorized network differs from the requirement's network is rejected, even when "
+       "the amount, recipient and asset match (facilitator-layer network substitution)")
+# A real, well-formed CAIP-2 id that differs from the requirement's network: the authorization carries the network
+# it was signed for, so presenting it against a route on another network is a cross-domain replay.
+OTHER_NETWORK_EVM = "eip155:84532"
+OTHER_NETWORK_SVM = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1"
+
+
+def _f14(fac: Facilitator, mk: Vectors, req: Json) -> CheckResult:
+    # The same amount, recipient and asset, carrying a different authorized network. A verifier that does not
+    # bind the payment's network to the requirement lets a payment for one chain settle a route on another.
+    # (The deeper cross-chain-signature replay, an EIP-3009 domain that omits chainId, needs a live signature
+    # and is out of the offline doubles' reach; this check covers the facilitator-side binding.)
+    other_net = OTHER_NETWORK_EVM if not str(req["network"]).startswith("eip155:") else OTHER_NETWORK_SVM
+    p = dict(mk("good"), tx="tx-f14", memo="m-f14", net=other_net)
+    v = fac.verify(p, req)
+    s = fac.settle(p, req)
+    rejected = isinstance(v, dict) and v.get("isValid") is False and not _success(s)
+    return result(F14, rejected, {"authorized_network": other_net, "verify": v, "settle": s})
 
 
 S5 = ("S5 every kind /supported advertises gets a structured /verify answer: valid, or invalid with a reason, never "
@@ -494,6 +572,8 @@ def check_safety(fac: Facilitator, mk: Vectors,
     out.append(_f10(fac, mk, req))
     out.append(_f11(fac, mk, req))
     out.append(_f12(fac, mk, req))
+    out.append(_f13(fac, mk, req))
+    out.append(_f14(fac, mk, req))
     s5 = _s5(fac, mk, req)
     if s5 is not None:
         out.append(s5)

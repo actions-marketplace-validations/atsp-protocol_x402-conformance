@@ -188,6 +188,34 @@ class Offline(unittest.TestCase):
     def test_f12_trusting_the_requirements_caught(self):
         self.assertEqual(fails(H.check_safety(M.FAULTS["trust_kind"](), M.vectors())), {"F12"})
 
+    def test_f13_reference_rejects_asset_substitution(self):
+        # XC-49-AC01: same amount, same recipient, a different mint is rejected (asset substitution)
+        fac, v = M.Reference(), M.vectors()
+        p, req = v("good"), v("req")
+        self.assertTrue(fac.settle(p, req)["success"])
+        other_mint = dict(p, tx="tx-f13b", memo="m-f13b", mint="So11111111111111111111111111111111111111112")
+        self.assertFalse(fac.verify(other_mint, req)["isValid"])
+        self.assertFalse(fac.settle(other_mint, req)["success"])
+        self.assertNotIn("F13", fails(H.check_safety(M.Reference(), M.vectors())))
+
+    def test_f13_trust_asset_caught(self):
+        # XC-49-AC02: a facilitator that takes the paid asset from the requirement on trust is caught by F13
+        self.assertEqual(fails(H.check_safety(M.FAULTS["trust_asset"](), M.vectors())), {"F13"})
+
+    def test_f14_reference_rejects_network_substitution(self):
+        # XC-50-AC01: the same amount, recipient and asset authorized for another network is rejected (cross-chain replay)
+        fac, v = M.Reference(), M.vectors()
+        p, req = v("good"), v("req")
+        self.assertTrue(fac.settle(p, req)["success"])
+        other_net = dict(p, tx="tx-f14b", memo="m-f14b", net="eip155:84532")
+        self.assertFalse(fac.verify(other_net, req)["isValid"])
+        self.assertFalse(fac.settle(other_net, req)["success"])
+        self.assertNotIn("F14", fails(H.check_safety(M.Reference(), M.vectors())))
+
+    def test_f14_trust_network_caught(self):
+        # XC-50-AC02: a facilitator that takes the authorization's network from the requirement on trust is caught by F14
+        self.assertEqual(fails(H.check_safety(M.FAULTS["trust_network"](), M.vectors())), {"F14"})
+
     def _s5(self, fac):
         r = next((x for x in H.check_safety(fac, M.vectors()) if x["check"].startswith("S5 ")), None)
         self.assertIsNotNone(r, "check_safety gave no S5 result")
@@ -240,7 +268,7 @@ class Offline(unittest.TestCase):
         import pathlib
         ts = "".join(p.read_text("utf-8") for p in (pathlib.Path(__file__).parent.parent / "ts" / "test").glob("*.ts"))
         emitted = {r["check"].split()[0] for r in H.check_safety(M.Reference(), M.vectors())}
-        emitted |= {"S0", "S1", "S2", "S3", "S4", "P1", "P2", "P3", "P4", "P5", "P6", "P7"}
+        emitted |= {"S0", "S1", "S2", "S3", "S4", "P1", "P2", "P3", "P4", "P5", "P6", "P7", "P9", "P10"}
         emitted |= {f"R{i}" for i in range(11)} | {"R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f", "R14"}
         emitted |= {"R20", "R20a", "R20b"}
         emitted |= {"C3"}
@@ -253,6 +281,12 @@ class Offline(unittest.TestCase):
         emitted |= {"R12", "R13"}
         emitted |= {"R24"}
         emitted |= {"R22"}
+        emitted |= {"R17", "R18", "R19"}
+        emitted |= {"U1", "U2", "U3", "B1", "B2", "B3"}
+        emitted |= {"W1", "W2", "W3"}
+        emitted |= {"D1", "G1"}
+        emitted |= {"R21"}
+        emitted |= {"X1", "X2"}
         self.assertEqual(emitted - set(S.CATALOG), set(), "checks with no catalog entry")
         for cid, e in S.CATALOG.items():
             with self.subTest(check=cid):

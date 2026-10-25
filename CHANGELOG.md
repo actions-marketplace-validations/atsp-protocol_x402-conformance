@@ -1,16 +1,144 @@
 # Changelog
 ## Unreleased
+- `x402conf-svm mcp --url <mcp-endpoint> --tool <name> [--arguments '<json>'] [--no-initialize]`: one unpaid
+  `tools/call` of a paid MCP tool on a live server, paced like `live`, graded X1 on the tool result and P3, P4, P5 and
+  P7 on the `PaymentRequired` in it (`checkMcpSeller`). `--no-initialize` grades a server that needs no session in one
+  request. MCP is JSON-RPC over `POST`, so it is for servers whose operator agreed. Proposed task XC-89.
+- P9 and P10 (proposed task XC-85). P9: the bazaar discovery `info` in a 402, including its example query, body or
+  tool arguments, validates against the `schema` the endpoint ships next to it (a Draft 2020-12 subset with no
+  dependency; keywords it does not grade are listed, never guessed). P10, with `x402conf resource --well-known`: the
+  host's `/.well-known/x402` manifest lists the paid URL, lists only HTTPS URLs on its own host or a subdomain, and
+  declares terms a live offer matches; one GET per origin, a 404 is not graded.
+- R16a passes an unpaid `HEAD` that is refused with 405 and no `PAYMENT-RESPONSE`, as well as a 402 with an offer: both
+  keep `HEAD` away from the handler. A 2xx still fails. Proposed task XC-86.
+- C2 and C3 grade a client the caller declares does not sign (`{ signsPayments: false }`) and that signs nothing as not
+  applicable instead of failed. Reports, `explain`, SARIF, JUnit (skipped) and the badge show it as N/A and never count
+  it as a failure. Without the declaration a client that never pays still fails. Proposed task XC-87.
+- Live targets are paced by default: at least 5 s between requests to a non-loopback host (`--min-interval`), an
+  optional cap (`--max-requests`; a request over it is not sent and the target is reported skipped), one log line per
+  request on stderr and the log in the JSON under `pacing`. This applies to `x402conf live` and `resource` and to
+  `x402conf-svm resource` and the new `x402conf-svm live --url`, which grades P1-P7, R16a and R24 on one paid URL in
+  7 unpaid requests. Proposed task XC-88.
+- Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
+  on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
+  Base Sepolia for these columns are the proposed task XC-51.
+- U1 to U3 for the `upto` scheme and B1 to B3 for the `batch-settlement` scheme (XC-35), on Solana devnet and Base
+  Sepolia, exported as `probeUpto` and `probeBatch` with a scheme double, `startSchemeDouble`. U1: a settle never
+  exceeds the authorised maximum; U2: `PAYMENT-RESPONSE` reports the settled amount; U3: an `upto` offer never declares
+  `upfront` (P7's flow rule, graded). B1: a commitment is served once with its identifier and charge; B2: one
+  redemption run claims each channel once, at its latest voucher; B3: a partly failed run is reported and retried per
+  channel. The `upto` control is `ts/example/upto-server.ts` on the stock scheme servers, the `batch-settlement` control
+  `ts/example/batch-server.ts`; the `no_cap`, `report_max`, `upfront_flow`, `accept_replay`, `claim_every_voucher` and
+  `drop_failed` builds are each caught.
+- W1 to W3, the sign-in-with-x server rules (XC-37), exported as `probeSiwx`. After a throwaway wallet pays the route
+  through the double and signs back in (the control), W1 refuses a message signed for another site even when `Host` or
+  `X-Forwarded-Host` names it, W2 refuses the same signed message twice, and W3 refuses a stale, future or expired
+  message. The control is the shipped extension with a configured origin and a nonce-tracking storage
+  (`ts/example/siwx-server.ts`); the shipped `InMemorySIWxStorage` tracks no nonces, so on its own it fails W2. The
+  `origin_from_host`, `no_nonce_store` and `no_time_window` builds are each caught.
+- D1 and G1, discovery and A2A (XC-36), exported as `checkDiscovery` and `checkA2aMirrorsHttp`. D1 reads a
+  facilitator's `/discovery/resources` and `/discovery/search` (GET only) and checks the V2 section 8 shapes, every
+  item's fields, `limit` and the `network` filter; a facilitator that serves neither is unsupported. G1 sends an
+  unpaid A2A `message/send` and checks the `input-required` task asks for the same `accepts` as the HTTP route's 402.
+  The controls and the `v1_items`, `ignore_filters`, `stale_price` and `not_input_required` builds are in
+  `ts/example/discovery-server.ts`.
+- R21, settlement preemption for caller-unbound settlement (XC-34), exported as `probePreempt`. On a Base Sepolia
+  route whose exact offer uses Permit2, a payment a third party settled first (the server's own settle answers
+  `permit2_invalid_nonce`) must not be served, and a spent payment must not be served twice. The facilitator double
+  gains a `settle_preempted` mode and answers `permit2_invalid_nonce` for a spent Permit2 payment. The control is
+  `ts/example/preempt-server.ts`; the `nonce_used_is_paid` and `serve_before_settle` builds are each caught.
+- X1 and X2, the MCP transport checks for paid MCP tools (XC-33), exported from `x402-conformance-svm` as
+  `checkMcpPaymentRequired` and `probeMcpTransport`. X1 reads one unpaid `tools/call` and checks the payment-required
+  tool result: `isError: true`, the `PaymentRequired` object in `structuredContent` and the same JSON in
+  `content[0].text`. X2 runs the R0-R10 faults on a paid tool call: the tool's result comes back only on a final,
+  first-time settle, with `_meta["x402/payment-response"]`. The control is `ts/example/mcp-server.ts`; the
+  `text_only`, `rpc_error`, `serve_on_failure` and `result_first` builds are each caught.
+## 1.6.0 (2026-10-24)
+- The contract: XC-48, Release 1.6.0, carries the tasks that were still open when 1.5.0 was planned and the two added
+  since: R17 to R19 (XC-18), the implementation matrix (XC-19), the framework quickstarts (XC-26), docs examples run by
+  CI (XC-27), the compatibility matrix (XC-28), the mutation matrix with the false-positive register (XC-29), and F13
+  and F14 (XC-49, XC-50). XC-22 (the R20 corpus case) and XC-24 (the n-replica Lean models) are on XC-48's list and
+  landed before the 1.5.0 tag. XC-49 and XC-50 come from
+  `docs/proposals/contract-addendum-asset-network-substitution.json`, signed into `proofline.json` with this release;
+  every task above is claimed in `vv/claims.json`.
+- F13 and F14, two facilitator checks in the offline suite (`x402conf offline`, the Action's `offline` input). F13: a
+  payment that carries the quoted amount to the quoted recipient but in a different asset is rejected (asset
+  substitution; the faulty `trust_asset` facilitator takes the asset from the requirement on trust). F14: a payment
+  authorized for another network is rejected even when amount, recipient and asset match (facilitator-layer network
+  substitution; the faulty `trust_network` facilitator). Each has a passing control, the faulty build it catches, a fix
+  section in `docs/FIXES.md` and its rows in `docs/COVERAGE.md` and the mutation matrix. F14 checks the facilitator's
+  network binding only: a cross-chain replay of an EIP-3009 signature whose EIP-712 domain omits `chainId` needs a live
+  devnet test and is not covered offline. The contract tasks are XC-49 and XC-50.
+- Every example the docs mark with `<!-- runnable: <kind> -->` is run or checked by CI through
+  `tools/doc_examples.py --run`, so a broken example fails the build. The contract task is XC-27.
+- The mutation matrix: `tools/mutation_matrix.py` resolves every faulty build in the catalogue the way the credibility
+  test does and writes `docs/site/mutation-matrix.json` (each check, its profile, each faulty build with `caught` and how),
+  byte-identical for one tree; CI checks it, and the false-positive register exists. The contract task is XC-29.
+- R17, R18 and R19 (`probeCacheLeak`, `probePending`, `probeFlows`): a shared cache in front of the paid route must not
+  serve the paid content to an unpaid request; a pending, late or unanswered settlement never serves before the payment
+  is final and serves once after it; the upfront and escrow flows are checked, each with a passing control and faulty
+  builds. The flaky port race in the CLI tests (#67) is fixed by `ts/test/ports.ts`. The contract task is XC-18.
+- The implementation matrix: `evidence/impl-matrix/` holds five rows (Express with `@x402/express` 2.28.0 and 2.27.0,
+  Hono 2.28.0, FastAPI and Flask with the Python SDK 2.25.0), each a probe run of R0 to R10 against the stock example
+  server behind the double, with `run.json`, a README naming the versions and `SHA256SUMS`; `.github/workflows/impl-matrix.yml`
+  rebuilds them, one job per row; `examples/python/flask_server.py` is new. The contract task is XC-19.
+- The compatibility matrix: `tools/compat_matrix.py` reads every row of `evidence/impl-matrix/` and writes
+  `docs/compat-matrix.json` and the implementation-matrix table in `docs/MATRIX.md` (stack, version, network, tool, every
+  check's status, the run's path and hashes), byte-identical for one tree; `--check` fails CI when either is stale, and
+  `.github/workflows/compat-matrix.yml` rebuilds it on a schedule. The contract task is XC-28.
+- Framework quickstarts: `examples/` holds one minimal paid route per framework (Express, Hono and Next on `@x402/*`
+  2.28.0, FastAPI and Flask on the Python SDK 2.25.0, Go gin on the Go SDK), and `sh tools/quickstart.sh <framework>`
+  takes a clean checkout to a first R0 to R10 result behind the facilitator double, writing
+  `examples/<framework>/quickstart-result.json`; the `quickstarts` CI job runs all six. The contract task is XC-26.
+- Dependencies: every open Dependabot alert on the default branch is cleared (38 on 2026-10-24, all in the example apps
+  and the probe's lockfiles). `examples/go` moves `golang.org/x/crypto` to 0.52.0 (which needs `go 1.25.0`, so the go
+  directive and CI's Go setup follow), `go-ethereum` to 1.17.0, `gnark-crypto` 0.18.1, `klauspost/compress` 1.18.7,
+  `quic-go` 0.59.1, `gorilla/websocket` 1.5.3, `mongo-driver` 1.17.7, `x/net` 0.55.0, `edwards25519` 1.1.1 and the
+  OpenTelemetry modules to 1.41.0 while the Go SDK pin is unchanged. The Node lockfiles (`ts/`, the devnet runner, the
+  Express, Hono and Next quickstarts) carry `zod` 4.6.6 through an override, which reverses the 1.5.0 decision to leave
+  the SDK's `zod` 3 pin alone; the Next quickstart also moves `uuid` to 11.1.1, `decode-uri-component` to 0.5.1, `ws` to
+  8.22.0 and 7.5.13 under their parents and `bn.js` to 4.12.5 under `@walletconnect/utils`. The SDK pins (`@x402/*`
+  2.28.0, Python 2.25.0, the Go SDK) do not change.
+
+## 1.5.0 (2026-10-23)
+- The contract: XC-39 to XC-46 (R16a, R22, R23, R24, C1, C2, C3, F12) are signed and claimed (#55), XC-23 is claimed
+  (#48), XC-30 is claimed, and XC-47 for S5 is proposed, unsigned (#49). XC-31 (this release) is amended to depend on the
+  tasks that are built, and XC-48, Release 1.6.0, carries the eight tasks that were open when 1.5.0 was planned (XC-18,
+  XC-19, XC-22, XC-24, XC-26 to XC-29); two of them, the R20 corpus case and the n-replica Lean models, landed before
+  the tag. [RELEASES.md](RELEASES.md) at the repository root maps every release to what it added, with the narrative in
+  [docs/RELEASES.md](docs/RELEASES.md), and [docs/COVERAGE.md](docs/COVERAGE.md) lists every check with its profile,
+  where it runs and its controls and faulty builds, and the networks, schemes, stacks, facilitators and Lean models the
+  evidence covers.
+- Lean: `lean/X402Conformance/Replicas.lean` models n replicas; its five theorems include `shared_cas_at_most_one_grant`
+  (a shared atomic check-and-set admits at most one grant) and `partitioned_caches_admit_double_grant`, with standard
+  axioms only. The contract task is XC-24.
+- The R20 corpus case, `corpus/cases/2026-10-23-R20-express.json`, from a `--share` run of `x402conf-svm probe --retry`
+  against a stock `@x402/express` 2.28.0 server with no idempotency record (R20a and R20b fail); `ts/example/retry-server.ts`
+  now runs standalone. The contract task is XC-22.
+- MCP: `x402_explain_check` finds the fix section of a check whose id has a lowercase suffix (R11a to R11f, R16a, R20a,
+  R20b); the heading lookup used to upper-case the id.
+- `x402-conformance-mcp` depends on zod 4.6.6: Dependabot flagged 4.1.12 for memory exhaustion while validating oversized
+  constrained collections, and the MCP server validates every tool input with zod. The `x402-conformance-svm` and devnet
+  lockfiles resolve zod 3.25.76 through `@x402/core`'s `^3.24.2` range, which no 4.x satisfies; that pin moves when
+  upstream's does.
+- `tools/interdeps.py` no longer writes a per-component file count into the map, so a pull request that adds a file no
+  longer stales the committed map of every other open pull request (#52).
+- The MCP server is published to the MCP Registry as `io.github.atsp-protocol/x402-conformance` on each GitHub release
+  (`.github/workflows/mcp-registry.yml`, GitHub OIDC). The workflow checks that `server.json` matches the release tag
+  and skips a version the registry already lists.
+- The v1.5 contract addendum (XC-22 to XC-37) was signed into `proofline.json` after 1.4.0.
+- Dev dependencies: vitest 4.1.12.
 - S5, every advertised kind gets a verdict: the offline checks read the facilitator's `/supported` and send `/verify`
   once for each kind it lists. Each answer must be `isValid: true`, or `isValid: false` with an `invalidReason`; an
   exception (a 5xx or a dropped answer over HTTP) or a refusal with no reason fails. The reference double passes, with
   one kind or with a second network it answers `invalid_asset` for. The `advertise_unhandled` build (a listed kind its
   `/verify` has no handler for) and the `reasonless_invalid` build each fail (`tests/test_offline.py`). A facilitator
-  double with no `supported()` is not graded on S5. A fix section is in [docs/FIXES.md](docs/FIXES.md#s5).
+  double with no `supported()` is not graded on S5. A fix section is in [docs/FIXES.md](docs/FIXES.md#s5). The contract task, XC-47, is proposed.
 - R22, the paid response keeps the handler's 2xx status and headers (`probeStatus`): after a successful settle the
   client receives the handler's own status and headers. A 201 stays a 201 with its Location and a 202 stays a 202 with
   its Content-Location. Only 2xx statuses are graded, since a paid 3xx is never settled (R15). The control is
   `ts/example/status-server.ts`; a build that rewrites the paid response to 200 fails, on Solana devnet and Base
-  Sepolia (`ts/test/handler-status.test.ts`).
+  Sepolia (`ts/test/handler-status.test.ts`). The contract task is XC-40.
 - R12, parallel requests with one payment identifier (`probeParallel`): the probe sends eight requests at once with the
   same payment-identifier id and a fresh payment each, and fails a server that settles more than one of them or serves
   one that doesn't name the settlement. R13, two replicas (`probeReplicas`): the same id goes to one replica, then the
@@ -23,7 +151,7 @@
   with `PAYMENT-SIGNATURE` at `x402Version` 2; a payment with `X-PAYMENT` or at `x402Version` 1 fails, and so does a
   client that never pays. Only a V2 payment is forwarded, so nothing settles for a V1 one. The stock `@x402/fetch`
   client passes and a client that reads the V1 body first is caught, on Solana devnet and Base Sepolia
-  (`ts/test/client-version.test.ts`). A fix section is in [docs/FIXES.md](docs/FIXES.md#c3).
+  (`ts/test/client-version.test.ts`). A fix section is in [docs/FIXES.md](docs/FIXES.md#c3). The contract task is XC-45.
 - C2, a client pays an offer within its own policy (`checkClientOfferPolicy`): given several offers a client must
   choose one on its configured networks and within its maximum amount, not the first, and never sign for a network
   outside its set. A recording proxy puts two decoys before the route's offer in the 402 (the same offer on a network
@@ -31,25 +159,25 @@
   nothing settles, and reads which offer the client signed. The stock `x402Client` with `@x402/fetch`, registered only
   for its network and capped with spend controls, passes; a client that signs the first offer and one that ignores its
   maximum are caught, on Solana devnet and Base Sepolia (`ts/test/client-offers.test.ts`). A fix section is in
-  [docs/FIXES.md](docs/FIXES.md#c2).
+  [docs/FIXES.md](docs/FIXES.md#c2). The contract task is XC-44.
 - C1, a client never hands a 402 to its caller as a success. `checkClientHandles402` runs a client once through a
   recording proxy in front of a paid route behind the facilitator double. It passes when the client pays and gets a
   2xx, or rejects with an error, and fails when the client resolves with the 402. The stock `@x402/fetch` client, the
   same client with a policy that declines the price, and a client that pays a 402 before its status check pass; a
   client whose status check accepts every status and whose payment step only runs for rejected statuses is caught
   (`ts/test/client-status.test.ts`, Solana devnet and Base Sepolia). A fix section is in
-  [docs/FIXES.md](docs/FIXES.md#c1).
+  [docs/FIXES.md](docs/FIXES.md#c1). The contract task is XC-43.
 - R23, a client abort during settle (`probeAbort`): the probe pays a route, drops its connection while the server's
   `/settle` is in flight and then resends the same signed payment. It passes when nothing was settled, or when the
   payment was settled once and the resend gets the settled result with no second charge. The stock `@x402/express`
   server with an idempotency record written when `/settle` succeeds passes; a server that writes its record only once
   the response is delivered, and one with no record, fail (`ts/test/abort.test.ts`, on Solana devnet and Base
-  Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r23).
+  Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r23). The contract task is XC-41.
 - R24, a malformed payment header (`probeMalformedHeader`): the probe sends a paid route five `PAYMENT-SIGNATURE`
   values that are not base64, not JSON or not an object, and passes when every one gets 402 or 400 with a structured
   error, never a 5xx, a dropped connection or the content. The stock `@x402/express` server passes; a build that decodes
   the header itself and throws, and one that drops the connection, fail (`ts/test/malformed-header.test.ts`, on Solana
-  devnet and Base Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r24).
+  devnet and Base Sepolia). A fix section is in [docs/FIXES.md](docs/FIXES.md#r24). The contract task is XC-42.
 - `tools/interdeps.py` generates `docs/INTERDEPENDENCY.md` from `proofline.json`, the unmerged addenda,
   `vv/claims.json`, the check catalogue and the tree, with a mermaid graph of the tasks. `--check` fails when the
   committed map is stale; `--drift` fails when a doc names a check id, CLI flag or Action input the code doesn't have,
@@ -73,10 +201,10 @@
 - R16a, an unpaid `HEAD` gets the same 402 as `GET` (`probeUnpaidHead`): it fails a paid route whose unpaid `HEAD`
   is not answered 402 with a `PAYMENT-REQUIRED` offer. The control is `ts/example/head-unpaid-server.ts`; the
   `head_bypass` build (a paywall that matches only `GET`) fails, on Solana devnet and Base Sepolia
-  (`ts/test/head-unpaid.test.ts`).
+  (`ts/test/head-unpaid.test.ts`). The contract task is XC-39.
 - F12, `/verify` rejects an unsupported network or an asset that is not a token contract: the offline harness verifies
   a well-formed payment on a network the facilitator doesn't advertise and one in an address with no contract code,
-  and each must be answered `isValid: false` with a reason. The `trust_kind` double fails it.
+  and each must be answered `isValid: false` with a reason. The `trust_kind` double fails it. The contract task is XC-46.
 ## 1.4.0 (2026-10-22)
 - R14, a crash between a successful `/settle` and the response (`x402conf-svm probe --crash`, Action `crash: "true"`).
   The probe kills the server while `/settle` is answering and again as the response starts, restarts it (the `--start`
