@@ -24,6 +24,8 @@ FAMILY = {
     "S": "Facilitator, `GET /supported` (S0 to S4 live; S5 offline)",
     "P": "Any paid URL's 402 answer, one unpaid GET",
     "F": "Facilitator safety, against doubles offline and on devnet",
+    "D": "A facilitator's discovery API (Bazaar), GET only",
+    "G": "An A2A agent's paid skill, against the HTTP route it mirrors",
     "R": "Resource server behind the facilitator double",
     "C": "Client, through a recording proxy",
 }
@@ -32,6 +34,8 @@ RUNS: dict[str, str] = {}
 for _i in ("S0", "S1", "S2", "S3", "S4"):
     RUNS[_i] = "`x402conf live`, Action `facilitators`"
 RUNS["S5"] = "`x402conf offline` (needs `supported()` on the facilitator)"
+RUNS["D1"] = "library only: `checkDiscovery` from `x402-conformance-svm` (GET only)"
+RUNS["G1"] = "library only: `checkA2aMirrorsHttp` from `x402-conformance-svm`"
 for _i in ("P1", "P2", "P3", "P4", "P5", "P6", "P7"):
     RUNS[_i] = ("`x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, "
                 "MCP `x402_check_payment_required`")
@@ -80,7 +84,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "R", "C") if f in fam)
+                             for f in ("S", "P", "F", "D", "R", "G", "C") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 

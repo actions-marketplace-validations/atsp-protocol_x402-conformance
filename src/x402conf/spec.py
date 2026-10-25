@@ -201,6 +201,22 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
                      "without the content, so an unpaid HEAD is answered 402",
             "controls": ["ts:R16a control: a paywall that covers HEAD answers it 402"],
             "faulty": ["ts:R16a catches a paywall that matches only GET"]},
+    "D1": {"profile": "normative",
+           "basis": "V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination "
+           "(limit, offset, total), GET /discovery/search returns resources; every item has resource, type, "
+           "x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured",
+           "controls": ["ts:D1 control: a discovery API in the V2 section 8 shapes that honours limit and the network "
+                        "filter"],
+           "faulty": ["ts:D1 catches a discovery API whose items lack x402Version, lastUpdated and maxTimeoutSeconds",
+                      "ts:D1 catches a discovery API that ignores limit and the network filter"]},
+    "G1": {"profile": "security-profile",
+           "basis": "A2A transport: payment required is a task in input-required with x402.payment.status "
+           "payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route "
+           "asks for the same requirements as its 402",
+           "controls": ["ts:G1 control: an A2A agent's input-required task carries the HTTP route's PAYMENT-REQUIRED "
+                        "accepts"],
+           "faulty": ["ts:G1 catches an A2A agent whose requirements carry a different price from the HTTP 402",
+                      "ts:G1 catches an A2A agent that answers a failed task with the requirements only in text"]},
     "R17": {"profile": "security-profile",
            "basis": "RFC 9111: a shared cache may store a 200 that is not private or no-store and does not vary on "
            "the request header that decided it, so a paid response must say so or the next caller gets it "

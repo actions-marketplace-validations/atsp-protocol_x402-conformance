@@ -151,6 +151,12 @@ Your client must:
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
 
+Your facilitator's discovery API and your A2A agent (unreleased) must:
+- **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
+  honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)
+- **G1** answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the
+  same offers as the HTTP route's 402 (`checkA2aMirrorsHttp`, which sends no payment)
+
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).

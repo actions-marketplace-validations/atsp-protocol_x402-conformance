@@ -22,3 +22,5 @@ export { probeStatus, R22, type StatusRoute, type StatusRoutes, type StatusOptio
 export { probeCacheLeak, markedPrivate, R17, type CacheOptions } from "./cache.js";
 export { probePending, R18, type PendingOptions } from "./pending.js";
 export { probeFlows, R19, FLOWS, type FlowOptions } from "./flow.js";
+export { checkDiscovery, checkA2aMirrorsHttp, itemProblems, requirementProblems, D1, G1, type DiscoveryOptions,
+  type A2aTarget } from "./discovery.js";
