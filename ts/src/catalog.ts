@@ -183,6 +183,18 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "sign-in-with-x: access is for the requested resource the server priced and settled"
  },
+ "W1": {
+  "profile": "normative",
+  "basis": "sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin MUST match that origin, derived from the server's configuration, not from request headers such as Host"
+ },
+ "W2": {
+  "profile": "security-profile",
+  "basis": "sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed message signs in once"
+ },
+ "W3": {
+  "profile": "normative",
+  "basis": "sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and a present expirationTime MUST be in the future"
+ },
  "R12": {
   "profile": "security-profile",
   "basis": "payment-identifier: the id is an idempotency key that deduplicates requests, so parallel requests with one id are charged once"
@@ -207,6 +219,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "the paywall covers every method that reaches the protected handler: RFC 9110 9.3.2 HEAD is GET without the content, so an unpaid HEAD is answered 402"
  },
+ "D1": {
+  "profile": "normative",
+  "basis": "V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination (limit, offset, total), GET /discovery/search returns resources; every item has resource, type, x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured"
+ },
+ "G1": {
+  "profile": "security-profile",
+  "basis": "A2A transport: payment required is a task in input-required with x402.payment.status payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route asks for the same requirements as its 402"
+ },
  "R17": {
   "profile": "security-profile",
   "basis": "RFC 9111: a shared cache may store a 200 that is not private or no-store and does not vary on the request header that decided it, so a paid response must say so or the next caller gets it for free"
@@ -230,6 +250,10 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R20b": {
   "profile": "security-profile",
   "basis": "a retry resending the same signed payment is settled once and gets the original result"
+ },
+ "R21": {
+  "profile": "security-profile",
+  "basis": "EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks the resource again"
  },
  "C3": {
   "profile": "security-profile",
@@ -278,6 +302,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "B3": {
   "profile": "resilience",
   "basis": "batch-settlement redemption in batches: a channel is not silently dropped from a batch, and a voucher whose claim failed stays claimable, so a partly failed run is reported and retried per item"
+ },
+ "X1": {
+  "profile": "normative",
+  "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text"
+ },
+ "X2": {
+  "profile": "resilience",
+  "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call"
  }
 };
 

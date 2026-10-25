@@ -136,12 +136,21 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
   transaction on every refusal (`probePending`)
 - **R19** on an `upfront` or `escrow` offer, settle before the resource executes, and reject a flow it doesn't support
   (`probeFlows`)
+- **R21** on a Base Sepolia offer that uses Permit2, serve only on its own successful settle: never on a settlement a
+  third party made first with the same signature, and never a second time for a spent payment (`probePreempt`)
 - **R22** keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location`, and a
   202 stays a 202 with its `Content-Location` (`probeStatus`)
 - **R23** not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the
   same payment the settled result (`probeAbort`)
 - **R24** answer five malformed `PAYMENT-SIGNATURE` values (not base64, not JSON or not an object) with 402 or 400 and
   a structured error, never a 5xx, a dropped connection or the content (`probeMalformedHeader`)
+
+On a paid route that declares sign-in-with-x (unreleased), your server must (`probeSiwx`):
+- **W1** check the message's `domain` and `uri` against its configured public origin, never against `Host` or
+  `X-Forwarded-Host`
+- **W2** let one signed message in once: a nonce it has seen is refused
+- **W3** refuse a message whose `issuedAt` is over five minutes old or in the future, or whose `expirationTime` has
+  passed
 
 Your client must:
 - **C1** never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error
@@ -159,6 +168,19 @@ On the `upto` and `batch-settlement` schemes (unreleased), your server must:
   per-request amount, and refuse a voucher it has already been paid with (`probeBatch`)
 - **B2** claim each channel once per redemption run, at its latest voucher (`probeBatch`)
 - **B3** report a partly failed redemption run per channel, and claim only the failed channels again (`probeBatch`)
+
+Your facilitator's discovery API and your A2A agent (unreleased) must:
+- **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
+  honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)
+- **G1** answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the
+  same offers as the HTTP route's 402 (`checkA2aMirrorsHttp`, which sends no payment)
+
+Your paid MCP tools (unreleased), over Streamable HTTP, must:
+- **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
+  in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
+  needs no double)
+- **X2** return the tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing
+  on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate (`probeMcpTransport`)
 
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format

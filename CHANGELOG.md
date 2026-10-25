@@ -11,6 +11,29 @@
   channel. The `upto` control is `ts/example/upto-server.ts` on the stock scheme servers, the `batch-settlement` control
   `ts/example/batch-server.ts`; the `no_cap`, `report_max`, `upfront_flow`, `accept_replay`, `claim_every_voucher` and
   `drop_failed` builds are each caught.
+- W1 to W3, the sign-in-with-x server rules (XC-37), exported as `probeSiwx`. After a throwaway wallet pays the route
+  through the double and signs back in (the control), W1 refuses a message signed for another site even when `Host` or
+  `X-Forwarded-Host` names it, W2 refuses the same signed message twice, and W3 refuses a stale, future or expired
+  message. The control is the shipped extension with a configured origin and a nonce-tracking storage
+  (`ts/example/siwx-server.ts`); the shipped `InMemorySIWxStorage` tracks no nonces, so on its own it fails W2. The
+  `origin_from_host`, `no_nonce_store` and `no_time_window` builds are each caught.
+- D1 and G1, discovery and A2A (XC-36), exported as `checkDiscovery` and `checkA2aMirrorsHttp`. D1 reads a
+  facilitator's `/discovery/resources` and `/discovery/search` (GET only) and checks the V2 section 8 shapes, every
+  item's fields, `limit` and the `network` filter; a facilitator that serves neither is unsupported. G1 sends an
+  unpaid A2A `message/send` and checks the `input-required` task asks for the same `accepts` as the HTTP route's 402.
+  The controls and the `v1_items`, `ignore_filters`, `stale_price` and `not_input_required` builds are in
+  `ts/example/discovery-server.ts`.
+- R21, settlement preemption for caller-unbound settlement (XC-34), exported as `probePreempt`. On a Base Sepolia
+  route whose exact offer uses Permit2, a payment a third party settled first (the server's own settle answers
+  `permit2_invalid_nonce`) must not be served, and a spent payment must not be served twice. The facilitator double
+  gains a `settle_preempted` mode and answers `permit2_invalid_nonce` for a spent Permit2 payment. The control is
+  `ts/example/preempt-server.ts`; the `nonce_used_is_paid` and `serve_before_settle` builds are each caught.
+- X1 and X2, the MCP transport checks for paid MCP tools (XC-33), exported from `x402-conformance-svm` as
+  `checkMcpPaymentRequired` and `probeMcpTransport`. X1 reads one unpaid `tools/call` and checks the payment-required
+  tool result: `isError: true`, the `PaymentRequired` object in `structuredContent` and the same JSON in
+  `content[0].text`. X2 runs the R0-R10 faults on a paid tool call: the tool's result comes back only on a final,
+  first-time settle, with `_meta["x402/payment-response"]`. The control is `ts/example/mcp-server.ts`; the
+  `text_only`, `rpc_error`, `serve_on_failure` and `result_first` builds are each caught.
 ## 1.6.0 (2026-10-24)
 - The contract: XC-48, Release 1.6.0, carries the tasks that were still open when 1.5.0 was planned and the two added
   since: R17 to R19 (XC-18), the implementation matrix (XC-19), the framework quickstarts (XC-26), docs examples run by

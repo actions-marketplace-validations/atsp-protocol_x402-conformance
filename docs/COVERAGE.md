@@ -8,18 +8,22 @@ says which release added what, and [SPEC.md](SPEC.md) quotes the spec text behin
 
 <!-- generated from src/x402conf/spec.py by tools/build_coverage.py; edit RUNS there, not this block -->
 
-## Checks: 69 in the catalogue
+## Checks: 77 in the catalogue
 
 - **S**: Facilitator, `GET /supported` (S0 to S4 live; S5 offline): S0, S1, S2, S3, S4, S5 (6 checks)
 - **P**: Any paid URL's 402 answer, one unpaid GET: P1, P2, P3, P4, P5, P6, P7 (7 checks)
 - **F**: Facilitator safety, against doubles offline and on devnet: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14 (14 checks)
-- **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R22, R23, R24 (33 checks)
+- **D**: A facilitator's discovery API (Bazaar), GET only: D1 (1 checks)
+- **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R21, R22, R23, R24 (34 checks)
+- **G**: An A2A agent's paid skill, against the HTTP route it mirrors: G1 (1 checks)
 - **C**: Client, through a recording proxy: C1, C2, C3 (3 checks)
+- **W**: Sign-in-with-x on a paid route, behind the facilitator double: W1, W2, W3 (3 checks)
 - **U**: The upto scheme on a paid route, behind the scheme double: U1, U2, U3 (3 checks)
 - **B**: The batch-settlement scheme on a paid route and its redemption runs, behind the scheme double: B1, B2, B3 (3 checks)
+- **X**: Paid MCP tools, over the MCP transport (JSON-RPC over Streamable HTTP): X1, X2 (2 checks)
 
-By profile: 36 normative (the spec says MUST), 21 security
-profile (a hardening rule the spec leaves open), 12 resilience (behaviour under failure).
+By profile: 40 normative (the spec says MUST), 24 security
+profile (a hardening rule the spec leaves open), 13 resilience (behaviour under failure).
 Every check has at least one control that passes and one faulty build it catches, and CI runs every one of them
 (`tests/test_offline.py`, `ts/test/`).
 
@@ -31,6 +35,7 @@ Every check has at least one control that passes and one faulty build it catches
 | C1 | security-profile | V2 4 and HTTP transport: a 402 is Payment Required or Payment Failed, not Success, so a client pays and retries or raises an error | library only: `checkClientHandles402` from `x402-conformance-svm` | 3 | 3 |
 | C2 | security-profile | given several offers a client pays one within its own networks and maximum amount, not the first; V2 12.1: spending controls are implementation-specific | library only: `checkClientOfferPolicy` from `x402-conformance-svm` | 1 | 2 |
 | C3 | security-profile | V2 HTTP transport: PAYMENT-REQUIRED is canonical; V2 5.2.2 accepted is Required, and a V1 payload (V1 5.2.2) has none | library only: `checkClientKeepsV2` from `x402-conformance-svm` | 1 | 1 |
+| D1 | normative | V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination (limit, offset, total), GET /discovery/search returns resources; every item has resource, type, x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured | library only: `checkDiscovery` from `x402-conformance-svm` (GET only) | 1 | 2 |
 | F1 | normative | V2 9 invalid_payload; V2 5.1.2 atomic units; SVM exact: fail closed | `x402conf offline`, `x402conf devnet` (real `/verify` and `/settle` on Solana devnet) | 1 | 2 |
 | F2 | normative | SVM exact 1.1 and V2 9: an amount below the requirement is rejected | `x402conf offline`, `x402conf devnet` (real `/verify` and `/settle` on Solana devnet) | 1 | 1 |
 | F3 | normative | SVM exact, Duplicate Settlement Mitigation: duplicate_settlement | `x402conf offline`, `x402conf devnet` (real `/verify` and `/settle` on Solana devnet) | 1 | 1 |
@@ -45,6 +50,7 @@ Every check has at least one control that passes and one faulty build it catches
 | F12 | security-profile | V2 7.1 and 7.3: /verify checks a payment against the kinds /supported advertises; an asset is a token contract on the network | `x402conf offline` | 1 | 1 |
 | F13 | security-profile | V2 5.1.2: a payment settles the asset the requirement names; the amount and recipient alone do not bind the asset, so a different mint at the same price is a distinct payment | `x402conf offline` | 1 | 1 |
 | F14 | security-profile | V2 5.1.2 and 11.1: the verifier binds the payment's authorized network to the requirement; a payment authorized for one network is not valid against a requirement on another, even when amount, asset and payTo match (facilitator-layer network substitution) | `x402conf offline` | 1 | 1 |
+| G1 | security-profile | A2A transport: payment required is a task in input-required with x402.payment.status payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route asks for the same requirements as its 402 | library only: `checkA2aMirrorsHttp` from `x402-conformance-svm` | 1 | 2 |
 | P1 | normative | V2 HTTP transport: payment required is signalled with HTTP 402 | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 1 | 1 |
 | P2 | normative | V2 HTTP transport: PAYMENT-REQUIRED carries base64 JSON; V1 5.1 body | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 2 | 1 |
 | P3 | normative | V2 5.1.2: x402Version, resource and accepts are required | `x402conf resource`, `x402conf-svm resource`, Action `resources`, pytest `check_payment_required`, MCP `x402_check_payment_required` | 1 | 1 |
@@ -82,6 +88,7 @@ Every check has at least one control that passes and one faulty build it catches
 | R20 | security-profile | control: the route answers 402 with an exact offer the probe can pay | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 1 | 1 |
 | R20a | security-profile | payment-identifier: a retry with the same id and a fresh payment is not charged again | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 1 | 2 |
 | R20b | security-profile | a retry resending the same signed payment is settled once and gets the original result | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 2 | 2 |
+| R21 | security-profile | EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks the resource again | library only: `probePreempt` from `x402-conformance-svm` | 1 | 2 |
 | R22 | normative | after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15) | library only: `probeStatus` from `x402-conformance-svm` | 1 | 2 |
 | R23 | security-profile | a client that disconnects while /settle is in flight is not charged, or a resend of the same payment gets the settled result and is not charged again | library only: `probeAbort` from `x402-conformance-svm` | 1 | 2 |
 | R24 | resilience | V2 HTTP transport, Error Handling: Invalid Payment (a malformed payment payload) is 400, Payment Required and Payment Failed are 402, and Server Error (500) is for the server's own failures | library only: `probeMalformedHeader` from `x402-conformance-svm` | 1 | 3 |
@@ -94,6 +101,11 @@ Every check has at least one control that passes and one faulty build it catches
 | U1 | normative | upto, Core Property 4: the settled amount MUST be less than or equal to the authorized maximum; the settle-time requirements.amount is the actual charge (Core Property 5) | library only: `probeUpto` from `x402-conformance-svm` | 2 | 1 |
 | U2 | normative | upto SettlementResponse: amount, the actual amount charged in atomic units (may be 0), is required on EVM and on Solana | library only: `probeUpto` from `x402-conformance-svm` | 1 | 1 |
 | U3 | normative | upto, Payment Flow: upto cannot use upfront, because the amount is known only after the handler runs; Permit2 on EVM supports authorization, the Solana channel escrow (V2 6.1 extra.paymentFlow, as P7) | library only: `probeUpto` from `x402-conformance-svm` | 1 | 1 |
+| W1 | normative | sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin MUST match that origin, derived from the server's configuration, not from request headers such as Host | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
+| W2 | security-profile | sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed message signs in once | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
+| W3 | normative | sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and a present expirationTime MUST be in the future | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
+| X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | library only: `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
+| X2 | resilience | MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call | library only: `probeMcpTransport` from `x402-conformance-svm` | 1 | 2 |
 
 <!-- end generated -->
 
