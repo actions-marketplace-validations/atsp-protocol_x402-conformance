@@ -3,6 +3,11 @@
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.
+- R21, settlement preemption for caller-unbound settlement (XC-34), exported as `probePreempt`. On a Base Sepolia
+  route whose exact offer uses Permit2, a payment a third party settled first (the server's own settle answers
+  `permit2_invalid_nonce`) must not be served, and a spent payment must not be served twice. The facilitator double
+  gains a `settle_preempted` mode and answers `permit2_invalid_nonce` for a spent Permit2 payment. The control is
+  `ts/example/preempt-server.ts`; the `nonce_used_is_paid` and `serve_before_settle` builds are each caught.
 ## 1.6.0 (2026-10-24)
 - The contract: XC-48, Release 1.6.0, carries the tasks that were still open when 1.5.0 was planned and the two added
   since: R17 to R19 (XC-18), the implementation matrix (XC-19), the framework quickstarts (XC-26), docs examples run by

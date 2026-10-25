@@ -8,15 +8,15 @@ says which release added what, and [SPEC.md](SPEC.md) quotes the spec text behin
 
 <!-- generated from src/x402conf/spec.py by tools/build_coverage.py; edit RUNS there, not this block -->
 
-## Checks: 63 in the catalogue
+## Checks: 64 in the catalogue
 
 - **S**: Facilitator, `GET /supported` (S0 to S4 live; S5 offline): S0, S1, S2, S3, S4, S5 (6 checks)
 - **P**: Any paid URL's 402 answer, one unpaid GET: P1, P2, P3, P4, P5, P6, P7 (7 checks)
 - **F**: Facilitator safety, against doubles offline and on devnet: F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F13, F14 (14 checks)
-- **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R22, R23, R24 (33 checks)
+- **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R21, R22, R23, R24 (34 checks)
 - **C**: Client, through a recording proxy: C1, C2, C3 (3 checks)
 
-By profile: 32 normative (the spec says MUST), 20 security
+By profile: 32 normative (the spec says MUST), 21 security
 profile (a hardening rule the spec leaves open), 11 resilience (behaviour under failure).
 Every check has at least one control that passes and one faulty build it catches, and CI runs every one of them
 (`tests/test_offline.py`, `ts/test/`).
@@ -77,6 +77,7 @@ Every check has at least one control that passes and one faulty build it catches
 | R20 | security-profile | control: the route answers 402 with an exact offer the probe can pay | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 1 | 1 |
 | R20a | security-profile | payment-identifier: a retry with the same id and a fresh payment is not charged again | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 1 | 2 |
 | R20b | security-profile | a retry resending the same signed payment is settled once and gets the original result | `x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients | 2 | 2 |
+| R21 | security-profile | EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks the resource again | library only: `probePreempt` from `x402-conformance-svm` | 1 | 2 |
 | R22 | normative | after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15) | library only: `probeStatus` from `x402-conformance-svm` | 1 | 2 |
 | R23 | security-profile | a client that disconnects while /settle is in flight is not charged, or a resend of the same payment gets the settled result and is not charged again | library only: `probeAbort` from `x402-conformance-svm` | 1 | 2 |
 | R24 | resilience | V2 HTTP transport, Error Handling: Invalid Payment (a malformed payment payload) is 400, Payment Required and Payment Failed are 402, and Server Error (500) is for the server's own failures | library only: `probeMalformedHeader` from `x402-conformance-svm` | 1 | 3 |
