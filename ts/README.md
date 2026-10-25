@@ -8,6 +8,7 @@ is historical: it grades Base Sepolia too. The double never touches a chain, a k
 ```
 npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out results.json
 npx -y x402-conformance-svm resource --url https://your.api/paid --out answer.json   # P1-P7: one unpaid GET, any network
+npx -y x402-conformance-svm live --url https://your.api/paid --out live.json       # P1-P7, R16a, R24: 7 unpaid requests, 5 s apart
 npx -y x402-conformance-svm demo                                                     # R0-R10 against a bundled mock, no wallet
 npx -y x402-conformance-svm --help
 npx -y x402-conformance-svm --version
@@ -16,7 +17,10 @@ npx -y x402-conformance-svm --version
 `demo --fault serve_on_any_settle` shows a failing run and its fix hints. `--share` on `probe` and `resource` also writes
 an anonymised corpus case next to `--out` (or to `./x402-conformance-case.json`) and, when a check failed, prints a link
 to a pre-filled GitHub issue; nothing is sent. `X402CONF_VIA` names the entry point in the report and the User-Agent.
-`resource` and `demo` exit 0 when every check passes, 1 when one fails and 2 on a usage error.
+`resource` and `demo` exit 0 when every check passes, 1 when one fails and 2 on a usage error. `resource` and `live`
+wait at least `--min-interval` seconds (default 5) between requests to a host that is not loopback, stop before
+`--max-requests` is exceeded, log each request on stderr and record the log under `pacing` in the JSON. Run `live`
+only against a server whose operator agreed to it: it sends one `HEAD` and five malformed payment headers.
 
 | id | what the double does on `/settle` | your server must |
 |---|---|---|
@@ -97,7 +101,7 @@ them.
 | R13 | `probeReplicas(urlA, urlB, double)` | settle one payment-identifier id once across two replicas: sent to one, then the other, then both at once |
 | R15 | `probeDelivery({ error, redirect, throws }, double)` | not settle, and send no `PAYMENT-RESPONSE`, when the paid handler answers 5xx, redirects or throws |
 | R16 | `probeHead(url, double)` | not settle a paid `HEAD`: no 2xx, no `/settle` call, no `PAYMENT-RESPONSE` |
-| R16a | `probeUnpaidHead(url)` | answer an unpaid `HEAD` with the same 402 and `PAYMENT-REQUIRED` offer as `GET` |
+| R16a | `probeUnpaidHead(url)` | answer an unpaid `HEAD` with the same 402 and `PAYMENT-REQUIRED` offer as `GET`, or refuse it with 405, so it never reaches the handler |
 | R17 | `probeCacheLeak(url, double)` | mark the paid response `private` or `no-store`, or vary it on the payment header, so a shared cache in front of the route never serves the paid content to an unpaid request (RFC 9111) |
 | R18 | `probePending(url, double)` | never serve while a settlement is pending, late or unanswered, serve once after it is final, and surface the transaction on every refusal (V2 section 9) |
 | R19 | `probeFlows(url, double)` | on an `upfront` or `escrow` offer, settle before the resource executes and reject an unsupported flow (V2 section 6.1) |
@@ -107,6 +111,9 @@ them.
 | C1 | `checkClientHandles402(client, url, double)` | never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error |
 | C2 | `checkClientOfferPolicy(client, url, double, { networks, maxAmount })` | pay one of several offers on its configured networks and within its maximum, and never sign for a network outside its set |
 | C3 | `checkClientKeepsV2(client, url, double)` | pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body |
+
+C2 and C3 take `{ signsPayments: false }` for a client that has no payment path by design: if it signs nothing the
+check is `not_applicable` (N/A in reports, never a failure); if it signs anyway it is graded as usual.
 
 A client check takes your client as a function that fetches a URL, pays and returns the final `Response`. The controls
 and the faulty builds each check catches are in `example/` and `test/`, and
