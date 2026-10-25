@@ -540,3 +540,28 @@ the request, or the process, down with it.
 402 and a `PAYMENT-REQUIRED` that names the error. If your own code reads the header first (for logging or routing),
 wrap the decode and the field access in a guard and pass a malformed header on unchanged, or answer it with 400 and a
 JSON body carrying `error`.
+
+## X1
+**What failed.** Called without a payment, your paid MCP tool did not answer the way the MCP transport requires: it
+returned a JSON-RPC error instead of a tool result, `isError` was not `true`, `structuredContent` was missing or not a
+V2 `PaymentRequired` with a resource and at least one complete offer, or `content[0].text` was not the same object
+JSON-encoded.
+**Why it matters.** An MCP client looks for the offer in `structuredContent` and falls back to `content[0].text`.
+When neither carries it, the client cannot pay and the agent sees an opaque failure; a JSON-RPC error is treated as a
+protocol fault, not as a price.
+**How to fix it.** Answer an unpaid call of a paid tool with a normal tool result: `isError: true`, the
+`PaymentRequired` object (`x402Version: 2`, `resource`, `accepts`) in `structuredContent`, and
+`JSON.stringify(structuredContent)` as the text of `content[0]`. Build the object with the resource server's
+`createPaymentRequiredResponse` so its offers match what you verify against (see `ts/example/mcp-server.ts`).
+
+## X2
+**What failed.** Your paid MCP tool returned the tool's result for a payment that was not settled: the settle never
+answered, answered a broken body, was still pending, failed, or was a duplicate of a payment already settled. Or a
+settled call came back without `_meta["x402/payment-response"]` naming the transaction.
+**Why it matters.** The tool's output is what the caller pays for. Returning it when the settle failed, or before
+it ran, gives it away for nothing and lets one payment be spent again; an agent that never sees the payment response
+cannot reconcile what it was charged.
+**How to fix it.** Verify, run the tool, then settle, and return the tool's content only when the settle answered a
+well-formed success. On any other outcome, a timeout included, return the payment error alone as a tool result with
+`isError: true`, and drop the content you computed. Put the settle response in `_meta["x402/payment-response"]` on
+the result you do return (see `ts/example/mcp-server.ts`).

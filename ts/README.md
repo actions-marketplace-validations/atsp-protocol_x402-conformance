@@ -105,6 +105,8 @@ them.
 | R22 | `probeStatus(routes, double)`, each route `{ url, status, headers? }` | keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location` |
 | R23 | `probeAbort(url, double)` | not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the same payment the settled result |
 | R24 | `probeMalformedHeader(url, double)` | answer five malformed `PAYMENT-SIGNATURE` values with 402 or 400 and a structured error, never a 5xx, a dropped connection or the content |
+| X1 | `checkMcpPaymentRequired({ url, tool })` | answer an unpaid call of a paid MCP tool with a tool result: `isError: true`, the `PaymentRequired` object in `structuredContent` and the same JSON in `content[0].text` (MCP transport). Sends no payment |
+| X2 | `probeMcpTransport({ url, tool }, double)` | return a paid MCP tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate |
 | C1 | `checkClientHandles402(client, url, double)` | never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error |
 | C2 | `checkClientOfferPolicy(client, url, double, { networks, maxAmount })` | pay one of several offers on its configured networks and within its maximum, and never sign for a network outside its set |
 | C3 | `checkClientKeepsV2(client, url, double)` | pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body |

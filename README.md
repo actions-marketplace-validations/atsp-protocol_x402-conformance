@@ -153,6 +153,13 @@ Your client must:
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
 
+Your paid MCP tools (unreleased), over Streamable HTTP, must:
+- **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
+  in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
+  needs no double)
+- **X2** return the tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing
+  on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate (`probeMcpTransport`)
+
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).

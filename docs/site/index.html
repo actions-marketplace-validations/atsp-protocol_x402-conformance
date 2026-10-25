@@ -124,6 +124,7 @@ x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
 <tr><td>R22</td><td>the paid response loses the handler's 2xx status or headers: a 201 or a 202 is rewritten to 200</td></tr>
 <tr><td>R23</td><td>a client that disconnects while <code>/settle</code> is in flight is charged, and a resend of the same payment doesn't get the settled result or is charged again</td></tr>
 <tr><td>R24</td><td>a malformed <code>PAYMENT-SIGNATURE</code> (not base64, not JSON or not an object) gets a 5xx, a dropped connection or the content instead of 402 or 400</td></tr>
+<tr><td>X1, X2</td><td>a paid MCP tool's unpaid call doesn't answer <code>isError</code> with the offer in <code>structuredContent</code> and <code>content[0].text</code> (X1), or a paid call gets the tool's result when <code>/settle</code> times out, answers broken, is pending, fails or is a duplicate (X2)</td></tr>
 <tr><td>C1-C3</td><td>your client hands a 402 to its caller as a success (C1), signs an offer outside its networks or above its maximum (C2), or pays the V1 offer when the 402 also carries V2 (C3)</td></tr>
 </table>
 
