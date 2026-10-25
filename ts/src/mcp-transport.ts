@@ -13,6 +13,7 @@ import type { Double, Mode } from "./double.js";
 import { NETWORKS } from "./double.js";
 import type { Result } from "./probe.js";
 import { freshPayload } from "./retry.js";
+import { RequestBudgetExceeded } from "./pace.js";
 
 export const X1 = "X1 a paid MCP tool called without a payment answers a tool result with isError true, the "
   + "PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text";
@@ -26,6 +27,11 @@ export interface McpOptions {
   network?: string;
   /** How long one JSON-RPC request may take. A server still holding a paid call at the deadline has served nothing. */
   timeoutMs?: number;
+  /** The fetch to send with, e.g. a paced one for a live server (createPacedFetch). Defaults to the global fetch. */
+  fetch?: typeof fetch;
+  /** X1 only: false skips initialize and notifications/initialized for a server that answers tools/call without a
+   * session, so the check is one request. Defaults to true. */
+  initialize?: boolean;
 }
 
 const PROTOCOL = "2025-06-18";
@@ -44,7 +50,7 @@ export interface RpcAnswer {
 export class McpSession {
   private session: string | null = null;
   private next = 1;
-  constructor(public url: string, private timeoutMs = 15_000) {}
+  constructor(public url: string, private timeoutMs = 15_000, private fetchImpl: typeof fetch = fetch) {}
 
   private async post(body: unknown, expectAnswer: boolean): Promise<RpcAnswer> {
     const headers: Record<string, string> = { "content-type": "application/json",
@@ -52,9 +58,10 @@ export class McpSession {
     if (this.session) headers["mcp-session-id"] = this.session;
     let r: Response;
     try {
-      r = await fetch(this.url, { method: "POST", headers, body: JSON.stringify(body),
+      r = await this.fetchImpl(this.url, { method: "POST", headers, body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.timeoutMs) });
     } catch (e) {
+      if (e instanceof RequestBudgetExceeded) throw e;
       const n = (e as Error)?.name;
       return { status: 0, timedOut: n === "TimeoutError" || n === "AbortError", raw: String(e).slice(0, 300) };
     }
@@ -143,18 +150,27 @@ export function paymentRequiredProblems(a: RpcAnswer): string[] {
 
 /** Runs X1: one unpaid call of the paid tool. Sends no payment. */
 export async function checkMcpPaymentRequired(target: McpTarget, opts: McpOptions = {}): Promise<Result[]> {
-  const s = new McpSession(target.url, opts.timeoutMs ?? 15_000);
-  const init = await s.initialize();
-  if (!init.result) {
-    return [{ check: X1, pass: false, status: "fail", detail: { error: "the MCP initialize request got no result",
-      status: init.status, answer: init.error ?? init.raw } }];
+  return (await unpaidToolCall(target, opts)).results;
+}
+
+/** X1 and the unpaid answer it graded, so a caller can grade the offer in it too. */
+export async function unpaidToolCall(target: McpTarget, opts: McpOptions = {}):
+    Promise<{ results: Result[]; answer: RpcAnswer | null }> {
+  const s = new McpSession(target.url, opts.timeoutMs ?? 15_000, opts.fetch ?? fetch);
+  if (opts.initialize !== false) {
+    const init = await s.initialize();
+    if (!init.result) {
+      return { answer: null, results: [{ check: X1, pass: false, status: "fail", detail: {
+        error: "the MCP initialize request got no result", status: init.status, answer: init.error ?? init.raw } }] };
+    }
   }
   const a = await s.callTool(target.tool, target.arguments ?? {});
   const problems = paymentRequiredProblems(a);
   const pass = problems.length === 0;
-  return [{ check: X1, pass, status: pass ? "pass" : "fail", detail: { tool: target.tool, status: a.status,
-    is_error: a.result?.isError ?? null, accepts: a.result?.structuredContent?.accepts?.length ?? 0,
-    ...(pass ? {} : { error: problems.join("; "), answer: a.error ?? a.result ?? a.raw }) } }];
+  return { answer: a, results: [{ check: X1, pass, status: pass ? "pass" : "fail", detail: { tool: target.tool,
+    status: a.status, initialized: opts.initialize !== false, is_error: a.result?.isError ?? null,
+    accepts: a.result?.structuredContent?.accepts?.length ?? 0,
+    ...(pass ? {} : { error: problems.join("; "), answer: a.error ?? a.result ?? a.raw }) } }] };
 }
 
 /** The fault cases X2 runs, in order, each with a fresh payment; "duplicate" resends the reference case's payment. */
@@ -166,7 +182,7 @@ const settleCount = (d: Double) => d.calls.filter((c) => c.path === "/settle").l
 /** Runs X2 against an MCP server whose facilitator URL is the double's. */
 export async function probeMcpTransport(target: McpTarget, double: Double, opts: McpOptions = {}): Promise<Result[]> {
   const timeoutMs = opts.timeoutMs ?? 15_000;
-  const s = new McpSession(target.url, timeoutMs);
+  const s = new McpSession(target.url, timeoutMs, opts.fetch ?? fetch);
   const init = await s.initialize();
   const unpaid = init.result ? await s.callTool(target.tool, target.arguments ?? {}) : init;
   const sc = unpaid.result?.structuredContent ?? (() => {

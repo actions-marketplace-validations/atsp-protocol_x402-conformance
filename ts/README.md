@@ -9,6 +9,7 @@ is historical: it grades Base Sepolia too. The double never touches a chain, a k
 npx -y x402-conformance-svm probe --resource http://127.0.0.1:4020/paid --start "node server.js" --out results.json
 npx -y x402-conformance-svm resource --url https://your.api/paid --out answer.json   # P1-P7: one unpaid GET, any network
 npx -y x402-conformance-svm live --url https://your.api/paid --out live.json       # P1-P7, R16a, R24: 7 unpaid requests, 5 s apart
+npx -y x402-conformance-svm mcp --url https://your.api/mcp --tool <paid-tool>       # X1, P3-P5, P7: one unpaid tools/call
 npx -y x402-conformance-svm demo                                                     # R0-R10 against a bundled mock, no wallet
 npx -y x402-conformance-svm --help
 npx -y x402-conformance-svm --version
@@ -20,7 +21,9 @@ to a pre-filled GitHub issue; nothing is sent. `X402CONF_VIA` names the entry po
 `resource` and `demo` exit 0 when every check passes, 1 when one fails and 2 on a usage error. `resource` and `live`
 wait at least `--min-interval` seconds (default 5) between requests to a host that is not loopback, stop before
 `--max-requests` is exceeded, log each request on stderr and record the log under `pacing` in the JSON. Run `live`
-only against a server whose operator agreed to it: it sends one `HEAD` and five malformed payment headers.
+only against a server whose operator agreed to it: it sends one `HEAD` and five malformed payment headers. `mcp` takes
+`--tool`, `--arguments '<json>'` and `--no-initialize` (one `tools/call` without a session; 3 requests with one), and
+is paced the same way; MCP is JSON-RPC over `POST`, so the same operator rule applies.
 
 | id | what the double does on `/settle` | your server must |
 |---|---|---|

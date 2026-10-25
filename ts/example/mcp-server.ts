@@ -33,8 +33,9 @@ const TOOLS = [
   { name: "echo", description: "A free tool", inputSchema: { type: "object", properties: { text: { type: "string" } } } },
 ];
 
+/** sessionless: answer tools/call without initialize or a session id, as some hosted MCP servers do. */
 export async function startMcpServer(facilitatorUrl: string, fault: McpFault = "", network = DEVNET,
-    port = 0): Promise<McpServer> {
+    port = 0, opts: { sessionless?: boolean } = {}): Promise<McpServer> {
   const rs = new x402ResourceServer(new HTTPFacilitatorClient({ url: facilitatorUrl, timeoutMs: 3000 }));
   const evm = network === BASE_SEPOLIA;
   if (evm) rs.register(BASE_SEPOLIA, new ExactEvmScheme());
@@ -106,7 +107,7 @@ export async function startMcpServer(facilitatorUrl: string, fault: McpFault = "
       { "mcp-session-id": sid });
     }
     const sid = String(rq.headers["mcp-session-id"] ?? "");
-    if (!sessions.has(sid)) return send(404, { jsonrpc: "2.0", id: msg.id, error: { code: -32001, message: "unknown session" } });
+    if (!opts.sessionless && !sessions.has(sid)) return send(404, { jsonrpc: "2.0", id: msg.id, error: { code: -32001, message: "unknown session" } });
     if (msg.method === "tools/list") return reply({ result: { tools: TOOLS } });
     if (msg.method === "tools/call") {
       try { return reply(await callTool(msg.params)); }

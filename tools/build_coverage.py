@@ -63,6 +63,7 @@ for _i, _fn in LIB.items():
     RUNS[_i] = f"library only: `{_fn}` from `x402-conformance-svm`"
 for _i in ("R16a", "R24"):
     RUNS[_i] = f"`x402conf-svm live` (unpaid, paced), and `{LIB[_i]}` from `x402-conformance-svm`"
+RUNS["X1"] = "`x402conf-svm mcp` (one unpaid tools/call, paced), and `checkMcpPaymentRequired` from `x402-conformance-svm`"
 RUNS["P9"] = "`x402conf resource`, when the 402 carries the bazaar extension"
 RUNS["P10"] = "`x402conf resource --well-known`"
 

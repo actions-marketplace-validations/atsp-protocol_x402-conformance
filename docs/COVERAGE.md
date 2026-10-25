@@ -98,7 +98,7 @@ Every check has at least one control that passes and one faulty build it catches
 | W1 | normative | sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin MUST match that origin, derived from the server's configuration, not from request headers such as Host | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
 | W2 | security-profile | sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed message signs in once | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
 | W3 | normative | sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and a present expirationTime MUST be in the future | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
-| X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | library only: `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
+| X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | `x402conf-svm mcp` (one unpaid tools/call, paced), and `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
 | X2 | resilience | MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call | library only: `probeMcpTransport` from `x402-conformance-svm` | 1 | 2 |
 
 <!-- end generated -->
