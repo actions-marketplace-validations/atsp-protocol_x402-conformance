@@ -143,6 +143,13 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
 - **R24** answer five malformed `PAYMENT-SIGNATURE` values (not base64, not JSON or not an object) with 402 or 400 and
   a structured error, never a 5xx, a dropped connection or the content (`probeMalformedHeader`)
 
+On a paid route that declares sign-in-with-x (unreleased), your server must (`probeSiwx`):
+- **W1** check the message's `domain` and `uri` against its configured public origin, never against `Host` or
+  `X-Forwarded-Host`
+- **W2** let one signed message in once: a nonce it has seen is refused
+- **W3** refuse a message whose `issuedAt` is over five minutes old or in the future, or whose `expirationTime` has
+  passed
+
 Your client must:
 - **C1** never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error
   (`checkClientHandles402`)
