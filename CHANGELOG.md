@@ -22,6 +22,12 @@
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.
+- W1 to W3, the sign-in-with-x server rules (XC-37), exported as `probeSiwx`. After a throwaway wallet pays the route
+  through the double and signs back in (the control), W1 refuses a message signed for another site even when `Host` or
+  `X-Forwarded-Host` names it, W2 refuses the same signed message twice, and W3 refuses a stale, future or expired
+  message. The control is the shipped extension with a configured origin and a nonce-tracking storage
+  (`ts/example/siwx-server.ts`); the shipped `InMemorySIWxStorage` tracks no nonces, so on its own it fails W2. The
+  `origin_from_host`, `no_nonce_store` and `no_time_window` builds are each caught.
 - D1 and G1, discovery and A2A (XC-36), exported as `checkDiscovery` and `checkA2aMirrorsHttp`. D1 reads a
   facilitator's `/discovery/resources` and `/discovery/search` (GET only) and checks the V2 section 8 shapes, every
   item's fields, `limit` and the `network` filter; a facilitator that serves neither is unsupported. G1 sends an

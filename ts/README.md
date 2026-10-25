@@ -119,6 +119,7 @@ them.
 | C1 | `checkClientHandles402(client, url, double)` | never hand a 402 to its caller as a success: pay and get a 2xx, or reject with an error |
 | C2 | `checkClientOfferPolicy(client, url, double, { networks, maxAmount })` | pay one of several offers on its configured networks and within its maximum, and never sign for a network outside its set |
 | C3 | `checkClientKeepsV2(client, url, double)` | pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body |
+| W1-W3 | `probeSiwx(url, double)` | on a paid route that declares sign-in-with-x: check `domain` and `uri` against the configured origin, never `Host` (W1); take each nonce once (W2); refuse a stale, future or expired message (W3). Needs `@x402/extensions` and `viem` |
 
 C2 and C3 take `{ signsPayments: false }` for a client that has no payment path by design: if it signs nothing the
 check is `not_applicable` (N/A in reports, never a failure); if it signs anyway it is graded as usual.

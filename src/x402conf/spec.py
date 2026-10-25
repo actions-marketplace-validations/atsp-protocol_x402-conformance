@@ -179,6 +179,23 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
              "basis": "sign-in-with-x: access is for the requested resource the server priced and settled",
              "controls": ["ts:R11f control: a SIWX server that records the settled route passes"],
              "faulty": ["ts:R11f: a SIWX server that records the client's resource.url is caught"]},
+    "W1": {"profile": "normative",
+           "basis": "sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin "
+           "MUST match that origin, derived from the server's configuration, not from request headers such as Host",
+           "controls": ["ts:W1 control: the shipped extension with a configured origin refuses a message signed for "
+                        "another site"],
+           "faulty": ["ts:W1 catches a server that takes its sign-in-with-x origin from Host or X-Forwarded-Host"]},
+    "W2": {"profile": "security-profile",
+           "basis": "sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed "
+           "message signs in once",
+           "controls": ["ts:W2 control: a storage that tracks nonces refuses the same signed message the second time"],
+           "faulty": ["ts:W2 catches a server whose sign-in-with-x storage does not track nonces"]},
+    "W3": {"profile": "normative",
+           "basis": "sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and "
+           "a present expirationTime MUST be in the future",
+           "controls": ["ts:W3 control: the shipped validation refuses a stale or future issuedAt and an expired "
+                        "message"],
+           "faulty": ["ts:W3 catches a server that does not check issuedAt or expirationTime"]},
     "R12": {"profile": "security-profile",
             "basis": "payment-identifier: the id is an idempotency key that deduplicates requests, so parallel "
                      "requests with one id are charged once",

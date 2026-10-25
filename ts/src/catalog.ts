@@ -191,6 +191,18 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "sign-in-with-x: access is for the requested resource the server priced and settled"
  },
+ "W1": {
+  "profile": "normative",
+  "basis": "sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin MUST match that origin, derived from the server's configuration, not from request headers such as Host"
+ },
+ "W2": {
+  "profile": "security-profile",
+  "basis": "sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed message signs in once"
+ },
+ "W3": {
+  "profile": "normative",
+  "basis": "sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and a present expirationTime MUST be in the future"
+ },
  "R12": {
   "profile": "security-profile",
   "basis": "payment-identifier: the id is an idempotency key that deduplicates requests, so parallel requests with one id are charged once"

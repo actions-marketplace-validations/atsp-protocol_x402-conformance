@@ -1026,6 +1026,42 @@
    ],
    "profile": "normative"
   },
+  "W1": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'W1 catches a server that takes its sign-in-with-x origin from Host or X-Forwarded-Host' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:W1 catches a server that takes its sign-in-with-x origin from Host or X-Forwarded-Host"
+    }
+   ],
+   "profile": "normative"
+  },
+  "W2": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'W2 catches a server whose sign-in-with-x storage does not track nonces' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:W2 catches a server whose sign-in-with-x storage does not track nonces"
+    }
+   ],
+   "profile": "security-profile"
+  },
+  "W3": {
+   "caught": 1,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'W3 catches a server that does not check issuedAt or expirationTime' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:W3 catches a server that does not check issuedAt or expirationTime"
+    }
+   ],
+   "profile": "normative"
+  },
   "X1": {
    "caught": 2,
    "faults": [
@@ -1063,6 +1099,6 @@
    "profile": "resilience"
   }
  },
- "generated_from": "99e85f434197ac691d3a272a09db600c4bb8ef525034304639c5f416d4139c5f",
+ "generated_from": "80b93f832f5793ea3324a7bee9232adf0578374014b14016fd6ab5207c33b639",
  "schema": "x402-conformance.mutation-matrix/1"
 }
