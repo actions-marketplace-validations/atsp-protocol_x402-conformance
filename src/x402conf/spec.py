@@ -57,6 +57,7 @@ PROFILES: Final = ("normative", "security-profile", "resilience")
 EVIDENCE_FORMAT: Final = "x402-conformance-evidence/2"
 _LIVE = "py:tests.test_live.Live."
 _OFF = "py:tests.test_offline.Offline."
+_DISC = "py:tests.test_discovery_pacing.Discovery."
 _TS_OK = "ts:the example server passes R0-R10"
 _TS_STOCK = "ts:a stock @x402/express server with default settings passes every check"
 _TS_BIND = "ts:R11 control: the stock @x402/express server passes R11"
@@ -97,6 +98,17 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
     "P7": {"profile": "normative", "basis": "V2 6.1: extra.paymentFlow MUST be present when the resolved flow is not "
            "authorization (a warning: the upto SVM scheme spec allows omitting it)",
            "controls": [_LIVE + "test_p_all_pass_on_spec_example"], "faulty": [_LIVE + "test_p7_payment_flow_declared"]},
+    "P9": {"profile": "normative",
+           "basis": "bazaar extension, Schema Validation: schema is JSON Schema Draft 2020-12 with same-document $ref "
+                    "only, and facilitators MUST validate info against schema before cataloging",
+           "controls": [_DISC + "test_p9_example_matches_schema"],
+           "faulty": [_DISC + "test_p9_example_type_mismatch", _DISC + "test_p9_external_ref_and_missing_required"]},
+    "P10": {"profile": "resilience",
+            "basis": "draft-hawkins-x402-dns-discovery 3.2: resources are HTTPS on the manifest's own host, and a "
+                     "manifest that diverges from the live endpoint is a misconfiguration (a warning; the runtime 402 "
+                     "is authoritative)",
+            "controls": [_DISC + "test_p10_manifest_matches_live_offer"],
+            "faulty": [_DISC + "test_p10_unlisted_offsite_and_stale_terms", _DISC + "test_p10_atomic_amount_mismatch"]},
     "F1": {"profile": "normative", "basis": "V2 9 invalid_payload; V2 5.1.2 atomic units; SVM exact: fail closed",
            "controls": [_OFF + "test_reference_passes_all"], "faulty": ["fault:open_on_malformed", "fault:lenient_amounts"]},
     "F2": {"profile": "normative", "basis": "SVM exact 1.1 and V2 9: an amount below the requirement is rejected",
