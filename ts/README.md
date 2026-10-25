@@ -98,6 +98,8 @@ them.
 | R15 | `probeDelivery({ error, redirect, throws }, double)` | not settle, and send no `PAYMENT-RESPONSE`, when the paid handler answers 5xx, redirects or throws |
 | R16 | `probeHead(url, double)` | not settle a paid `HEAD`: no 2xx, no `/settle` call, no `PAYMENT-RESPONSE` |
 | R16a | `probeUnpaidHead(url)` | answer an unpaid `HEAD` with the same 402 and `PAYMENT-REQUIRED` offer as `GET` |
+| D1 | `checkDiscovery(facilitatorUrl)` | serve `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, with complete items, and honour `limit` and the `network` filter. GET only, no double |
+| G1 | `checkA2aMirrorsHttp({ a2aUrl, httpUrl })` | answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the same `accepts` as the HTTP route's 402. Sends no payment |
 | R17 | `probeCacheLeak(url, double)` | mark the paid response `private` or `no-store`, or vary it on the payment header, so a shared cache in front of the route never serves the paid content to an unpaid request (RFC 9111) |
 | R18 | `probePending(url, double)` | never serve while a settlement is pending, late or unanswered, serve once after it is final, and surface the transaction on every refusal (V2 section 9) |
 | R19 | `probeFlows(url, double)` | on an `upfront` or `escrow` offer, settle before the resource executes and reject an unsupported flow (V2 section 6.1) |

@@ -404,6 +404,29 @@ its status and headers and trigger its side effects for free.
 and `PAYMENT-REQUIRED` header as `GET` and never reaches the handler. `ts/example/head-unpaid-server.ts` shows one way
 to do it.
 
+## D1
+**What failed.** Your facilitator's discovery API did not answer in the V2 section 8 shapes: `/discovery/resources`
+lacked `x402Version`, `items` or numeric `pagination` (`limit`, `offset`, `total`), `/discovery/search` lacked
+`resources`, an item lacked `resource`, `type`, `x402Version`, a complete `accepts` entry or an ISO 8601
+`lastUpdated`, or the endpoint returned more items than `limit` or items off the requested `network`.
+**Why it matters.** Clients and marketplaces build their catalogues from these answers. A missing field or an ignored
+filter shows a buyer offers on a network they did not ask for, or prices they cannot pay, and breaks the SDK's typed
+client.
+**How to fix it.** Return the list as `{ x402Version: 2, items, pagination: { limit, offset, total } }` and search as
+`{ x402Version: 2, resources, partialResults?, pagination? }`, with every item carrying the V2 8.3 fields and each
+`accepts` entry a complete `PaymentRequirements`. Apply `limit` (1 to 100) and the `type`, `network`, `scheme` and
+`payTo` filters before you page (see `ts/example/discovery-server.ts`).
+
+## G1
+**What failed.** Your agent's A2A answer to an unpaid request did not ask for the same payment as the HTTP route it
+mirrors: the task was not `input-required` with `x402.payment.status: "payment-required"`, `x402.payment.required` was
+missing or not a V2 `PaymentRequired`, or its `accepts` differed from the route's `PAYMENT-REQUIRED` offers.
+**Why it matters.** An agent paying over A2A signs whatever the task asks for. When that differs from the HTTP price,
+the same skill costs two different amounts, and a client that checks one surface is charged on the other.
+**How to fix it.** Build both answers from one source: the same resource server and route configuration, so the A2A
+task carries the `PaymentRequired` that `createPaymentRequiredResponse` makes for the HTTP route. Put it in the status
+message's metadata, not in the text (see `ts/example/discovery-server.ts`).
+
 ## R17
 **What failed.** The probe paid your route through a shared cache on loopback, then asked for the same URL with no
 payment through the same cache, and got the paid content back, or the paid response carried no `Cache-Control:

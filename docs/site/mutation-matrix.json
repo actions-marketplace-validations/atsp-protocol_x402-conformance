@@ -54,6 +54,24 @@
    ],
    "profile": "security-profile"
   },
+  "D1": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'D1 catches a discovery API whose items lack x402Version, lastUpdated and maxTimeoutSeconds' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:D1 catches a discovery API whose items lack x402Version, lastUpdated and maxTimeoutSeconds"
+    },
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'D1 catches a discovery API that ignores limit and the network filter' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:D1 catches a discovery API that ignores limit and the network filter"
+    }
+   ],
+   "profile": "normative"
+  },
   "F1": {
    "caught": 2,
    "faults": [
@@ -239,6 +257,24 @@
     }
    ],
    "profile": "resilience"
+  },
+  "G1": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'G1 catches an A2A agent whose requirements carry a different price from the HTTP 402' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:G1 catches an A2A agent whose requirements carry a different price from the HTTP 402"
+    },
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'G1 catches an A2A agent that answers a failed task with the requirements only in text' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:G1 catches an A2A agent that answers a failed task with the requirements only in text"
+    }
+   ],
+   "profile": "security-profile"
   },
   "P1": {
    "caught": 1,
@@ -991,6 +1027,6 @@
    "profile": "resilience"
   }
  },
- "generated_from": "e56a5c7d978f7428fe69478ed5f769c73fc814a699cfb63dad249f07ea60cc4b",
+ "generated_from": "6c6a751e2cec978e8ce14717af8600573685fd5b305d63ac44c90c6d6ce88e7f",
  "schema": "x402-conformance.mutation-matrix/1"
 }

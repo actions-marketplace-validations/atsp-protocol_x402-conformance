@@ -153,6 +153,12 @@ Your client must:
 - **C3** pay with `PAYMENT-SIGNATURE` at `x402Version` 2 when the 402 also carries a V1 body, and never fall back to V1
   (`checkClientKeepsV2`)
 
+Your facilitator's discovery API and your A2A agent (unreleased) must:
+- **D1** answer `/discovery/resources` and `/discovery/search` in the V2 section 8 shapes, every item complete, and
+  honour `limit` and the `network` filter (`checkDiscovery`, GET only, no double)
+- **G1** answer an unpaid A2A `message/send` with an `input-required` task whose `x402.payment.required` asks for the
+  same offers as the HTTP route's 402 (`checkA2aMirrorsHttp`, which sends no payment)
+
 Your paid MCP tools (unreleased), over Streamable HTTP, must:
 - **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
   in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
