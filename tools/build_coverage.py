@@ -28,6 +28,7 @@ FAMILY = {
     "G": "An A2A agent's paid skill, against the HTTP route it mirrors",
     "R": "Resource server behind the facilitator double",
     "C": "Client, through a recording proxy",
+    "X": "Paid MCP tools, over the MCP transport (JSON-RPC over Streamable HTTP)",
 }
 # Where each check runs: the CLIs, the Action, the library exports and the harness (reviewed 2026-10-23).
 RUNS: dict[str, str] = {}
@@ -51,9 +52,10 @@ RUNS["R14"] = "`x402conf-svm probe --crash`, Action `crash`"
 for _i in ("R20", "R20a", "R20b"):
     RUNS[_i] = "`x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients"
 LIB = {"R12": "probeParallel", "R13": "probeReplicas", "R15": "probeDelivery", "R16": "probeHead", "R16a": "probeUnpaidHead",
-       "R17": "probeCacheLeak", "R18": "probePending", "R19": "probeFlows",
+       "R17": "probeCacheLeak", "R18": "probePending", "R19": "probeFlows", "R21": "probePreempt",
        "R22": "probeStatus", "R23": "probeAbort", "R24": "probeMalformedHeader", "C1": "checkClientHandles402",
-       "C2": "checkClientOfferPolicy", "C3": "checkClientKeepsV2"}
+       "C2": "checkClientOfferPolicy", "C3": "checkClientKeepsV2", "X1": "checkMcpPaymentRequired",
+       "X2": "probeMcpTransport"}
 for _i, _fn in LIB.items():
     RUNS[_i] = f"library only: `{_fn}` from `x402-conformance-svm`"
 
@@ -84,7 +86,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "D", "R", "G", "C") if f in fam)
+                             for f in ("S", "P", "F", "D", "R", "G", "C", "X") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 

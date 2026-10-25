@@ -122,9 +122,11 @@ x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
 <tr><td>R17</td><td>a shared cache in front of the paid route serves the paid content to an unpaid request, because the paid response was not marked <code>private</code> or <code>no-store</code> and does not vary on the payment header</td></tr>
 <tr><td>R18</td><td>content is served while a settlement is pending, late or unanswered, or served twice after it is final, or a refusal hides the transaction</td></tr>
 <tr><td>R19</td><td>on an <code>upfront</code> or <code>escrow</code> offer the resource executes before the settle, or an unsupported flow is accepted</td></tr>
+<tr><td>R21</td><td>a Permit2 payment a third party settled first is granted although the server's own settle failed, or a spent Permit2 payment is granted again</td></tr>
 <tr><td>R22</td><td>the paid response loses the handler's 2xx status or headers: a 201 or a 202 is rewritten to 200</td></tr>
 <tr><td>R23</td><td>a client that disconnects while <code>/settle</code> is in flight is charged, and a resend of the same payment doesn't get the settled result or is charged again</td></tr>
 <tr><td>R24</td><td>a malformed <code>PAYMENT-SIGNATURE</code> (not base64, not JSON or not an object) gets a 5xx, a dropped connection or the content instead of 402 or 400</td></tr>
+<tr><td>X1, X2</td><td>a paid MCP tool's unpaid call doesn't answer <code>isError</code> with the offer in <code>structuredContent</code> and <code>content[0].text</code> (X1), or a paid call gets the tool's result when <code>/settle</code> times out, answers broken, is pending, fails or is a duplicate (X2)</td></tr>
 <tr><td>C1-C3</td><td>your client hands a 402 to its caller as a success (C1), signs an offer outside its networks or above its maximum (C2), or pays the V1 offer when the 402 also carries V2 (C3)</td></tr>
 </table>
 

@@ -239,6 +239,10 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
   "profile": "security-profile",
   "basis": "a retry resending the same signed payment is settled once and gets the original result"
  },
+ "R21": {
+  "profile": "security-profile",
+  "basis": "EVM exact Permit2: the signed transfer names the x402ExactPermit2Proxy as spender, so anyone holding it can submit it first; a server grants only on a settlement it made, and a spent nonce never unlocks the resource again"
+ },
  "C3": {
   "profile": "security-profile",
   "basis": "V2 HTTP transport: PAYMENT-REQUIRED is canonical; V2 5.2.2 accepted is Required, and a V1 payload (V1 5.2.2) has none"
@@ -262,6 +266,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R22": {
   "profile": "normative",
   "basis": "after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15)"
+ },
+ "X1": {
+  "profile": "normative",
+  "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text"
+ },
+ "X2": {
+  "profile": "resilience",
+  "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call"
  }
 };
 

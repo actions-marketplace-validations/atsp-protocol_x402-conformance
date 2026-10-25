@@ -9,6 +9,17 @@
   unpaid A2A `message/send` and checks the `input-required` task asks for the same `accepts` as the HTTP route's 402.
   The controls and the `v1_items`, `ignore_filters`, `stale_price` and `not_input_required` builds are in
   `ts/example/discovery-server.ts`.
+- R21, settlement preemption for caller-unbound settlement (XC-34), exported as `probePreempt`. On a Base Sepolia
+  route whose exact offer uses Permit2, a payment a third party settled first (the server's own settle answers
+  `permit2_invalid_nonce`) must not be served, and a spent payment must not be served twice. The facilitator double
+  gains a `settle_preempted` mode and answers `permit2_invalid_nonce` for a spent Permit2 payment. The control is
+  `ts/example/preempt-server.ts`; the `nonce_used_is_paid` and `serve_before_settle` builds are each caught.
+- X1 and X2, the MCP transport checks for paid MCP tools (XC-33), exported from `x402-conformance-svm` as
+  `checkMcpPaymentRequired` and `probeMcpTransport`. X1 reads one unpaid `tools/call` and checks the payment-required
+  tool result: `isError: true`, the `PaymentRequired` object in `structuredContent` and the same JSON in
+  `content[0].text`. X2 runs the R0-R10 faults on a paid tool call: the tool's result comes back only on a final,
+  first-time settle, with `_meta["x402/payment-response"]`. The control is `ts/example/mcp-server.ts`; the
+  `text_only`, `rpc_error`, `serve_on_failure` and `result_first` builds are each caught.
 ## 1.6.0 (2026-10-24)
 - The contract: XC-48, Release 1.6.0, carries the tasks that were still open when 1.5.0 was planned and the two added
   since: R17 to R19 (XC-18), the implementation matrix (XC-19), the framework quickstarts (XC-26), docs examples run by

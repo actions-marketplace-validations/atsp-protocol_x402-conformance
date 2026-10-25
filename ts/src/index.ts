@@ -24,3 +24,6 @@ export { probePending, R18, type PendingOptions } from "./pending.js";
 export { probeFlows, R19, FLOWS, type FlowOptions } from "./flow.js";
 export { checkDiscovery, checkA2aMirrorsHttp, itemProblems, requirementProblems, D1, G1, type DiscoveryOptions,
   type A2aTarget } from "./discovery.js";
+export { probePreempt, permit2Payload, PERMIT2_PROXY, R21, type PreemptOptions } from "./preempt.js";
+export { checkMcpPaymentRequired, probeMcpTransport, paymentRequiredProblems, parseRpc, McpSession, X1, X2, X2_CASES,
+  type McpTarget, type McpOptions, type RpcAnswer } from "./mcp-transport.js";
