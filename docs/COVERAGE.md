@@ -8,7 +8,7 @@ says which release added what, and [SPEC.md](SPEC.md) quotes the spec text behin
 
 <!-- generated from src/x402conf/spec.py by tools/build_coverage.py; edit RUNS there, not this block -->
 
-## Checks: 70 in the catalogue
+## Checks: 73 in the catalogue
 
 - **S**: Facilitator, `GET /supported` (S0 to S4 live; S5 offline): S0, S1, S2, S3, S4, S5 (6 checks)
 - **P**: Any paid URL's 402 answer, one unpaid GET: P1, P2, P3, P4, P5, P6, P7, P9, P10 (9 checks)
@@ -17,9 +17,10 @@ says which release added what, and [SPEC.md](SPEC.md) quotes the spec text behin
 - **R**: Resource server behind the facilitator double: R0, R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R11a, R11b, R11c, R11d, R11e, R11f, R12, R13, R14, R15, R16, R16a, R17, R18, R19, R20, R20a, R20b, R21, R22, R23, R24 (34 checks)
 - **G**: An A2A agent's paid skill, against the HTTP route it mirrors: G1 (1 checks)
 - **C**: Client, through a recording proxy: C1, C2, C3 (3 checks)
+- **W**: Sign-in-with-x on a paid route, behind the facilitator double: W1, W2, W3 (3 checks)
 - **X**: Paid MCP tools, over the MCP transport (JSON-RPC over Streamable HTTP): X1, X2 (2 checks)
 
-By profile: 35 normative (the spec says MUST), 22 security
+By profile: 37 normative (the spec says MUST), 23 security
 profile (a hardening rule the spec leaves open), 13 resilience (behaviour under failure).
 Every check has at least one control that passes and one faulty build it catches, and CI runs every one of them
 (`tests/test_offline.py`, `ts/test/`).
@@ -94,6 +95,9 @@ Every check has at least one control that passes and one faulty build it catches
 | S3 | normative | V2 11.1 and SVM exact: Solana networks use the published CAIP-2 IDs | `x402conf live`, Action `facilitators` | 1 | 1 |
 | S4 | normative | SVM exact: extra.feePayer is the sponsor's public key | `x402conf live`, Action `facilitators` | 2 | 2 |
 | S5 | normative | V2 7.3: /supported lists the payment kinds the facilitator supports; V2 7.1: /verify answers isValid, with invalidReason when it is false | `x402conf offline` (needs `supported()` on the facilitator) | 1 | 2 |
+| W1 | normative | sign-in-with-x: domain MUST match the server's configured public origin host and the uri origin MUST match that origin, derived from the server's configuration, not from request headers such as Host | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
+| W2 | security-profile | sign-in-with-x: the nonce MUST be unique and the server SHOULD track used nonces, so one signed message signs in once | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
+| W3 | normative | sign-in-with-x: issuedAt MUST be recent (under five minutes) and MUST NOT be in the future, and a present expirationTime MUST be in the future | library only: `probeSiwx` from `x402-conformance-svm` | 1 | 1 |
 | X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | library only: `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
 | X2 | resilience | MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call | library only: `probeMcpTransport` from `x402-conformance-svm` | 1 | 2 |
 

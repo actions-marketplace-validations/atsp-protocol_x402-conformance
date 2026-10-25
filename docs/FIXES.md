@@ -347,6 +347,32 @@ hook's transport context), never `paymentPayload.resource.url`. Until a fixed `@
 `createSIWxResourceServerExtension` and replace its `onAfterSettle` hook (see `ts/example/binding-server.ts`).
 
 
+## W1
+**What failed.** Your server accepted a sign-in-with-x message signed for another site: the message's `domain` and
+`uri` named that site, and the request's `Host` or `X-Forwarded-Host` header named it too.
+**Why it matters.** A signature a wallet made to sign in somewhere else can be replayed against your server by anyone
+who controls a request header. The rule exists so a message is only good for the origin it was signed for.
+**How to fix it.** Validate `domain` and the `uri` origin against your configured public origin, the browser-visible
+URL, never against values taken from the request. With the SDK, pass `origin` to
+`createSIWxResourceServerExtension` as a constant from your configuration (see `ts/example/siwx-server.ts`).
+
+## W2
+**What failed.** The same signed sign-in-with-x message, nonce and all, signed in a second time.
+**Why it matters.** Anyone who sees the header once, in a log, a proxy or a shared terminal, can sign in as that
+wallet for as long as the message is inside its time window.
+**How to fix it.** Record each nonce when you grant access and refuse a nonce you have seen. The SDK does this when
+your storage implements both `hasUsedNonce` and `recordNonce`; the shipped `InMemorySIWxStorage` implements neither,
+so add them, or use a shared store when you run more than one instance (see `ts/example/siwx-server.ts`).
+
+## W3
+**What failed.** A sign-in-with-x message outside its time window was accepted: `issuedAt` more than five minutes old,
+`issuedAt` in the future, or `expirationTime` in the past.
+**Why it matters.** The time window is what limits how long a leaked or captured message stays usable. Without it a
+message signs in indefinitely, and a future `issuedAt` extends that further.
+**How to fix it.** Run the full message validation before you check the signature or the payment record: the SDK's
+`validateSIWxMessage` checks `issuedAt` age and future dates, `expirationTime` and `notBefore`. Don't rewrite or drop
+those fields before validating.
+
 ## R12
 **What failed.** Parallel requests that carried the same payment-identifier id, each with a fresh payment, were settled
 more than once, or a served answer did not name the one settlement.
