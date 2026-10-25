@@ -22,6 +22,12 @@
 - Seventeen open-source facilitators are listed in `docs/MATRIX.md` as self-hosted columns, each at a pinned commit, run
   on 127.0.0.1 as my own instance against public testnets; S0 to S4 run against them today. The verify-only F checks on
   Base Sepolia for these columns are the proposed task XC-51.
+- D1 and G1, discovery and A2A (XC-36), exported as `checkDiscovery` and `checkA2aMirrorsHttp`. D1 reads a
+  facilitator's `/discovery/resources` and `/discovery/search` (GET only) and checks the V2 section 8 shapes, every
+  item's fields, `limit` and the `network` filter; a facilitator that serves neither is unsupported. G1 sends an
+  unpaid A2A `message/send` and checks the `input-required` task asks for the same `accepts` as the HTTP route's 402.
+  The controls and the `v1_items`, `ignore_filters`, `stale_price` and `not_input_required` builds are in
+  `ts/example/discovery-server.ts`.
 - R21, settlement preemption for caller-unbound settlement (XC-34), exported as `probePreempt`. On a Base Sepolia
   route whose exact offer uses Permit2, a payment a third party settled first (the server's own settle answers
   `permit2_invalid_nonce`) must not be served, and a spent payment must not be served twice. The facilitator double

@@ -348,8 +348,8 @@ Built checks are the entries in `src/x402conf/spec.py` CATALOG (and `ts/src/cata
 | B1 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
 | B2 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
 | B3 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
-| D1 | planned | - | - | - | XC-36 | - | - | docs/VV.md |
-| G1 | planned | - | - | - | XC-36 | - | - | docs/VV.md |
+| D1 | built | normative | V2 8 and the bazaar extension: GET /discovery/resources returns x402Version, items and pagination (limit, offset, total), GET /discovery/search returns resources; every item has resource, type, x402Version, accepts and lastUpdated (8.3), and limit and the network filter are honoured | - | XC-36 | src/x402conf/spec.py, ts/example/discovery-server.ts, ts/src/catalog.ts, ts/src/discovery.ts, ts/src/index.ts | tests/test_offline.py, ts/test/discovery.test.ts | README.md, docs/COVERAGE.md, docs/FIXES.md, docs/SPEC.md, docs/VV.md, ts/README.md |
+| G1 | built | security-profile | A2A transport: payment required is a task in input-required with x402.payment.status payment-required and the PaymentRequired in x402.payment.required; an agent that mirrors an HTTP route asks for the same requirements as its 402 | - | XC-36 | src/x402conf/spec.py, ts/example/discovery-server.ts, ts/src/catalog.ts, ts/src/discovery.ts, ts/src/index.ts | tests/test_offline.py, ts/test/discovery.test.ts | README.md, docs/COVERAGE.md, docs/FIXES.md, docs/SPEC.md, docs/VV.md, ts/README.md |
 | U1 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
 | U2 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
 | U3 | planned | - | - | - | XC-35 | - | - | docs/VV.md |
