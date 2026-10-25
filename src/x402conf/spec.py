@@ -271,4 +271,17 @@ CATALOG: Final[dict[str, dict[str, object]]] = {
             "controls": ["ts:R22 control: a server that returns the handler status"],
             "faulty": ["ts:R22 catches a server that rewrites the paid response to 200",
                        "ts:R22 gate: a 3xx expectation is refused and nothing is paid"]},
+    "X1": {"profile": "normative",
+           "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, "
+           "the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text",
+           "controls": ["ts:X1 control: a paid tool answers isError with PaymentRequired in structuredContent and "
+                        "content[0].text"],
+           "faulty": ["ts:X1 catches a paid tool whose payment-required result has no structuredContent",
+                      "ts:X1 catches a paid tool that answers a JSON-RPC error instead of a tool result"]},
+    "X2": {"profile": "resilience",
+           "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it "
+           "returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call",
+           "controls": ["ts:X2 control: a paid tool returns its result once, only on a final first-time settle"],
+           "faulty": ["ts:X2 catches a paid tool that returns its result when the settle failed",
+                      "ts:X2 catches a paid tool that returns its result before the settle"]},
 }
