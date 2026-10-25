@@ -935,8 +935,44 @@
     }
    ],
    "profile": "normative"
+  },
+  "X1": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'X1 catches a paid tool whose payment-required result has no structuredContent' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:X1 catches a paid tool whose payment-required result has no structuredContent"
+    },
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'X1 catches a paid tool that answers a JSON-RPC error instead of a tool result' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:X1 catches a paid tool that answers a JSON-RPC error instead of a tool result"
+    }
+   ],
+   "profile": "normative"
+  },
+  "X2": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'X2 catches a paid tool that returns its result when the settle failed' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:X2 catches a paid tool that returns its result when the settle failed"
+    },
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'X2 catches a paid tool that returns its result before the settle' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:X2 catches a paid tool that returns its result before the settle"
+    }
+   ],
+   "profile": "resilience"
   }
  },
- "generated_from": "e271cbbf856f30147105aa274ffbc9995c4505f52e9dafa4f08ad982c7225771",
+ "generated_from": "884ef52a521900ad2035fff1fb7d80a3a9a6533e9e77249217338c1940c1986f",
  "schema": "x402-conformance.mutation-matrix/1"
 }
