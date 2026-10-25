@@ -163,6 +163,13 @@ A client that has no payment path by design (it hands a 402 back to its caller a
 applicable** on C2 and C3 when you pass `{ signsPayments: false }` and it signs nothing; the report lists it under
 `summary.not_applicable` and it does not fail the run.
 
+Your paid MCP tools (unreleased), over Streamable HTTP, must:
+- **X1** answer an unpaid call with a tool result, not a JSON-RPC error: `isError: true`, the `PaymentRequired` object
+  in `structuredContent` and the same JSON in `content[0].text` (`checkMcpPaymentRequired`, which sends no payment and
+  needs no double)
+- **X2** return the tool's result only on a final first-time settle, with `_meta["x402/payment-response"]`, and nothing
+  on a `/settle` timeout, a broken answer, `settlement_pending`, a failed settle or a duplicate (`probeMcpTransport`)
+
 Every result carries its **profile** (`normative`: the spec says MUST; `security-profile`: a hardening rule the spec
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).

@@ -262,6 +262,14 @@ export const CATALOG: Record<string, { profile: string; basis: string }> = {
  "R22": {
   "profile": "normative",
   "basis": "after a successful settle the client receives the handler's own 2xx status code and headers, such as Location; a 201 stays a 201 and a 202 stays a 202, never a rewritten 200; a paid 3xx is not settled (R15)"
+ },
+ "X1": {
+  "profile": "normative",
+  "basis": "MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text"
+ },
+ "X2": {
+  "profile": "resilience",
+  "basis": "MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call"
  }
 };
 

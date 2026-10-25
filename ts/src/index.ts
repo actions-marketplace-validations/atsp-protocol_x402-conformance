@@ -25,3 +25,5 @@ export { probeStatus, R22, type StatusRoute, type StatusRoutes, type StatusOptio
 export { probeCacheLeak, markedPrivate, R17, type CacheOptions } from "./cache.js";
 export { probePending, R18, type PendingOptions } from "./pending.js";
 export { probeFlows, R19, FLOWS, type FlowOptions } from "./flow.js";
+export { checkMcpPaymentRequired, probeMcpTransport, paymentRequiredProblems, parseRpc, McpSession, X1, X2, X2_CASES,
+  type McpTarget, type McpOptions, type RpcAnswer } from "./mcp-transport.js";
