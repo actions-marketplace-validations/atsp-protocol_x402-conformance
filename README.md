@@ -146,6 +146,8 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
   transaction on every refusal (`probePending`)
 - **R19** on an `upfront` or `escrow` offer, settle before the resource executes, and reject a flow it doesn't support
   (`probeFlows`)
+- **R21** on a Base Sepolia offer that uses Permit2, serve only on its own successful settle: never on a settlement a
+  third party made first with the same signature, and never a second time for a spent payment (`probePreempt`)
 - **R22** keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location`, and a
   202 stays a 202 with its `Content-Location` (`probeStatus`)
 - **R23** not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the

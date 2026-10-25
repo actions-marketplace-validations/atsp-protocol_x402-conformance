@@ -92,11 +92,11 @@ settled once and the retry must get the earlier result or a `PAYMENT-RESPONSE` n
 with no record it pays twice. `checkClientRetry(client, url, double)` grades a client's own retry the same way: it must
 resend the payment or keep the payment id.
 
-**From code only (1.5.0): R12, R13, R15, R16, R16a, R22, R23, R24 and C1 to C3, and X1 and X2 for paid MCP tools
-(unreleased).** These checks are exports of the package, not commands: the CLI, the Action, `runConformance`, the pytest
-plugin and the MCP server don't run them. Each takes the facilitator double from `startDouble()`, except
-`probeUnpaidHead` and `checkMcpPaymentRequired`, and your server or client must use the double's `url` as its
-facilitator. Each returns the same `Result[]` as `probe`, so `makeReport` and `explain` work on them.
+**From code only (1.5.0): R12, R13, R15, R16, R16a, R21, R22, R23, R24 and C1 to C3.** These checks are exports of the
+package, not commands: the CLI, the Action, `runConformance`, the pytest plugin and the MCP server don't run them. Each
+takes the facilitator double from `startDouble()`, except `probeUnpaidHead`, and your server or client must use the
+double's `url` as its facilitator. Each returns the same `Result[]` as `probe`, so `makeReport` and `explain` work on
+them.
 
 | id | export | what your server or client must do |
 |---|---|---|
@@ -108,6 +108,7 @@ facilitator. Each returns the same `Result[]` as `probe`, so `makeReport` and `e
 | R17 | `probeCacheLeak(url, double)` | mark the paid response `private` or `no-store`, or vary it on the payment header, so a shared cache in front of the route never serves the paid content to an unpaid request (RFC 9111) |
 | R18 | `probePending(url, double)` | never serve while a settlement is pending, late or unanswered, serve once after it is final, and surface the transaction on every refusal (V2 section 9) |
 | R19 | `probeFlows(url, double)` | on an `upfront` or `escrow` offer, settle before the resource executes and reject an unsupported flow (V2 section 6.1) |
+| R21 | `probePreempt(url, double)` | on a Base Sepolia Permit2 offer, serve only on its own successful settle: never on a settlement a third party made first, and never twice for a spent payment |
 | R22 | `probeStatus(routes, double)`, each route `{ url, status, headers? }` | keep the handler's 2xx status and headers on the paid response: a 201 stays a 201 with its `Location` |
 | R23 | `probeAbort(url, double)` | not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the same payment the settled result |
 | R24 | `probeMalformedHeader(url, double)` | answer five malformed `PAYMENT-SIGNATURE` values with 402 or 400 and a structured error, never a 5xx, a dropped connection or the content |
