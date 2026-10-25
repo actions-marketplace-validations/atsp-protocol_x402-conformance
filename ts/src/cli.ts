@@ -2,6 +2,8 @@
 // x402conf-svm probe --resource <url> [--port 4402] [--start "<command>"] [--network auto|<CAIP-2>] [--out file] [--share]
 // x402conf-svm resource --url <url> [--out file] [--share]   (P1-P7, one unpaid GET)
 // x402conf-svm live --url <url> [--min-interval 5] [--max-requests N] [--out file]   (P1-P7, R16a and R24, unpaid, paced)
+// x402conf-svm mcp --url <mcp endpoint> --tool <name> [--arguments JSON] [--no-initialize] [--min-interval 5]
+//                  [--max-requests N] [--out file]   (X1, P3-P5 and P7 on one unpaid tools/call, paced)
 // Starts the facilitator double on 127.0.0.1:<port>, optionally starts your resource server with
 // X402_FACILITATOR_URL pointing at it, waits for the resource to answer, runs R0-R10, and with the binding options
 // R11 (payment-to-request binding), and with --crash R14 (a crash between /settle and the response). Every result carries its profile, spec basis and fix link (evidence v2).
@@ -16,6 +18,7 @@ import { check402, checkPaymentRequired, fetch402 } from "./resource.js";
 import { createPacedFetch, DEFAULT_MIN_INTERVAL_MS, RequestBudgetExceeded, type PacedFetch } from "./pace.js";
 import { probeUnpaidHead } from "./head-unpaid.js";
 import { probeMalformedHeader } from "./header.js";
+import { checkMcpSeller } from "./mcp-seller.js";
 import { probeBinding, type BindingTargets } from "./binding.js";
 import { probeRetry } from "./retry.js";
 import { EVIDENCE_FORMAT, label } from "./catalog.js";
@@ -34,6 +37,8 @@ usage:
   x402conf-svm probe <binding options> [--port 4402] [--start "<command>"] [--out file] [--share]
   x402conf-svm resource --url <url> [--min-interval 5] [--max-requests N] [--out file] [--share]
   x402conf-svm live --url <url> [--min-interval 5] [--max-requests N] [--out file]
+  x402conf-svm mcp --url <mcp endpoint> --tool <name> [--arguments '<json>'] [--no-initialize]
+                   [--min-interval 5] [--max-requests N] [--out file]
   x402conf-svm demo [--fault ${MOCK_FAULTS.join("|")}] [--out file]
   x402conf-svm --help | --version
 
@@ -61,9 +66,15 @@ usage:
   --url       (resource) a paid URL; one unpaid GET checks its 402 answer (P1-P7), on any network
               (live) a paid URL on a server you may test: one unpaid GET (P1-P7), one unpaid HEAD (R16a) and one GET per
               malformed PAYMENT-SIGNATURE (R24, five values): 7 requests. Nothing is paid or signed
-  --min-interval  (resource, live) at least this many seconds between requests to a non-loopback target (default 5);
+              (mcp) an MCP server over Streamable HTTP, e.g. https://host/mcp: one unpaid tools/call of --tool (X1, and
+              P3-P5 and P7 on the PaymentRequired in it), after initialize unless --no-initialize. This POSTs JSON-RPC:
+              run it only against a server whose operator agreed. Nothing is paid or signed
+  --tool      (mcp) the paid tool to call
+  --arguments (mcp) the tool's arguments as a JSON object (default {})
+  --no-initialize  (mcp) call the tool without initialize, for a server that needs no session: 1 request, not 3
+  --min-interval  (resource, live, mcp) at least this many seconds between requests to a non-loopback target (default 5);
               every request is logged on stderr
-  --max-requests  (resource, live) send at most this many requests; a check that would need more is reported skipped
+  --max-requests  (resource, live, mcp) send at most this many requests; a check that would need more is reported skipped
   --share     opt-in: also write an anonymised corpus case next to --out (or ./x402-conformance-case.json) and print
               a link to a pre-filled GitHub issue. Nothing is sent; you review the case and submit it yourself.
 
@@ -74,9 +85,9 @@ exit codes: 0 all pass, 1 a check failed, 2 usage error or the run could not com
 
 const BINDING = ["cheap", "expensive", "by-method", "by-query", "param", "siwx-cheap", "siwx-expensive"];
 const FLAGS = new Set(["--resource", "--port", "--start", "--out", "--network", "--url", "--crash-kill", "--crash-restart",
-  "--min-interval", "--max-requests",
+  "--min-interval", "--max-requests", "--tool", "--arguments",
   ...BINDING.map((b) => `--${b}`)]);
-const BOOL = new Set(["--share", "--crash", "--retry"]);
+const BOOL = new Set(["--share", "--crash", "--retry", "--no-initialize"]);
 
 function bindingTargets(o: Record<string, string>): BindingTargets | string | null {
   if (!BINDING.some((b) => o[b])) return null;
@@ -95,7 +106,7 @@ class RunError extends Error {}
 function parse(argv: string[]): Record<string, string> | number {
   if (argv.includes("--help") || argv.includes("-h")) { console.log(USAGE); return 0; }
   if (argv.includes("--version") || argv.includes("-V")) { console.log(VERSION); return 0; }
-  if (argv[0] !== "probe" && argv[0] !== "resource" && argv[0] !== "live") { console.error(USAGE); return 2; }
+  if (!["probe", "resource", "live", "mcp"].includes(argv[0])) { console.error(USAGE); return 2; }
   const o: Record<string, string> = { cmd: argv[0] };
   for (let i = 1; i < argv.length; i += 2) {
     const k = argv[i], v = argv[i + 1];
@@ -113,8 +124,25 @@ function parse(argv: string[]): Record<string, string> | number {
     console.error("x402conf-svm: --max-requests must be a whole number, at least 1"); return 2;
   }
   if (o.cmd === "probe" && (o["min-interval"] || o["max-requests"])) {
-    console.error("x402conf-svm: --min-interval and --max-requests go with resource or live (probe runs on loopback)");
+    console.error("x402conf-svm: --min-interval and --max-requests go with resource, live or mcp (probe runs on loopback)");
     return 2;
+  }
+  if (o.cmd !== "mcp" && (o.tool || o.arguments || o["no-initialize"])) {
+    console.error(`x402conf-svm: --tool, --arguments and --no-initialize go with mcp\n\n${USAGE}`); return 2;
+  }
+  if (o.cmd === "mcp") {
+    if (!o.url || !o.tool || o.share || o.resource || o.start || o.port || o.network || o.crash || o.retry ||
+        o["crash-kill"] || o["crash-restart"] || BINDING.some((b) => o[b])) {
+      console.error("x402conf-svm: mcp takes --url and --tool (and optionally --arguments, --no-initialize, " +
+        `--min-interval, --max-requests, --out)\n\n${USAGE}`);
+      return 2;
+    }
+    let a: unknown;
+    try { a = JSON.parse(o.arguments ?? "{}"); } catch { a = null; }
+    if (!a || typeof a !== "object" || Array.isArray(a)) {
+      console.error("x402conf-svm: --arguments must be a JSON object"); return 2;
+    }
+    return o;
   }
   if (o.cmd === "resource" || o.cmd === "live") {
     if (o.cmd === "live" && o.share) { console.error(`x402conf-svm: live takes no --share\n\n${USAGE}`); return 2; }
@@ -226,6 +254,28 @@ async function liveMain(o: Record<string, string>): Promise<number> {
   return results.some((r) => !r.pass && r.status === "fail" && (r as any).severity !== "warning") ? 1 : 0;
 }
 
+/** mcp: one unpaid tools/call (after initialize unless --no-initialize), paced and logged; X1, then P3-P5 and P7 on
+ * the PaymentRequired in the tool result. Never pays or signs. */
+async function mcpMain(o: Record<string, string>): Promise<number> {
+  const f = pacedFetch(o);
+  const doc: Record<string, unknown> = { tool: `x402-conformance-svm ${VERSION}`, evidence: EVIDENCE_FORMAT,
+    run_at: new Date().toISOString(), target: o.url, mcp_tool: o.tool, mode: "mcp-unpaid" };
+  let results: Result[] = [];
+  const skipped: string[] = [];
+  try {
+    results = await checkMcpSeller({ url: o.url, tool: o.tool, arguments: JSON.parse(o.arguments ?? "{}") },
+      { fetch: f as typeof fetch, initialize: !o["no-initialize"] });
+  } catch (e) {
+    if (!(e instanceof RequestBudgetExceeded)) throw e;
+    skipped.push(e.message);
+  }
+  doc.checks = results.map(label);
+  doc.pacing = pacing(o, f);
+  if (skipped.length) doc.skipped = skipped;
+  finish(o, "resource-402", o.url, results, doc);
+  return results.some((r) => !r.pass && r.status === "fail" && (r as any).severity !== "warning") ? 1 : 0;
+}
+
 /** One line per check, a fix link under each failure. */
 export function table(results: Labelled[]): string {
   const lines = results.map((r) => `  ${r.pass ? "pass" : r.status === "unsupported" ? "n/a " : "FAIL"}  ${r.check}` +
@@ -278,6 +328,7 @@ async function main(): Promise<number> {
   if (typeof o === "number") return o;
   if (o.cmd === "resource") return resourceMain(o);
   if (o.cmd === "live") return liveMain(o);
+  if (o.cmd === "mcp") return mcpMain(o);
   const binding = bindingTargets(o) as BindingTargets | null;
   const resource = o.resource ?? binding?.cheap ?? binding?.byMethod ?? binding?.byQuery?.[0] ?? binding?.siwx?.cheap
     ?? binding?.parameterised?.replace("{id}", "1") ?? "";

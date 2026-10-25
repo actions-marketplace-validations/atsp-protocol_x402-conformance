@@ -89,7 +89,7 @@ Every check has at least one control that passes and one faulty build it catches
 | S3 | normative | V2 11.1 and SVM exact: Solana networks use the published CAIP-2 IDs | `x402conf live`, Action `facilitators` | 1 | 1 |
 | S4 | normative | SVM exact: extra.feePayer is the sponsor's public key | `x402conf live`, Action `facilitators` | 2 | 2 |
 | S5 | normative | V2 7.3: /supported lists the payment kinds the facilitator supports; V2 7.1: /verify answers isValid, with invalidReason when it is false | `x402conf offline` (needs `supported()` on the facilitator) | 1 | 2 |
-| X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | library only: `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
+| X1 | normative | MCP transport: a paid tool called without a payment MUST answer a tool result with isError true, the PaymentRequired object in structuredContent and the same object JSON-encoded in content[0].text | `x402conf-svm mcp` (one unpaid tools/call, paced), and `checkMcpPaymentRequired` from `x402-conformance-svm` | 1 | 2 |
 | X2 | resilience | MCP transport: the server verifies, runs the tool and settles, and when the settle fails it returns only the payment error, never the tool's content; the R0-R10 faults on a paid tool call | library only: `probeMcpTransport` from `x402-conformance-svm` | 1 | 2 |
 
 <!-- end generated -->
