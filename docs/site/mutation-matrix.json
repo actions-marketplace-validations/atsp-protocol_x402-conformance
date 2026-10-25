@@ -696,6 +696,24 @@
    ],
    "profile": "security-profile"
   },
+  "R21": {
+   "caught": 2,
+   "faults": [
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'R21 catches a server that reads a spent Permit2 nonce as paid' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:R21 catches a server that reads a spent Permit2 nonce as paid"
+    },
+    {
+     "caught": true,
+     "how": "a TypeScript test titled 'R21 catches a server that serves a Permit2 payment before its settle' exists under ts/test/ (run by the ts CI job)",
+     "kind": "ts",
+     "ref": "ts:R21 catches a server that serves a Permit2 payment before its settle"
+    }
+   ],
+   "profile": "security-profile"
+  },
   "R22": {
    "caught": 2,
    "faults": [
@@ -1009,6 +1027,6 @@
    "profile": "resilience"
   }
  },
- "generated_from": "b3e6c773313949d685d433d585dc1b3183274f22dc030177e1954a1adfb90f96",
+ "generated_from": "5bb62fa5a24bf2dfc07aa34bd9f02a39ecc2327e78c203d570037672b61927bf",
  "schema": "x402-conformance.mutation-matrix/1"
 }

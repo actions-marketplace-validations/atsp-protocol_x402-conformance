@@ -489,6 +489,19 @@ paid result is lost. A client that re-signs with no key leaves a server nothing 
 logical request and append it in `onBeforePaymentCreation` (`appendPaymentIdentifierToExtensions`), or resend the
 same `PAYMENT-SIGNATURE` on retry.
 
+## R21
+**What failed.** A Permit2 payment was granted although your server's own settle failed because a third party had
+already submitted the signed transfer (the facilitator answered `permit2_invalid_nonce`), or a Permit2 payment that
+was already spent unlocked the resource a second time, or the content went out before the settle answered.
+**Why it matters.** In the exact scheme's Permit2 method the signature names the `x402ExactPermit2Proxy` as spender,
+not your facilitator, so anyone who sees the payment can settle it. The funds still reach `payTo`, but your server
+did not make that settlement and cannot tell whose request it paid for. A server that reads a spent nonce as "already
+paid" lets one payment, or someone else's, unlock the resource as often as it is presented.
+**How to fix it.** Serve only when your own `/settle` answered success, and refuse anything else with the
+facilitator's reason, `permit2_invalid_nonce` included. If you want a resent payment to get the result it paid for,
+replay it from your own record of that grant (the same transaction in `PAYMENT-RESPONSE`), never from a failed settle.
+Settle before you serve (see `ts/example/preempt-server.ts`).
+
 ## C3
 **What failed.** The 402 offered V2 (the `PAYMENT-REQUIRED` header) and V1 (a V1 JSON body for the same offer), and the
 client paid the V1 offer: with an `X-PAYMENT` header, or with a payment at `x402Version` 1. Or it never paid.
