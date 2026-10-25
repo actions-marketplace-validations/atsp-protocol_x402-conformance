@@ -282,6 +282,7 @@ class Offline(unittest.TestCase):
         emitted |= {"R24"}
         emitted |= {"R22"}
         emitted |= {"R17", "R18", "R19"}
+        emitted |= {"W1", "W2", "W3"}
         emitted |= {"D1", "G1"}
         emitted |= {"R21"}
         emitted |= {"X1", "X2"}

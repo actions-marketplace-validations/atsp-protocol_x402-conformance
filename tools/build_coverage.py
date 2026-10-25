@@ -23,6 +23,7 @@ END = "<!-- end generated -->"
 FAMILY = {
     "S": "Facilitator, `GET /supported` (S0 to S4 live; S5 offline)",
     "P": "Any paid URL's 402 answer, one unpaid GET",
+    "W": "Sign-in-with-x on a paid route, behind the facilitator double",
     "F": "Facilitator safety, against doubles offline and on devnet",
     "D": "A facilitator's discovery API (Bazaar), GET only",
     "G": "An A2A agent's paid skill, against the HTTP route it mirrors",
@@ -49,6 +50,8 @@ for _i in ("R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"):
 for _i in ("R11", "R11a", "R11b", "R11c", "R11d", "R11e", "R11f"):
     RUNS[_i] = "`x402conf-svm probe` with the binding flags, Action `binding-*`"
 RUNS["R14"] = "`x402conf-svm probe --crash`, Action `crash`"
+for _i in ("W1", "W2", "W3"):
+    RUNS[_i] = "library only: `probeSiwx` from `x402-conformance-svm`"
 for _i in ("R20", "R20a", "R20b"):
     RUNS[_i] = "`x402conf-svm probe --retry`, Action `retry`; `checkClientRetry` for clients"
 LIB = {"R12": "probeParallel", "R13": "probeReplicas", "R15": "probeDelivery", "R16": "probeHead", "R16a": "probeUnpaidHead",
@@ -86,7 +89,7 @@ def render(root: str) -> str:
     for i in ids:
         fam.setdefault(key(i)[0], []).append(i)
     family_lines = "\n".join(f"- **{f}**: {FAMILY[f]}: {', '.join(fam[f])} ({len(fam[f])} checks)"
-                             for f in ("S", "P", "F", "D", "R", "G", "C", "X") if f in fam)
+                             for f in ("S", "P", "F", "D", "R", "G", "C", "W", "X") if f in fam)
     by_profile = {p: [i for i in ids if cat[i]["profile"] == p] for p in ("normative", "security-profile", "resilience")}
     return f"""{BEGIN}
 
