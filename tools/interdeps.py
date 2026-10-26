@@ -299,7 +299,10 @@ COMPONENTS: list[tuple[str, str, tuple[str, ...], str]] = [
     ("evidence", "data", ("evidence/**",), "hashed evidence from live and devnet runs"),
     ("impl-matrix", "code", (".github/workflows/impl-matrix.yml",),
      "the implementation matrix workflow: the probe against stock servers at pinned versions, one job per evidence row"),
-    ("compat-matrix", "code", ("tools/compat_matrix.py", ".github/workflows/compat-matrix.yml"),
+    ("compat-matrix", "code", ("tools/compat_matrix.py", "tools/row_from_evidence.py", ".github/workflows/compat-matrix.yml",
+                       "tools/matrix_rows.py", "matrix/**", ".github/workflows/matrix-row.yml",
+                       "tools/matrix_freshness.py", ".github/workflows/matrix-freshness.yml",
+                       "tools/run_queue.py", ".github/workflows/run-queue.yml", "tools/attestation.py"),
      "the compatibility matrix: docs/compat-matrix.json and the table in docs/MATRIX.md, generated from the "
      "implementation-matrix runs and rebuilt on a schedule"),
     ("readme", "doc", ("README.md", "RELEASES.md"), "the project README and the release map"),
@@ -308,7 +311,8 @@ COMPONENTS: list[tuple[str, str, tuple[str, ...], str]] = [
     ("community", "doc", ("CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md", ".github/ISSUE_TEMPLATE/**",
                           ".github/pull_request_template.md", ".github/CODEOWNERS"),
      "contributing, conduct, security and templates"),
-    ("legal", "doc", ("LICENSE", "NOTICE"), "the licence and notice"),
+    ("legal", "doc", ("LICENSE", "NOTICE", "DATA-LICENSE", "CITATION.cff"),
+     "the code licence and notice, the CC BY 4.0 data licence for public results, and the citation file"),
     ("ci", "gate", (".github/workflows/ci.yml", ".github/truedone.yml", ".gitignore"),
      "CI: lint, tests, Lean, the TS and MCP builds, V&V, red-green and this map"),
 ]
