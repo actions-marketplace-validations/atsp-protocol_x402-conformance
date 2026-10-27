@@ -22,7 +22,7 @@ Release map: [RELEASES.md](RELEASES.md). What the suite covers, check by check: 
 How the project is run: [GOVERNANCE.md](GOVERNANCE.md).
 
 <!-- docs-aligned:counts -->
-The catalogue has 82 checks in 11 families: 41 normative, 26 security profile and 15 resilience ([docs/COVERAGE.md](docs/COVERAGE.md)). The contract, `proofline.json`, has 109 tasks and 766 acceptance criteria; 46 tasks are claimed done, and CI holds each of them to every criterion ([docs/VV.md](docs/VV.md)).
+The catalogue has 83 checks in 11 families: 41 normative, 27 security profile and 15 resilience ([docs/COVERAGE.md](docs/COVERAGE.md)). The contract, `proofline.json`, has 110 tasks and 777 acceptance criteria; 49 tasks are claimed done, and CI holds each of them to every criterion ([docs/VV.md](docs/VV.md)).
 <!-- /docs-aligned:counts -->
 
 ## 60-second quickstart
@@ -102,8 +102,8 @@ report everywhere. Failures you choose to share build the public
 
 Live targets are paced: at least 5 s between requests to a non-loopback host (`--min-interval`), an optional cap on the
 whole run (`--max-requests`), and one line per request on stderr. `x402conf-svm live --url <paid-url>` adds R16a and
-R24 to P1-P7 against a server you may test, unpaid, in 7 requests; `x402conf resource --malformed-header --unpaid-head`
-does the same in Python. HEAD is not a GET, so off loopback R16a runs only with `--operator-permission <ref>` (the
+R24 to P1-P7 against a server you may test, unpaid, in 16 requests (28 when the route advertises both V1 and V2);
+`x402conf resource --malformed-header --unpaid-head` does the same in Python with R24's original five values, in 7. HEAD is not a GET, so off loopback R16a runs only with `--operator-permission <ref>` (the
 operator's written permission) and is skipped without it. `x402conf-svm mcp --url <mcp-endpoint> --tool <name>`
 calls a paid MCP tool once, unpaid, and grades X1 and P3-P5 and P7 on the offer in its result (`--no-initialize` for a
 server that needs no session: one request).
@@ -159,8 +159,10 @@ to each check ([docs/USING.md](docs/USING.md#checks-you-call-from-code) has an e
   202 stays a 202 with its `Content-Location` (`probeStatus`)
 - **R23** not charge a client that disconnects while `/settle` is in flight, or charge it once and give a resend of the
   same payment the settled result (`probeAbort`)
-- **R24** answer five malformed `PAYMENT-SIGNATURE` values (not base64, not JSON or not an object) with 402 or 400 and
-  a structured error, never a 5xx, a dropped connection or the content (`probeMalformedHeader`)
+- **R24** answer twelve malformed payment header values (not base64, not JSON, not an object, JSON `null`, `true` or
+  `false`, an empty object, an object with null members, empty or blank), sent in the header the route advertises
+  (`PAYMENT-SIGNATURE`, the V1 `X-PAYMENT` or both), with 402 or 400 and a structured error, never a 5xx, a dropped
+  connection, the content or a facilitator call, and keep answering the unpaid request with 402 (`probeMalformedHeader`)
 
 On a paid route that declares sign-in-with-x (unreleased), your server must (`probeSiwx`):
 - **W1** check the message's `domain` and `uri` against its configured public origin, never against `Host` or
@@ -207,14 +209,16 @@ Every result carries its **profile** (`normative`: the spec says MUST; `security
 leaves open; `resilience`: behaviour under failure), its spec **basis** and a **fix** link (results format
 `x402-conformance-evidence/2`).
 
-**Safety suite (`x402conf offline` and `devnet`, F1-F16 and S5):** a malformed payment accepted (F1), an underpayment
+**Safety suite (`x402conf offline` and `devnet`, F1-F16, F14a and S5):** a malformed payment accepted (F1), an underpayment
 accepted (F2), a payment settled twice (F3), a memo or nonce replayed (F4), success before confirmation, or
 `settlement_pending` without a transaction and network (F5), a timeout or garbage answer credited (F6), a pending
 payment never finalised or credited twice (F7), a failure stuck pending (F8), a broken `/settle` transport credited
 (F9), a payment accepted under requirements it wasn't made for (F10), `/verify` committing payment state (F11),
 `/verify` accepting, or refusing without a reason, a payment on a network the facilitator doesn't advertise or in an
 asset with no token contract (F12), a payment in a different asset at the quoted amount and recipient accepted (F13), a
-payment authorized for another network accepted when amount, recipient and asset match (F14), and a facilitator whose
+payment authorized for another network accepted when amount, recipient and asset match (F14), an EIP-3009 signature
+over an EIP-712 domain without `chainId` replayed from one network onto another and accepted (F14a, a real signature
+from a throwaway key generated per run), and a facilitator whose
 `/supported` lists no kinds, or a listed kind that `/verify` answers with an exception or with `isValid: false` and no
 `invalidReason` (S5). F13 and F14 are new in 1.6.0, F12 and S5 in 1.5.0. `offline` runs them against built-in doubles:
 it's a self-test of the suite and doesn't test your code. `devnet` runs F1-F6 over real `/verify` and `/settle` on
@@ -248,7 +252,7 @@ Pin `x402-conformance==1.6.0`, `x402-conformance-svm@1.6.0` or the Action at `@v
 x402conf demo [--fault no_fee_payer|no_402] [--dir DIR] # a bundled mock on loopback, then the self-test
 x402conf live https://x402.org/facilitator             # S0-S4, GET /supported only
 x402conf resource https://api.example.com/paid         # P1-P7, one unpaid GET
-x402conf offline                                       # F1-F16 and S5 self-test against the built-in doubles
+x402conf offline                                       # F1-F16, F14a and S5 self-test against the built-in doubles
 x402conf report --dir DIR --sarif out.sarif --junit junit.xml --badge badge.json
 x402conf pr-comment DIR/pr-comment.md                  # sticky PR comment (GITHUB_TOKEN, in a pull_request run)
 x402conf devnet --faults --keys DIR                    # F1-F6 over real /verify and /settle on Solana devnet
