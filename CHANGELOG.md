@@ -1,5 +1,12 @@
 # Changelog
 ## Unreleased
+- F14a, a facilitator check in the offline suite (task XC-123). A throwaway key, generated for each run and
+  never funded, signs a real EIP-3009 `TransferWithAuthorization` over an EIP-712 domain with `chainId` omitted on
+  `eip155:84532`; the same signature is replayed on `eip155:11155111` at the same token address, amount and recipient,
+  and `/verify` and `/settle` must both reject it. A control signed over a domain bound to the first network's
+  `chainId` must verify and settle there. The faulty `chainless_domain` double accepts a domain without `chainId` and
+  is caught. Signing is plain Python (`x402conf.eip712`: Keccak-256, secp256k1 with RFC 6979 nonces), so the package
+  still has no dependencies. This closes the gap F14 left open, which needed a live signature.
 - The vv job runs in six shards (task XC-125). It had reached its 30-minute limit: main's strict runs took 23.6 to 28.1 minutes, and pull-request runs were cancelled at 30.2 to 30.6. `tools/vv.py verify --shard I/N` verifies the tasks at positions I modulo N, and `tools/vv.py merge` combines the shard receipts into one verdict that fails closed on a missing, duplicated, inconsistent, edited or failed shard. CI runs the shards as the `vv-shard` matrix, 20 minutes each at most, and the job named `vv` merges them. No timeout was raised and every criterion still runs.
 - The live pacing test derives its request count (task XC-124). `ts/test/pace.test.ts` no longer asserts that `x402conf-svm live` sends exactly 7 requests: it expects 2 (the shared unpaid GET and R16a's HEAD) plus R24's own requests, read from the run, so it holds when R24 sends more. It reads the report from `--out` and waits for the process to close, because the CLI exits right after printing and a piped stdout can be cut at 8192 bytes on macOS.
 - F15, F16 and C4 (task XC-58). F15: a non-object, empty-object or authorization-less `/verify` body is `invalid_payload` (HTTP 400 or `isValid: false`), never an HTTP 5xx. F16: a facilitator registered for one testnet rejects a different testnet in the same family with `invalid_network` or `unsupported_scheme`, and a family wildcard is caught. C4: a client that resumes a settled job reuses that result and does not sign again. Fix sections are in [docs/FIXES.md](docs/FIXES.md#f15). The parity vector file for F15 and F16 is XC-56 and is not in this change.
